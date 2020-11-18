@@ -64,7 +64,7 @@ Both of these polygons are meaningful to the data sources they are used with, bu
 
 
 
-```{r, fig.align='center'}
+```{r, fig.align='center', fig.height=8, fig.width=8}
 
 
 ####  Data  ####
