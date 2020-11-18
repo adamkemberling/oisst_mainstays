@@ -1,7 +1,7 @@
 ---
 title: "Gulf of Maine Report"
 author: "Adam A. Kemberling"
-date: "`r Sys.Date()`"
+date: "Updated on: `r Sys.Date()`"
 output: 
   html_document:
     toc: TRUE
@@ -153,12 +153,12 @@ survey_p <- ggplot() +
 # From: adamkemberling/continuous_plankton_recorder 
 # CPR Extent
 cpr_extent <- tribble(
-  ~"lon",      ~"lat",
-  -70.000000,	42.200000, 
-  -66.600000,	42.200000, 
-  -66.600000,	43.800000, 
-  -70.000000,	43.800000, 
-  -70.000000,	42.200000
+  ~"lon", ~"lat",
+  -70.0,	42.2, 
+  -66.6,	42.2, 
+  -66.6,	43.8, 
+  -70.0,	43.8, 
+  -70.0,	42.2
 ) %>% 
   as.matrix() %>% 
   list() %>% 
@@ -324,6 +324,8 @@ Heatwave timelines can be interactively plotted using {ggplot2} for static plots
 
 #### Interactive Plot
 
+For anything we wish to host on the web there is an option to display tables and graphs that are interactive. The {plotly} package is one-such tool for producing plots that allow users to pan, zoom, and highlight discrete observations.
+
 ```{r}
 # Helper function
 plotly_mhw_plots <- function(data){
@@ -404,6 +406,8 @@ gom_heatwaves %>%
 
 #### Static Plot
 
+In most cases a static image will suffice, in  which case {ggplot2} is a familiar go-to.
+
 ```{r}
 
 color_vals <- c(
@@ -435,6 +439,11 @@ gom_heatwaves %>%
 
 
 #### Warming Trends {.tabset .tabset-pills}
+
+Regional warming trends below were calculated using annual averages, and consequently the model parameters reflect annual increases in sea surface temperature.
+
+**NOTE:** The trends produced below use OISST data clipped from the global extent using the "NELME" shapefile that includes Georges Bank and the Bay of Fundy.
+
 
 Things to add:   
  * Global Trends (grey)   
@@ -506,6 +515,8 @@ seasonal_summary %>%
 
 #### Heatwave Events
 
+As mentioned above heatwave events were determined using the methods of Hobday et al. 2016 and implemented using {heatwaveR} with a 90% threshold. The region used is again that same "NELME" Gulf of Maine region, the bottom right panel of the maps at the beginning of the document.
+
 ```{r}
 
 # prep the legend title
@@ -552,7 +563,7 @@ ggplot(grid_data, aes(x = flat_date, y = year)) +
 
 ## Anomaly Maps {.tabset .tabset-pills}
 
-For demonstration purposes I will use 2020 anomaly data.
+For demonstration purposes I will only be loading the 2020 global anomaly data for the below images.
 
 ```{r}
 
@@ -570,7 +581,7 @@ anoms_2020 <- stack(anom_path)
 
 ### Mean Global
 
-The following code will subset the anomalies for July and plot them:
+The following code will subset the anomalies for July and plot the average sea surface temperature anomalies for that month:
 
 ```{r}
 # Get the mean temperature anomalies for July
@@ -619,55 +630,17 @@ ggplot() +
                                  frame.colour = "black", 
                                  ticks.colour = "black"))
   
-
-
-
-# ####  NOTE: having trouble projecting to either robinson or equal earth projections for some resson  ####
-# # Solved : Tranformation vs. Warping https://r-spatial.github.io/stars/articles/stars5.html
-# 
-# # robinson projection
-# robinson_proj <- "+proj=robin"
-# 
-# # equal earth projection - not working, don't think sf has functionality for it yet
-# eqearth_proj <- "+proj=eqearth"
-# 
-# # warp to equal robinson or earth projection
-# robinson_grid <- july_st %>% 
-#   st_transform(robinson_proj) %>% 
-#   st_bbox() %>%
-#   st_as_stars()
-# july_robinson <- july_st %>% 
-#   st_warp(robinson_grid) 
-# 
-# 
-# 
-# # Plot - issues with land masses not matching raster
-# ggplot() +
-#   geom_stars(data = july_robinson) +
-#   geom_sf(data = st_transform(world, robinson_proj), fill = "gray90") +
-#   scale_fill_gradient2(low = "blue",
-#                        mid = "white",
-#                        high = "red") +
-#   map_theme +
-#   coord_sf(expand = FALSE) +
-#   guides("fill" = guide_colorbar(title = "Average Sea Surface Temperature Anomaly",
-#                                  title.position = "top", 
-#                                  title.hjust = 0.5,
-#                                  barwidth = unit(4, "in"), 
-#                                  frame.colour = "black", 
-#                                  ticks.colour = "black"))
-
 ```
 
 
 ### GoM
 
-Using the July average sst anomaly we can then clip down to the Gulf of Maine for an aerial view of the region:
+Using the July average sst anomaly we can then clip down to the Gulf of Maine for an aerial view of the region. For this execution I will be using a general extent for a demonstration of how that can be done.
 
 ```{r}
 
 # Clip Raster - Convert to stars
-gom_ras <- crop(rotate(july_avg), extent(-77, -60, 35, 46))
+gom_ras <- crop(rotate(july_avg), extent(-73, -64, 40, 46))
 gom_st <- st_as_stars(gom_ras)
 
 # Get crop bounds for coord_sf
@@ -691,51 +664,58 @@ ggplot() +
     ticks.colour = "black"))
 
 
+
+
+
+####  BONUS: Projecting to Albers Equal Area Projection  ####
 ####  Albers Projection - Working  ####
-# albers equal area: centered on -70 degrees
-# The settings for lat_1 and lat_2 are the locations at which the cone intersects the earth, so distortion is minimized at those latitudes
-alb_70 <- "+proj=aea +lat_1=30 +lat_2=50 +lon_0=-70"
 
 
-# # Projecting a raster - results in curvilinear grid - not plottable in ggplot
-# gom_alb <- st_transform(gom_st, st_crs(alb_70))
-# plot(gom_alb)
 
-
-# warping instead of transforming:
-# create regular grid in new coordinate reference system
-# then warp values over
-newgrid <- gom_st %>% 
-  st_transform(alb_70) %>% 
-  st_bbox() %>%
-  st_as_stars()
-gom_alb <- gom_st %>% 
-  st_warp(newgrid) 
-
-# transform polygons because we will use them again
-ne_alb <- st_transform(new_england, alb_70)
-can_alb <- st_transform(canada, alb_70)
-world_alb <- st_transform(world, alb_70)
-
-# Crop bounds using albers projection
-crop_x <- st_bbox(gom_alb)[c(1,3)] 
-crop_y <- st_bbox(gom_alb)[c(2,4)]
-
-
-gom_albers_plot <- ggplot() +
-  geom_stars(data = gom_alb) +
-  geom_sf(data = ne_alb, fill = "gray90") +
-  geom_sf(data = can_alb, fill = "gray90") +
-  scale_fill_gradient2(low = "blue", mid = "white", high = "red", na.value = "transparent") +
-  map_theme +
-  coord_sf(crs = alb_70, xlim = crop_x, ylim = crop_y, expand = T) +
-  guides("fill" = guide_colorbar(
-    title = "Average Sea Surface Temperature Anomaly",
-    title.position = "top", 
-    title.hjust = 0.5,
-    barwidth = unit(4, "in"), 
-    frame.colour = "black", 
-    ticks.colour = "black"))
+# # albers equal area: centered on -70 degrees
+# # The settings for lat_1 and lat_2 are the locations at which the cone intersects the earth, so distortion is minimized at those latitudes
+# alb_70 <- "+proj=aea +lat_1=30 +lat_2=50 +lon_0=-70"
+# 
+# 
+# # # Projecting a raster - results in curvilinear grid - not plottable in ggplot
+# # gom_alb <- st_transform(gom_st, st_crs(alb_70))
+# # plot(gom_alb)
+# 
+# 
+# # warping instead of transforming:
+# # create regular grid in new coordinate reference system
+# # then warp values over
+# newgrid <- gom_st %>% 
+#   st_transform(alb_70) %>% 
+#   st_bbox() %>%
+#   st_as_stars()
+# gom_alb <- gom_st %>% 
+#   st_warp(newgrid) 
+# 
+# # transform polygons because we will use them again
+# ne_alb <- st_transform(new_england, alb_70)
+# can_alb <- st_transform(canada, alb_70)
+# world_alb <- st_transform(world, alb_70)
+# 
+# # Crop bounds using albers projection
+# crop_x <- st_bbox(gom_alb)[c(1,3)] 
+# crop_y <- st_bbox(gom_alb)[c(2,4)]
+# 
+# 
+# gom_albers_plot <- ggplot() +
+#   geom_stars(data = gom_alb) +
+#   geom_sf(data = ne_alb, fill = "gray90") +
+#   geom_sf(data = can_alb, fill = "gray90") +
+#   scale_fill_gradient2(low = "blue", mid = "white", high = "red", na.value = "transparent") +
+#   map_theme +
+#   coord_sf(crs = alb_70, xlim = crop_x, ylim = crop_y, expand = T) +
+#   guides("fill" = guide_colorbar(
+#     title = "Average Sea Surface Temperature Anomaly",
+#     title.position = "top", 
+#     title.hjust = 0.5,
+#     barwidth = unit(4, "in"), 
+#     frame.colour = "black", 
+#     ticks.colour = "black"))
  
 
 
@@ -749,7 +729,13 @@ Andy's changes:
 
  > I’d suggest we move the southern extent down to at least Long Island, and we may want to move the eastern bound a bit further to pick up the southern part of E Greenland (~over to 40 W long).
 
+
+
+This custom region is a good showcase of how something that is "rectangular" by its lat/lon dimensions that has its shape change to when projected onto a non-flat surface of the earth. To get the OISST anomalies curved the originals were cropped using the corner ccoordinates of the extent plotted above. The raster was then warped into a regular grid in the stereographic projection displayed below.
+
 ```{r}
+
+# Create a general extent to use for the area
 nw_extent <- tribble(
   ~"lon",  ~"lat",
   -73,	40.5, 
@@ -772,35 +758,10 @@ canada_north        <- st_transform(canada, stereographic_north)
 newengland_north    <- st_transform(new_england, stereographic_north)
 greenland_north     <- st_transform(greenland, stereographic_north)
 
-# coord_sf Crop bounds in projection units
+# coord_sf Crop bounds in projection units for coord_sf
 crop_x <- st_bbox(nw_north)[c(1,3)] 
 crop_y <- st_bbox(nw_north)[c(2,4)]
 
-
-# Plot the extent in the projection we made
-ggplot() +
-  geom_sf(data = nw_north, aes(fill = area), alpha = 0.3) +
-  geom_sf(data = newengland_north, fill = "gray90") +
-  geom_sf(data = canada_north, fill = "gray90") +
-  geom_sf(data = greenland_north, fill = "gray90") +
-  coord_sf(crs = stereographic_north, xlim = crop_x, ylim = crop_y, expand = T) +
-  guides("fill" = guide_legend(title = "")) +
-  theme(
-    panel.border = element_rect(color = "black", fill = NA),
-    plot.background = element_rect(color = "transparent", fill = "transparent"),
-    axis.title.x = element_blank(), # turn off titles
-    axis.title.y = element_blank(),
-    legend.position = "bottom", 
-    legend.title.align = 0.5)
-
-
-```
-
-### NW Atlantic OISST
-
-Pretty good showcase of how something that is "rectangular" by its lat/lon dimensions that has its shape change to when projected onto a non-flat surface of the earth. To get the OISST anomalies curved the originals were cropped using the corner ccoordinates of the extent plotted above. The raster was then warped into a regular grid in the stereographic projection displayed below.
-
-```{r}
 # Clip Raster - Convert to stars
 nw_ras <- crop(rotate(july_avg), extent(-73, -40, 40.5, 70))
 nw_st <- st_as_stars(nw_ras)
@@ -814,7 +775,7 @@ nw_stereo_ras <- nw_st %>%
   st_warp(north_grid) 
 
 
-# Plot with the Rest
+# Plot everything together
 ggplot() +
   geom_stars(data = nw_stereo_ras) +
   geom_sf(data = nw_north, color = "black", fill = "transparent", linetype = 2) +
