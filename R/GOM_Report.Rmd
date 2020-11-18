@@ -670,7 +670,7 @@ Using the July average sst anomaly we can then clip down to the Gulf of Maine fo
 gom_ras <- crop(rotate(july_avg), extent(-77, -60, 35, 46))
 gom_st <- st_as_stars(gom_ras)
 
-# Crop bounds 
+# Get crop bounds for coord_sf
 crop_x <- st_bbox(gom_st)[c(1,3)] 
 crop_y <- st_bbox(gom_st)[c(2,4)]
 
@@ -746,7 +746,8 @@ gom_albers_plot <- ggplot() +
 I was not able to locate a shapefile for the Northwest Atlantic Region so I'm going to eyeball it for now off the image in the word doc. Good practice for making masks or shapes programmatically.
 
 Andy's changes:   
-> I’d suggest we move the southern extent down to at least Long Island, and we may want to move the eastern bound a bit further to pick up the southern part of E Greenland (~over to 40 W long).
+
+ > I’d suggest we move the southern extent down to at least Long Island, and we may want to move the eastern bound a bit further to pick up the southern part of E Greenland (~over to 40 W long).
 
 ```{r}
 nw_extent <- tribble(
@@ -776,7 +777,7 @@ crop_x <- st_bbox(nw_north)[c(1,3)]
 crop_y <- st_bbox(nw_north)[c(2,4)]
 
 
-
+# Plot the extent in the projection we made
 ggplot() +
   geom_sf(data = nw_north, aes(fill = area), alpha = 0.3) +
   geom_sf(data = newengland_north, fill = "gray90") +
@@ -797,8 +798,47 @@ ggplot() +
 
 ### NW Atlantic OISST
 
-```{r}
+Pretty good showcase of how something that is "rectangular" by its lat/lon dimensions that has its shape change to when projected onto a non-flat surface of the earth. To get the OISST anomalies curved the originals were cropped using the corner ccoordinates of the extent plotted above. The raster was then warped into a regular grid in the stereographic projection displayed below.
 
+```{r}
+# Clip Raster - Convert to stars
+nw_ras <- crop(rotate(july_avg), extent(-73, -40, 40.5, 70))
+nw_st <- st_as_stars(nw_ras)
+
+# Warp to stereographic CRS
+north_grid <- nw_st %>% 
+  st_transform(stereographic_north) %>% 
+  st_bbox() %>%
+  st_as_stars()
+nw_stereo_ras <- nw_st %>% 
+  st_warp(north_grid) 
+
+
+# Plot with the Rest
+ggplot() +
+  geom_stars(data = nw_stereo_ras) +
+  geom_sf(data = nw_north, color = "black", fill = "transparent", linetype = 2) +
+  geom_sf(data = newengland_north, fill = "gray90") +
+  geom_sf(data = canada_north, fill = "gray90") +
+  geom_sf(data = greenland_north, fill = "gray90") +
+  coord_sf(crs = stereographic_north, xlim = crop_x, ylim = crop_y, expand = T) +
+  scale_fill_gradient2(low = "blue",
+                     mid = "white",
+                     high = "red",
+                     na.value = "transparent") +
+  guides("fill" = guide_colorbar(title = "Average Sea Surface Temperature Anomaly",
+                                 title.position = "top", 
+                                 title.hjust = 0.5,
+                                 barwidth = unit(4, "in"), 
+                                 frame.colour = "black", 
+                                 ticks.colour = "black")) +
+  theme(
+    panel.border = element_rect(color = "black", fill = NA),
+    plot.background = element_rect(color = "transparent", fill = "transparent"),
+    axis.title.x = element_blank(), # turn off titles
+    axis.title.y = element_blank(),
+    legend.position = "bottom", 
+    legend.title.align = 0.5)
 ```
 
 
