@@ -795,6 +795,11 @@ ggplot() +
 
 ```
 
+### NW Atlantic OISST
+
+```{r}
+
+```
 
 
 `r insert_gmri_footer()`
