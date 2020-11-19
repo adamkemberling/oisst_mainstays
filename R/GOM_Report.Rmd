@@ -802,5 +802,111 @@ ggplot() +
     legend.title.align = 0.5)
 ```
 
+## Warming Rates {.tabset .tabset-pills}
+
+Global warming rates are calculated by getting the average temperature for each year across all cells in the data, then using a linear regression for each to determine the annual warming rate in degrees celsius.
+
+The warming rates are then ranked from high to low to identify areas with the most rapid ocean warming. The following maps display the warming rates and the percentile ranks for the top 20% of warming rates, or rates above the 80th percentile of the data.
+
+```{r}
+# Access information to netcdf on box
+rates_path <- shared.path(group = "NSF OKN", folder = "oisst/warming_rates/")
+rates_stack <- stack(str_c(rates_path, "annual_warming_rates.nc"), varname = "annual_warming_rate")
+ranks_stack <- stack(str_c(rates_path, "annual_warming_rates.nc"), varname = "rate_percentile")
+
+# Going to reclassify raster: 
+# Source: https://www.earthdatascience.org/courses/earth-analytics/lidar-raster-data-r/classify-raster/
+# create classification matrix
+reclass_df <- c(0.00, 0.05,  0,
+                0.05, 0.10,  5,
+                0.10, 0.15, 10,
+                0.15, 0.20, 15,
+                0.20, 0.25, 20,
+                0.25, 0.30, 25,
+                0.30, 0.35, 30,
+                0.35, 0.40, 35,
+                0.40, 0.45, 40,
+                0.45, 0.50, 45,
+                0.50, 0.55, 50,
+                0.55, 0.60, 55,
+                0.60, 0.65, 60,
+                0.65, 0.70, 65,
+                0.70, 0.75, 70,
+                0.75, 0.80, 75,
+                0.80, 0.85, 80,
+                0.85, 0.90, 85,
+                0.90, 0.95, 90,
+                0.95,    1, 95)
+
+# reshape the object into a matrix with columns and rows
+reclass_m <- matrix(reclass_df,
+                ncol = 3,
+                byrow = TRUE)
+
+# reclassify the raster using the reclass object - reclass_m
+ranks_classified <- reclassify(ranks_stack,
+                               reclass_m)
+
+
+# # Masking Below percentile cutoff - for ranking raster and rates raster
+percentile_cutoff <- 80
+ranks_stack[ranks_classified < percentile_cutoff] <- NA
+rates_stack[ranks_classified < percentile_cutoff] <- NA
+# plot(ranks_classified, main = "Reclassified Warming Ranks - top 20%")
+# plot(rates_stack, main = "Top 20% Warming Rates")
+
+# Converting to stars
+rates_st   <- st_as_stars(rotate(rates_stack))
+ranks_st   <- st_as_stars(rotate(ranks_stack))
+ranks_c_st <- st_as_stars(rotate(ranks_classified))
+
+
+#get scale ranges so they still pop
+rate_range <- c("min" = cellStats(rates_stack, 'min')[1], "max" = cellStats(rates_stack,'max')[1])
+```
+
+### Global Rates
+
+```{r}
+
+# guide label
+guide_lab <- expression("Annual Warming Rate - "~degree~C)
+
+# ggplot using stars
+ggplot() +
+  geom_stars(data = rates_st) +
+  geom_sf(data = world, fill = "gray90") + 
+  scale_fill_viridis_c(na.value = "black", option = "plasma") +
+  guides("fill" = guide_colorbar(title = guide_lab,
+                                 title.position = "top", 
+                                 title.hjust = 0.5,
+                                 barwidth = unit(4, "in"), 
+                                 frame.colour = "black", 
+                                 ticks.colour = "black")) +
+  map_theme +
+  coord_sf(expand = FALSE) +
+  labs(caption = str_c("Top ", percentile_cutoff, "% of Warming Rates Shown."))
+  
+```
+
+### Global Ranks
+
+```{r}
+# ggplot using stars
+ggplot() +
+  geom_stars(data = ranks_st) +
+  geom_sf(data = world, fill = "gray90") + 
+  scale_fill_viridis_c(na.value = "black", option = "plasma") +
+  guides("fill" = guide_colorbar(title = "Percentile of Annual Warming Rate",
+                                 title.position = "top", 
+                                 title.hjust = 0.5,
+                                 barwidth = unit(4, "in"), 
+                                 frame.colour = "black", 
+                                 ticks.colour = "black")) +
+  map_theme +
+  coord_sf(expand = FALSE) +
+  labs(caption = str_c("Top ", percentile_cutoff, "% of Warming Rates Shown."))
+  
+```
 
 `r insert_gmri_footer()`
