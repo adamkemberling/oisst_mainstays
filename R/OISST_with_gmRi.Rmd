@@ -1,0 +1,279 @@
+---
+output:
+  xaringan::moon_reader:
+    lib_dir: libs
+    nature:
+      seal: false
+      highlightStyle: github
+      highlightLines: true
+      countIncrementalSlides: false
+---
+
+background-image: url(libs/slide_temps/GMRI_template_slide1.png)
+background-size: cover
+class: center middle inverse
+
+
+# OISST Temperature Products
+## Accessed with the {gmRi} package
+#### By: Adam Kemberling
+#### Gulf of Maine Research Institute
+Updated: `r Sys.Date()`
+
+
+```{r setup, include=FALSE}
+options(htmltools.dir.version = FALSE)
+
+library(knitr)
+library(raster)
+library(stars)
+library(here)
+library(gmRi)
+library(tidyverse)
+
+# change theme up for maps
+map_theme <- list(
+  theme(
+    panel.border = element_rect(color = "black", fill = NA),
+    plot.background = element_rect(color = "transparent", fill = "transparent"),
+    line = element_blank(),
+    # axis.text.x = element_blank(),
+    # axis.text.y = element_blank(),
+    # axis.ticks = element_blank(), # turn off ticks
+    axis.title.x = element_blank(), # turn off titles
+    axis.title.y = element_blank(),
+    legend.position = "bottom", 
+    legend.title.align = 0.5))
+```
+
+`r #use_gmri_style_rmd(css_file = "gmri_rmarkdown.css")`
+
+
+---
+background-image: url(libs/slide_temps/GMRI_template_slide_white.png)
+background-size: cover
+
+.center[
+# The gmRi Package for R-Users
+]
+
+## Vision:   
+Create shared tools for accessing commonly shared resources within gmRi
+
+## Functionality
+ * GMRI Color Palette and Design Styles   
+ * Shared Resource Access Functions   
+ * Shared code for processing pipelines (Groundfish Prep?)
+
+
+
+
+---
+background-image: url(libs/slide_temps/GMRI_template_slide_white.png)
+background-size: cover
+
+
+# Installing the `gmRi` Package
+
+Install the **{gmRi}** package from [Github](https://github.com/gulfofmaine/gmRi):
+
+```{r eval=FALSE, tidy=FALSE}
+devtools::install_github("https://github.com/gulfofmaine/gmRi")
+```
+
+
+Once the package is loaded gmri color palettes can be accessed directly in this way:
+
+
+```{r, retina = 3, fig.height=3, fig.align='center'}
+library(gmRi)
+ggplot(mpg, aes(manufacturer, fill = manufacturer)) +
+   geom_bar() +
+   theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+   scale_fill_gmri(palette = "mixed", guide = "none")
+```
+
+
+---
+background-image: url(libs/slide_temps/GMRI_template_slide_white.png)
+background-size: cover
+
+# gmRi Package Vignettes
+
+Currently there are two vignettes on [github](https://github.com/gulfofmaine/gmRi/blob/master/index.md):
+
+ * [Accessing GMRI Style Elements](https://gulfofmaine.github.io/gmRi/doc/GMRI_Style_Doc.html) - For information on how to access the different GMRI color palettes as well as css stylesheets and html headers/footers for customizing Rmarkdown and Shiny output.   
+<br/>
+ * [OISST How-To](https://gulfofmaine.github.io/gmRi/doc/oisst_howto.html) - Functions relating to the download of OISST data directly from THREDDS in addition to helper functions for processing the data found on box.
+
+
+---
+background-image: url(libs/slide_temps/GMRI_template_slide_white.png)
+background-size: cover
+
+# OISST Temperature Data Access
+
+For the purposes of this presentation the focus will be on the [Optimum Interpolated Sea Surface Temperature Dataset OISST v2](https://www.ncdc.noaa.gov/oisst/optimum-interpolation-sea-surface-temperature-oisst-v21)
+
+This dataset contains daily temperature readings at a resolution of 1/4 degrees lat/lon from the fall of 1981 through the present.
+
+---
+background-image: url(libs/slide_temps/GMRI_template_slide_white.png)
+background-size: cover
+
+# NSF Convergence Accelerator Project
+
+As part of the convergence accelerator project many different commonly used permutations of the OISST data set were pre-processed and placed onto `Box`
+
+Following the end of that project, OISST-specific python notebooks and R processing scripts were moved to a dedicated repository on box: [OISST Mainstays](https://github.com/adamkemberling/oisst_mainstays)
+
+
+---
+background-image: url(libs/slide_temps/GMRI_template_slide_white.png)
+background-size: cover
+
+# Global Extent Files
+
+Pre-downloaded and processed global arrays include:   
+ * Global extent `.nc` files for daily temperatures
+ * Global extent `.nc` file for 1982-2011 Climatology
+ * Global extent `.nc` file for temperature anomalies
+ * Global extent `.nc` file of pixel-by-pixel warming rates and their ranks
+
+These are the foundational processing steps for any other temperature product and are done in python. These steps can each be found [here](https://github.com/adamkemberling/oisst_mainstays/tree/master/notebooks) and are prefixed with `BASE`.
+
+
+
+
+---
+background-image: url(libs/slide_temps/GMRI_template_slide_white.png)
+background-size: cover
+
+# Global Netcdf Access
+
+The global extent files are stored on box within the `NSF OKN Demo Data/oisst` folder. The naming conventions for the annual observations, and the anomalies are such that the year differentiates each one.
+
+Using the `gmRi::shared.path()` function we can orient to the folder with anomaly files and pull the 2020 file:
+
+```{r, warning=F, message=F}
+# Access information to netcdf on box
+okn_path  <- shared.path(group = "NSF OKN", folder = "oisst/annual_anomalies/")
+nc_year   <- "2020"
+anom_path <- str_c(okn_path, "daily_anoms_", nc_year, ".nc")
+
+# Load 2020 as stack
+anoms_2020 <- raster::stack(anom_path)
+
+# Get the mean temperature anomalies for July
+july_dates <- which(str_sub(names(anoms_2020), 7, 8) == "07")
+july_avg   <- mean(anoms_2020[[july_dates]])
+
+# Convert wgs84 to stars object to plot raster with ggplot
+july_st <- st_as_stars(rotate(july_avg))
+```
+
+
+
+---
+
+
+# Mapping Raster with ggplot2
+
+
+
+
+.pull-left[
+```{r}
+# Plot
+anomaly_plot <- ggplot() +
+  geom_stars(data = july_st) +
+  scale_fill_gradient2(
+    low = "blue",
+    mid = "white",
+    high = "red",
+    na.value = "gray20") +
+  map_theme +
+  coord_sf(expand = FALSE) +
+  guides(
+    "fill" = guide_colorbar(
+      title = "Average Sea Surface Temperature Anomaly",
+      title.position = "top", 
+      title.hjust = 0.5,
+      barwidth = unit(4, "in"), 
+      frame.colour = "black", 
+      ticks.colour = "black"))
+```
+]
+
+
+
+.pull-right[
+```{r, echo = FALSE, retina = 3}
+# Plot
+anomaly_plot
+```
+]
+
+
+---
+background-image: url(libs/slide_temps/GMRI_template_slide_white.png)
+background-size: cover
+
+# Regional Timelines
+
+For areas that GMRI commonly works with (ex. Gulf of Maine, Georges Bank, Northeastern US Shelf) these areas have pre-processed timelines.
+
+The jupyter notebook code for their processing can be found [here](https://github.com/adamkemberling/oisst_mainstays/blob/master/notebooks/03_BASE_NMFS_region_timeseries.ipynb)
+
+These detail:   
+ * Daily SST
+ * Day of Year Climate Mean (within regional area)
+ * Daily SST Anomalies
+ * Standard deviation in SSt Anomalies
+ * Log-Likelihood of 
+
+---
+background-image: url(libs/slide_temps/GMRI_template_slide_white.png)
+background-size: cover
+
+# Regional Timeline Access
+
+Code to process timelines has been run for the following regions:
+ * Large Marine Ecosystems
+ * Gulf of Maine 
+ * NMFS Trawl Survey Regions
+ 
+Files are stored in sub-folders based on the group that they are processed in. For example, the NMFS regions are stored in `Box/NSF OKN Demo Data/oisst/likelihood_timeseries/nmfs_trawl_regions`
+
+
+---
+background-image: url(libs/slide_temps/GMRI_template_slide_white.png)
+background-size: cover
+
+# Regional Timeline Tables
+
+```{r}
+# Path to trawl region timeseries
+trawl_region_path <- shared.path(
+  group = "NSF OKN", 
+  folder = "oisst/likelihood_timeseries/nmfs_trawl_regions/")
+gom_path <- str_c(trawl_region_path, "OISSTv2_anom_gulf_of_maine_likelihood_ts.csv")
+
+# Load and display
+gom_ts <- read_csv(gom_path, guess_max = 1e4, col_types = cols())
+head(gom_ts, 3) %>% select(time, sst, sst_clim, sst_anom, log_lik) %>%  kable(format = "html")
+```
+
+
+---
+background-image: url(libs/slide_temps/GMRI_template_slide_white.png)
+background-size: cover
+
+# Temperature Development Needs
+
+**Consensus on naming structures:** Naming conventions and folder structures were done in a "by the seat of your pants" way. Names are cumbersomely long as a consequence.
+
+
+**Consensus on Shapefiles** In making the [Gulf of Maine Report](https://adamkemberling.github.io/oisst_mainstays/R/GOM_Report.html) I came across 5 different Gulf of Maine shapefiles in use for various projects.
+
+
