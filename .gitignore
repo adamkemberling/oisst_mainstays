@@ -20,7 +20,7 @@ annual_observations/*
 daily_climatologies/*
 regional_timeseries/*
 docs/*
-R/libs/*
+
 
 # notbook cache data
 notebooks/.cache*
