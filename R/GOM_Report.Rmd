@@ -56,13 +56,27 @@ map_theme <- list(
 
 #  Gulf of Maine Sea Surface Temperature Outlook
 
-## Gulf of Maine Domain
+## Gulf of Maine Domain {.tabset .tabset-pills}
 
 The spatial extent for the "Gulf of Maine" has been adjusted to meet analysis needs and to match the data properties of different projects. For the CPR analyses the Gulf of Maine region was determined as a bounding box with the following lat/lon bounds `lon = c(-70.0, -66.6)` & `lat = c(42.2, 43.8)`. For any analyses that rely on groundfish survey data the area representing the Gulf of Maine is a union of individual survey strata. The strata that represent the Gulf of Maine region are strata `24 - 40`.
 
 Both of these polygons are meaningful to the data sources they are used with, but this highlights a common issue for maintaining consistent records of temperature and anomalies. What is the source polygon used for any sort of mask, and at what scale are climatologies and anomalies calculated.
 
+### A. Pershing Gulf of Maine
 
+The reports done previously referencing warming in the Gulf of Maine were done using the following extent to subset data from the OISST grid.
+
+Code documenting this can be found in the `oisst_mainstays/mat` subfolder.
+
+```{r}
+# Load andy's extent for gulf of maine
+
+# plot it
+```
+
+
+
+### Alternate GoM's
 
 ```{r, fig.align='center', fig.height=8, fig.width=8}
 
