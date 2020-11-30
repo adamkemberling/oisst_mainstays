@@ -93,7 +93,7 @@ Currently there are two vignettes on [github](https://github.com/gulfofmaine/gmR
 background-image: url(GMRI_template_slide_white.png)
 background-size: cover
 
-# OISST Temperature Data Access
+# OISST Temperature Data
 
 For the purposes of this presentation the focus will be on the [Optimum Interpolated Sea Surface Temperature Dataset OISST v2](https://www.ncdc.noaa.gov/oisst/optimum-interpolation-sea-surface-temperature-oisst-v21)
 
@@ -107,9 +107,9 @@ The goal is to remove those redundancies.
 background-image: url(GMRI_template_slide_white.png)
 background-size: cover
 
-# NSF Convergence Accelerator Project
+# Convergence Accelerator Project
 
-A main part of the convergence project was the creation of a knowledge graph. 
+A main part of the convergence project was the creation of a knowledge graph for the NSF OKN Convergence Project. 
 
 The knowleddge graph contained information about various datasets and their analysis code, and linked workflows and resources together that shared common components.
 
@@ -121,7 +121,7 @@ background-imag: url(GMRI_template_slide_white.png)
 background-size:cover
 
 
-# Keeping What Worked
+# Keeping What Worked from OKN
 
 Although the knowledge graph itself may not be necessary, processing code and data in the knowledge graph had useful application for other projects.
 
@@ -134,6 +134,8 @@ background-size: cover
 
 # OISST Resources From OKN
 
+There are 5 main resources added to box as part of the convergence project:
+
  - Daily Sea Surface Temperature Netcdfs
  - 1982-2011 Climatology
  - Daily Temperature Anomalies
@@ -145,7 +147,7 @@ background-size: cover
 background-image: url(GMRI_template_slide_white.png)
 background-size: cover
 
-#Global Extent Files
+#Global Extent Files on Box
 
 Pre-downloaded and processed global arrays include:   
  * Global extent `.nc` files for daily temperatures
@@ -154,6 +156,77 @@ Pre-downloaded and processed global arrays include:
  * Global extent `.nc` file of pixel-by-pixel warming rates and their ranks
 
 These are the foundational processing steps for any other temperature product and are done in python. These steps can each be found [here](https://github.com/adamkemberling/oisst_mainstays/tree/master/notebooks) and are prefixed with `BASE`.
+
+
+
+---
+background-image: url(GMRI_template_slide_white.png)
+background-size: cover
+
+# Global Netcdf Access
+
+The global extent files are stored on box within the `NSF OKN Demo Data/oisst` folder. There is a netcdf file for each year for both the annual observations and the anomalies.
+
+Using the `gmRi::shared.path()` function we can orient to the folder with anomaly files and pull the 2020 file this way:
+
+
+```r
+# Access information to netcdf on box
+okn_path  &lt;- shared.path(group = "NSF OKN", folder = "oisst/annual_anomalies/")
+nc_year   &lt;- "2020"
+nc_path &lt;- str_c(okn_path, "daily_anoms_", nc_year, ".nc")
+
+# Load 2020 with raster::stack()
+anoms_2020 &lt;- raster::stack(nc_path)
+
+# Use stack names to access layers for July
+# Get the mean temperature anomalies for July
+july_dates &lt;- which(str_sub(names(anoms_2020), 7, 8) == "07")
+july_avg   &lt;- mean(anoms_2020[[july_dates]])
+
+# Convert wgs84 to stars object to plot raster with ggplot
+july_st &lt;- st_as_stars(rotate(july_avg))
+```
+
+
+
+---
+
+
+# Mapping Raster with ggplot2
+
+
+
+
+.pull-left[
+
+```r
+# Plot
+anomaly_plot &lt;- ggplot() +
+  geom_stars(data = july_st) +
+  scale_fill_gradient2(
+    low = "blue",
+    mid = "white",
+    high = "red",
+    na.value = "gray20") +
+  map_theme +
+  coord_sf(expand = FALSE) +
+  guides(
+    "fill" = guide_colorbar(
+      title = "Average Sea Surface Temperature Anomaly",
+      title.position = "top", 
+      title.hjust = 0.5,
+      barwidth = unit(4, "in"), 
+      frame.colour = "black", 
+      ticks.colour = "black"))
+```
+]
+
+
+
+.pull-right[
+![](OISST_with_gmRi_files/figure-html/unnamed-chunk-5-1.png)&lt;!-- --&gt;
+]
 
 ---
 background-image: url(GMRI_template_slide_white.png)
@@ -226,77 +299,10 @@ For these plots the stack is still aware of the data range for the entire extent
 august_plot + ggtitle("Gulf of Maine OISST - Accessed via data window")
 ```
 
-&lt;img src="OISST_with_gmRi_files/figure-html/unnamed-chunk-5-1.png" style="display: block; margin: auto;" /&gt;
-
-
----
-background-image: url(GMRI_template_slide_white.png)
-background-size: cover
-
-# Global Netcdf Access
-
-The global extent files are stored on box within the `NSF OKN Demo Data/oisst` folder. There is a netcdf file for each year for both the annual observations and the anomalies.
-
-Using the `gmRi::shared.path()` function we can orient to the folder with anomaly files and pull the 2020 file this way:
-
-
-```r
-# Access information to netcdf on box
-okn_path  &lt;- shared.path(group = "NSF OKN", folder = "oisst/annual_anomalies/")
-nc_year   &lt;- "2020"
-nc_path &lt;- str_c(okn_path, "daily_anoms_", nc_year, ".nc")
-
-# Load 2020 with raster::stack()
-anoms_2020 &lt;- raster::stack(nc_path)
-
-# Use stack names to access layers for July
-# Get the mean temperature anomalies for July
-july_dates &lt;- which(str_sub(names(anoms_2020), 7, 8) == "07")
-july_avg   &lt;- mean(anoms_2020[[july_dates]])
-
-# Convert wgs84 to stars object to plot raster with ggplot
-july_st &lt;- st_as_stars(rotate(july_avg))
-```
+&lt;img src="OISST_with_gmRi_files/figure-html/unnamed-chunk-8-1.png" style="display: block; margin: auto;" /&gt;
 
 
 
----
-
-
-# Mapping Raster with ggplot2
-
-
-
-
-.pull-left[
-
-```r
-# Plot
-anomaly_plot &lt;- ggplot() +
-  geom_stars(data = july_st) +
-  scale_fill_gradient2(
-    low = "blue",
-    mid = "white",
-    high = "red",
-    na.value = "gray20") +
-  map_theme +
-  coord_sf(expand = FALSE) +
-  guides(
-    "fill" = guide_colorbar(
-      title = "Average Sea Surface Temperature Anomaly",
-      title.position = "top", 
-      title.hjust = 0.5,
-      barwidth = unit(4, "in"), 
-      frame.colour = "black", 
-      ticks.colour = "black"))
-```
-]
-
-
-
-.pull-right[
-![](OISST_with_gmRi_files/figure-html/unnamed-chunk-8-1.png)&lt;!-- --&gt;
-]
 
 
 ---
