@@ -247,7 +247,9 @@ gom_path <- "~/Box/NSF OKN Demo Data/oisst/likelihood_timeseries/nmfs_trawl_regi
   gom_path <- "NSF OKN Demo Data/oisst/likelihood_timeseries/nmfs_trawl_regions/OISSTv2_anom_gulf_of_maine_likelihood_ts.csv"
 }
   
-gom_ts <- read_csv(gom_path)
+gom_ts <- read_csv(gom_path,
+                   guess_max = 1e5,
+                   col_types = cols())
 
 head(gom_ts) %>% kable() %>% kable_styling()
 ```
@@ -264,7 +266,7 @@ The heatwave history for the Gulf of Maine trawl region (~from the NELME regions
 
 ```{r}
 # Wrapper function to do heatwaves and coldwaves simultaneously at 90%
-pull_events <- function(temperature_timeseries) {
+pull_heatwave_events <- function(temperature_timeseries) {
     
     # Pull the two column dataframe for mhw estimation
     test_ts <- data.frame(t = temperature_timeseries$time, 
@@ -329,7 +331,7 @@ pull_events <- function(temperature_timeseries) {
 
 # Use function
 #
-gom_heatwaves <- pull_events(gom_ts)
+gom_heatwaves <- pull_heatwave_events(gom_ts)
 
 ```
 
@@ -424,6 +426,7 @@ In most cases a static image will suffice, in  which case {ggplot2} is a familia
 
 ```{r}
 
+# Set colors by name
 color_vals <- c(
   "Sea Surface Temperature" = "royalblue",
   "Heatwave Event"          = "darkred",
@@ -432,9 +435,10 @@ color_vals <- c(
   "MCS Threshold"           = "gray30",
   "Seasonal Climatology"    = "gray30")
 
-
+# Set the label with degree symbol
 ylab <- expression("Sea Surface Temperature"~degree~C)
 
+# Plot the last 365 days
 gom_heatwaves %>% 
   filter(time >= last_year) %>% 
   ggplot(aes(x = time)) +
@@ -447,7 +451,9 @@ gom_heatwaves %>%
     geom_line(aes(y = mcs_thresh, color = "MCS Threshold"), lty = 2, size = .5) +
     geom_line(aes(y = seas, color = "Seasonal Climatology"), size = .5) +
     scale_color_manual(values = color_vals) +
-    theme(legend.title = element_blank()) +
+  scale_x_date(date_labels = "%b", date_breaks = "1 month") +
+    theme(legend.title = element_blank(),
+          legend.position = "bottom") +
     labs(x = "", y = ylab)
 ```
 
@@ -467,6 +473,7 @@ Things to add:
 ##### Annual
 
 ```{r}
+# Summarise by year to return mean annual anomalies and variance
 annual_summary <- gom_ts %>% 
   mutate(year = year(time)) %>% 
   group_by(year) %>% 
@@ -474,7 +481,7 @@ annual_summary <- gom_ts %>%
             sst_anom = mean(sst_anom, na.rm = T)) 
 
 
-
+# Plot the warming rate for the region
 annual_summary %>% 
   ggplot(aes(year, sst_anom)) +
   geom_line(group = 1) +
@@ -494,10 +501,11 @@ annual_summary %>%
         legend.key = element_rect(fill = "transparent", color = "transparent"))
 ```
 
-##### Seasonal
+##### Yearly Quarters
 
 ```{r}
-seasonal_summary <- gom_ts %>% 
+# Repeat for the seasons (equal quarters here*)
+quarter_summary <- gom_ts %>% 
   mutate(year = year(time),
          season = factor(quarter(time, fiscal_start = 1)),
          season = fct_recode(season, c("Q1" = "1"), c("Q2" = "2"), c("Q3" = "3"), c("Q4" = "4"))) %>% 
@@ -507,7 +515,7 @@ seasonal_summary <- gom_ts %>%
 
 
 
-seasonal_summary %>% 
+quarter_summary %>% 
   ggplot(aes(year, sst_anom)) +
   geom_line(group = 1) +
   geom_point() +
@@ -533,7 +541,7 @@ As mentioned above heatwave events were determined using the methods of Hobday e
 
 ```{r}
 
-# prep the legend title
+# Prep the legend title
 guide_lab <- expression("Sea Surface Temperature Anomaly"~degree~C)
 
 # get new axis dimensions, y = year, x = day within year
@@ -560,7 +568,7 @@ ggplot(grid_data, aes(x = flat_date, y = year)) +
   scale_y_continuous(limits = c(1980.5, 2020.5), expand = c(0,0)) +
   labs(x = "", y = "") +
   scale_fill_gradient2(low = "blue", mid = "white", high = "red") +
-  #5 inches is default rmarkdown height
+  #5 inches is default rmarkdown height for barheight
   guides("fill" = guide_colorbar(title = guide_lab, 
                                  title.position = "right", 
                                  title.hjust = 0.5,
@@ -776,6 +784,9 @@ greenland_north     <- st_transform(greenland, stereographic_north)
 crop_x <- st_bbox(nw_north)[c(1,3)] 
 crop_y <- st_bbox(nw_north)[c(2,4)]
 
+# Lower the ymin a touch
+crop_y <- crop_y - c(100000, 0)
+
 # Clip Raster - Convert to stars
 nw_ras <- crop(rotate(july_avg), extent(-73, -40, 40.5, 70))
 nw_st <- st_as_stars(nw_ras)
@@ -792,7 +803,7 @@ nw_stereo_ras <- nw_st %>%
 # Plot everything together
 ggplot() +
   geom_stars(data = nw_stereo_ras) +
-  geom_sf(data = nw_north, color = "black", fill = "transparent", linetype = 2) +
+  #geom_sf(data = nw_north, color = "black", fill = "transparent", linetype = 2) +
   geom_sf(data = newengland_north, fill = "gray90") +
   geom_sf(data = canada_north, fill = "gray90") +
   geom_sf(data = greenland_north, fill = "gray90") +
@@ -814,6 +825,7 @@ ggplot() +
     axis.title.y = element_blank(),
     legend.position = "bottom", 
     legend.title.align = 0.5)
+
 ```
 
 ## Warming Rates {.tabset .tabset-pills}

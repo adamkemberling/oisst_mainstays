@@ -156,6 +156,7 @@ background-size: cover
  - 1982-2011 Climatology
  - Daily Temperature Anomalies
  - Regional Temperature and Anomaly Timeseries
+ - Pixel-by-pixel Warming Rates
 
 
 ---
@@ -172,7 +173,75 @@ Pre-downloaded and processed global arrays include:
 
 These are the foundational processing steps for any other temperature product and are done in python. These steps can each be found [here](https://github.com/adamkemberling/oisst_mainstays/tree/master/notebooks) and are prefixed with `BASE`.
 
+---
+background-image: url(GMRI_template_slide_white.png)
+background-size: cover
 
+# Loading Specific Window using {gmRi}
+
+
+In many cases you only need a specific area of interest, and loading the full extent for every year brings too much into memory for R.
+
+The `oisst_window_load` function exists to subset each year of the OISST data on box using a window of your choice, stepping through each year individually:
+
+```{r, message = F, warning = F}
+# Connect to nsf convergence data path
+okn_path <- shared.path(group = "NSF OKN", folder = "")
+
+# specify lat/lon/time window
+data_window <- data.frame(
+  lon = c(-72, -65), 
+  lat = c(42,   44), 
+  time = as.Date(c("2019-08-01", "2020-12-31")))
+
+# Load what we need, not what we don't
+oisst_stack <- oisst_window_load(okn_path = okn_path, 
+                                 data_window = data_window)
+
+```
+
+
+
+---
+background-image: url(GMRI_template_slide_white.png)
+background-size: cover
+
+# Loading Specific Window using {gmRi} pt. 2
+
+Dates can then be plotted again just like before. Additional development to choose raw data or anomalies is under way, but right now it only returns raw data.
+
+```{r}
+# Grab a Date
+aug2 <- oisst_stack$`2019`$X2019.08.02
+
+# Make stars object as ggplot2 snob
+aug2_st <- st_as_stars(aug2)
+
+# Build Plot
+august_plot <- ggplot() +
+  geom_stars(data = aug2_st) +
+  scale_fill_gradient2(low = "blue", mid = "white", high = "red", na.value = "gray20") +
+  map_theme +
+  coord_sf(expand = FALSE) +
+  guides("fill" = guide_colorbar(title = "OISST - August 2nd - 2019",
+                                 title.position = "top", title.hjust = 0.5,
+                                 barwidth = unit(4, "in"), frame.colour = "black", 
+                                 ticks.colour = "black"))
+
+```
+
+---
+background-image: url(GMRI_template_slide_white.png)
+background-size: cover
+
+# Loading Specific Window using {gmRi} pt. 3
+
+For these plots the stack is still aware of the data range for the entire extent so getting the color scale right will require some tuning. 
+
+```{r, fig.align = "center", retina = 3}
+# Plot
+august_plot + ggtitle("Gulf of Maine OISST - Accessed via data window")
+```
 
 
 ---
@@ -291,7 +360,8 @@ background-size: cover
 trawl_region_path <- shared.path(
   group = "NSF OKN", 
   folder = "oisst/likelihood_timeseries/nmfs_trawl_regions/")
-gom_path <- str_c(trawl_region_path, "OISSTv2_anom_gulf_of_maine_likelihood_ts.csv")
+table_name <- "OISSTv2_anom_gulf_of_maine_likelihood_ts.csv"
+gom_path <- str_c(trawl_region_path, "/", table_name)
 
 # Load and display
 gom_ts <- read_csv(gom_path, guess_max = 1e4, col_types = cols())
@@ -318,17 +388,52 @@ The UPDATE notebooks are designed to append new data onto the products of the *B
 
 
 
+---
+background-image: url(GMRI_template_slide_white.png)
+background-size: cover
+
+# OISST_Mainstays Update Cycle
+
+### 1. Establish Base Resources
+
+Run *BASE* notebooks. This step is time consuming but does not need to be repeated.
+
+
+### 2. Update **NSF OKN Demo Data/oisst** Resources
+
+ 1. Download most recent data
+ 2. Run *Update* Notebooks to append new data
+ 
+ 
+### 3. Update Reports (ex. Gulf of Maine Warming)
+
+Following the updates to oisst data resources, simply knit the rmarkdown file to reflect more current data.
+
+
+
+
+
+
+
+
 
 ---
 background-image: url(GMRI_template_slide_white.png)
 background-size: cover
 
-# Future Temperature Development Needs
+# Future OISST Development Needs
 
-**Consensus on naming structures:** Naming conventions and folder structures were done in a "by the seat of your pants" way. Names are cumbersomely long as a consequence.
-
-
-**Consensus on Shapefiles** In making the [Gulf of Maine Report](https://adamkemberling.github.io/oisst_mainstays/R/GOM_Report.html) I came across 5 different Gulf of Maine shapefiles in use for various projects.
+**Consensus on naming structures:**    
+Naming conventions and folder structures were done in a "by the seat of your pants" way. Names are cumbersomely long as a consequence. As part of producing this the "masked_timeseries" folder was shown to be completely redundant.
 
 
-**Continuous Integration** Currently to create an update a file is downloaded manually and the update notebooks are run in sequence manually. If the data download can be scheduled we should be able to schedule running the notebooks as well to provide a consistent update scchedule.
+**Consensus on Shapefiles**    
+In making the [Gulf of Maine Report](https://adamkemberling.github.io/oisst_mainstays/R/GOM_Report.html) I came across 5 different Gulf of Maine shapefiles in use for various projects. 
+
+
+**Developing Continuous Integration**    
+Currently updates are run in sequence manually. If the data download can be scheduled we should be able to schedule running the notebooks as well to provide a consistent update scchedule.
+
+
+**{gmRi} Functions**   
+Discussion on preferences for accessing and displaying data. Should we use THREDDS anymore? If not, much of the original vignette is not helpful.
