@@ -4,8 +4,6 @@ services:
   # Jupyter Notebook
   notebook:
     build: ./notebook-image
-    #depends_on:
-    #  - jena
     ports:
       - "8889:8889"
     env_file:
@@ -13,21 +11,25 @@ services:
     volumes:
       - ./notebooks:/home/jovyan/
 
-  # We want this docker container to run an RStudio instance
-  rstudio: 
-      # What to build
-      build: .
-      # Environmental File for passwords etc.
-      env_file:
-          - ./secret.env
+  # # Disabling 12/1/2020 because it just adds unnecessary complexity
+  # # We want this docker container to run an RStudio instance
+  # rstudio: 
+  #     # What to build
+  #     build: .
+  #     # Environmental File for passwords etc.
+  #     env_file:
+  #         - ./secret.env
     
-      # Tag the built Dockerfile this name
-      image: akemberling/oisst_mainstays
+  #     # Tag the built Dockerfile this name
+  #     image: akemberling/oisst_mainstays
       
-      # Ports, not entirely sure what this does?
-      ports: 
-          - "8787:8787"
+  #     # Ports, not entirely sure what this does?
+  #     ports: 
+  #         - "8787:8787"
       
-      # Mapping the connections between things on our local system to the docker container
-      #volumes:
-      #    - ~/Documents/Repositories/oisst_mainstays : /Home/rstudio/oisst_mainstays/data
+  #     # Mapping the connections between things on our local system to the docker container
+  #     volumes:
+  #         - ~/Documents/Repositories/oisst_mainstays:/home/rstudio/oisst_mainstays
+  #         - /Users/akemberling/Box/NSF OKN Demo Data:/home/rstudio/oisst_mainstays/NSF OKN Demo Data
+  #         - /Users/akemberling/Box/RES Data:/home/rstudio/oisst_mainstays/Res Data
+  #         - /Users/akemberling/Box/Mills Lab:/home/rstudio/oisst_mainstays/Mills Lab

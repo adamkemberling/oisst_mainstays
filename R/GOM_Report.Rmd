@@ -1,5 +1,5 @@
 ---
-title: "Gulf of Maine Report"
+title: "OISST Sea Surface Temperature Report"
 author: "Adam A. Kemberling"
 date: "Updated on: `r Sys.Date()`"
 output: 
@@ -11,13 +11,18 @@ output:
 editor_options: 
   chunk_output_type: console
 params: 
-  env: "local"
+  region: 
+    label: "Focal Region:" 
+    value: "Gulf of Maine"
+    input: select
+    choices: ["Gulf of Maine", "CPR Gulf of Maine", "Northwest Atlantic"]
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE, message = F, warning = F)
 
 library(lubridate)
+library(ncdf4)
 library(raster)
 library(rnaturalearth)
 library(sf)
@@ -33,6 +38,15 @@ library(heatwaveR)
 library(plotly)
 library(ggpmisc)
 
+#box paths
+box_paths <- research_access_paths()
+
+# File Paths
+mills_path <- box_paths$mills
+res_path   <- box_paths$res
+okn_path   <- box_paths$okn  
+
+
 # set ggplot theme for figures
 theme_set(theme_bw())
 
@@ -43,187 +57,80 @@ map_theme <- list(
     panel.border = element_rect(color = "black", fill = NA),
     plot.background = element_rect(color = "transparent", fill = "transparent"),
     line = element_blank(),
-    # axis.text.x = element_blank(),
-    # axis.text.y = element_blank(),
-    # axis.ticks = element_blank(), # turn off ticks
     axis.title.x = element_blank(), # turn off titles
     axis.title.y = element_blank(),
     legend.position = "bottom", 
     legend.title.align = 0.5))
+
+# Polygons for mapping
+new_england <- ne_states("united states of america") %>% st_as_sf(crs = 4326) 
+canada <- ne_states("canada") %>% st_as_sf(crs = 4326)
+world <- ne_countries() %>% st_as_sf(crs = 4326)
+greenland <- ne_states(country = "greenland") %>% st_as_sfc(crs = 4326)
 ```
 
 `r gmRi::use_gmri_style_rmd(css = "gmri_rmarkdown.css")`
 
-#  Gulf of Maine Sea Surface Temperature Outlook
+#  `r params$region` Sea Surface Temperature Outlook
 
-## Gulf of Maine Domain {.tabset .tabset-pills}
+## Region Extent {.tabset .tabset-pills}
 
-The spatial extent for the "Gulf of Maine" has been adjusted to meet analysis needs and to match the data properties of different projects. For the CPR analyses the Gulf of Maine region was determined as a bounding box with the following lat/lon bounds `lon = c(-70.0, -66.6)` & `lat = c(42.2, 43.8)`. For any analyses that rely on groundfish survey data the area representing the Gulf of Maine is a union of individual survey strata. The strata that represent the Gulf of Maine region are strata `24 - 40`.
+The spatial extent for `r params$region` is displayed below. This bounding box is the same bounding box coordinates used to clip the OISST data when constructing the time series data from the array.
 
-Both of these polygons are meaningful to the data sources they are used with, but this highlights a common issue for maintaining consistent records of temperature and anomalies. What is the source polygon used for any sort of mask, and at what scale are climatologies and anomalies calculated.
 
-### A. Pershing Gulf of Maine
-
-The reports done previously referencing warming in the Gulf of Maine were done using the following extent to subset data from the OISST grid.
-
-Code documenting this can be found in the `oisst_mainstays/mat` subfolder.
 
 ```{r}
-# Load andy's extent for gulf of maine
 
-# plot it
+
+# File paths for various extents based on params$region
+poly_path <- switch(
+  tolower(params$region),
+  "gulf of maine" = "Shapefiles/gmri_sst_focal_areas/apershing_gulf_of_maine.geojson",
+  "cpr gulf of maine" = "Shapefiles/gmri_sst_focal_areas/cpr_gulf_of_maine.geojson",
+  "northwest atlantic" = "Shapefiles/gmri_sst_focal_areas/aak_northwest_atlantic.geojson"
+  )
+
+poly_path <- paste0(res_path, poly_path)
+
+# Load the bounding box for Andy's GOM to show they align
+region_extent <- st_read(poly_path, quiet = TRUE)
+
+
+# Pull extents for the region for crop
+crop_x <- st_bbox(region_extent)[c(1,3)]
+crop_y <- st_bbox(region_extent)[c(2,4)]
+
+
+# Zoom out for cpr extent
+if(tolower(params$region) == "cpr gulf of maine"){
+  crop_x <- c(-70.875, -65.375)
+  crop_y <- c(40.375,   45.125)}
+
+
+# Full plot
+ggplot() +
+  #geom_stars(data = andy_stars) + # see GMRI_template_focus_areas.R
+  geom_sf(data = new_england, fill = "gray90") +
+  geom_sf(data = canada, fill = "gray90") +
+  geom_sf(data = region_extent, color = "royalblue", 
+          fill = "transparent", linetype = 2, size = 1) +
+  scale_fill_gradient2("Sea Surface Temperature Anomaly",
+                       low = "blue",
+                       mid = "white",
+                       high = "red") +
+  map_theme +
+  guides("fill" = guide_colorbar(title.position = "top", 
+                                 title.hjust = 0.5,
+                                 barwidth = unit(4, "in"), 
+                                 frame.colour = "black", 
+                                 ticks.colour = "black")) +
+  coord_sf(xlim = crop_x, 
+           ylim = crop_y, expand = T) 
+
+
 ```
 
 
-
-### Alternate GoM's
-
-```{r, fig.align='center', fig.height=8, fig.width=8}
-
-
-####  Data  ####
-
-# Load polygons for mapping
-new_england <- ne_states("united states of america") %>% st_as_sf(crs = 4326) 
-canada <- ne_states("canada") %>% st_as_sf(crs = 4326)
-world <- ne_countries() %>% st_as_sf(crs = 4326)
-
-# File Paths
-
-if(params$env == "local"){
-  mills_path <- shared.path(os.use = "unix", group = "Mills Lab", folder = NULL)
-  res_path <- shared.path(os.use = "unix", group = "RES Data", folder = NULL)
-} else {
-  mills_path <-here("Mills Lab/")
-  res_path <- here("Res Data/")
-}
-
-# Stratum Shapefiles
-survey_strata <- read_sf(str_c(res_path, "Shapefiles/BottomTrawlStrata/BTS_Strata.shp"))  %>% 
-  clean_names() %>% 
-  filter(strata >= 01010 ,
-         strata <= 01760,
-         strata != 1310,
-         strata != 1320,
-         strata != 1330,
-         strata != 1350,
-         strata != 1410,
-         strata != 1420,
-         strata != 1490) 
-
-
-# Key to which strata = which regions
-strata_key <- list(
-  "Georges Bank"          = as.character(13:23),
-  "Gulf of Maine"         = as.character(24:40),
-  "Southern New England"  = str_pad(as.character(1:12), width = 2, pad = "0", side = "left"),
-  "Mid-Atlantic Bight"    = as.character(61:76))
-
-
-# Assign Areas
-strata_assigned <- survey_strata %>% 
-  mutate(
-    strata = str_pad(strata, width = 5, pad = "0", side = "left"),
-    area = case_when(
-    str_sub(strata, 3, 4) %in% strata_key$`Georges Bank`         ~ "Georges Bank",
-    str_sub(strata, 3, 4) %in% strata_key$`Gulf of Maine`        ~ "Gulf of Maine",
-    str_sub(strata, 3, 4) %in% strata_key$`Southern New England` ~ "Southern New England",
-    str_sub(strata, 3, 4) %in% strata_key$`Mid-Atlantic Bight`   ~ "Mid-Atlantic Bight",
-    TRUE ~ "Outside Major Study Areas"
-  )) 
-
-
-
-# Focus on Gulf of Maine Zones
-gm  <- strata_assigned %>% filter(area == "Gulf of Maine")
-
-# Re-project
-utm_19      <- "+proj=utm +zone=19 +ellps=WGS84 +datum=WGS84 +units=m +no_defs "
-gm_utm      <- gm %>% st_transform(crs = utm_19)
-canada_utm  <- canada %>% st_transform(crs = utm_19)
-usa_utm     <- new_england %>% st_transform(crs = utm_19)
-
-# Crop bounds
-crop_x <- st_bbox(gm_utm)[c(1,3)] 
-crop_y <- st_bbox(gm_utm)[c(2,4)]
-
-# Adjust bbox (units are meters)
-crop_x <- crop_x + c(-30000, 20000)
-crop_y <- crop_y + c(-20000, 20000)
-
-
-# Map the survey stratum
-survey_p <- ggplot() +
-  geom_sf(data = usa_utm) +
-  geom_sf(data = canada_utm) +
-  geom_sf(data = gm_utm, aes(fill = area), alpha = 0.4, show.legend = F) +
-  coord_sf(xlim = crop_x, ylim = crop_y, expand = T) +
-  labs(title = "Groundfish Survey", subtitle = "Gulf of Maine Region")
-
-
-
-####  Cpr Survey Region
-
-# From: adamkemberling/continuous_plankton_recorder 
-# CPR Extent
-cpr_extent <- tribble(
-  ~"lon", ~"lat",
-  -70.0,	42.2, 
-  -66.6,	42.2, 
-  -66.6,	43.8, 
-  -70.0,	43.8, 
-  -70.0,	42.2
-) %>% 
-  as.matrix() %>% 
-  list() %>% 
-  st_polygon()
-
-# as simple feature collection
-gm_cpr <- st_sf(area = "CPR Gulf of Maine", st_sfc(cpr_extent), crs = 4326)
-cpr_utm <- st_transform(gm_cpr, crs = utm_19)
-
-
-# Plot with the rest
-cpr_p <- ggplot() +
-  geom_sf(data = usa_utm) +
-  geom_sf(data = canada_utm) +
-  geom_sf(data = cpr_utm, aes(fill = area), alpha = 0.4, show.legend = F) +
-  coord_sf(xlim = crop_x, ylim = crop_y, expand = T) +
-  labs(title = "CPR Survey", subtitle = "Gulf of Maine Region")
-
-
-
-
-
-####  Ecological Production units  ####
-epu_sf <- read_sf(str_c(res_path, "Shapefiles/EPU/EPU_extended.shp"), crs = 4326)
-epu_utm <- st_transform(epu_sf, crs = utm_19)
-epu_utm <- filter(epu_utm, EPU == "GOM")
-
-epu_p <- ggplot() +
-  geom_sf(data = usa_utm) +
-  geom_sf(data = canada_utm) +
-  geom_sf(data = epu_utm, aes(fill = EPU), alpha = 0.4, show.legend = F) +
-  coord_sf(xlim = crop_x, ylim = crop_y, expand = T) +
-  labs(title = "Ecological Production Units", subtitle = "Gulf of Maine Region")
-
-
-
-####  Physio Regions  ####
-nelme_sf <- read_sf(str_c(res_path, "Shapefiles/NELME_regions/GoM_sf.shp"), crs = 4326)
-nelme_utm <- st_transform(nelme_sf, crs = utm_19)
-
-nelme_p <- ggplot() +
-  geom_sf(data = usa_utm) +
-  geom_sf(data = canada_utm) +
-  geom_sf(data = nelme_utm, aes(fill = "GOM"), alpha = 0.4, show.legend = F) +
-  coord_sf(xlim = crop_x, ylim = crop_y, expand = T) +
-  labs(title = "NELME", subtitle = "Gulf of Maine Region")
-
-# patchwork
-(survey_p | cpr_p) / (epu_p | nelme_p) & theme(axis.text = element_text(size = 8))
-
-```
 
 # Accessing OISST on Box
 
@@ -231,27 +138,31 @@ For many of our most-used areas climatologies and anomalies have been processed 
 
 The root folder for the following OISST products is `~/Box/NSF OKN Demo Data/oisst`.
 
-##  Masked Timeseries
+##  Masked Regional Timeseries
 
-A masked timeseries is the most basic building block for any of these areas. For any desired area (represented by a spatial polygon) a timeseries table of observed sea surface temperature is returned that contains the mean sea surface temperature over that area at each time step. Rather than repeat this process again for the climatology table and the anomalies these three values and a few additional fields are stored in the same tables.
+A region-masked timeseries is the most basic building block for relaying information for any of these areas. For any desired area (represented by a spatial polygon) a timeseries table of observed sea surface temperature is returned that contains the mean sea surface temperature over that area at each time step. Rather than repeat this process again for the climatology table and the anomalies these three values and a few additional fields are stored in the same table.
 
-Pre-processed tables have been placed on box as part of the NSF C-ACCEL project under the folder: `~/Box/NSF OKN Demo Data/oisst/likelihood_timeseries`
+Pre-processed tables have been placed on box as part of the NSF C-ACCEL project under the folder: `~/Box/NSF OKN Demo Data/oisst/regional_timeseries`
 
-The naming convention in the folder is: `likelihood_timeseries/nmfs_trawl_regions/OISST_v2_anom_` + **region_name** + `_likelihood_ts.csv` 
+The naming convention in the folder is: `regional_timeseries/nmfs_trawl_regions/OISST_v2_anom_` + **region_name** + `.csv` 
 
 ```{r}
 
-if (params$env == "local"){
-gom_path <- "~/Box/NSF OKN Demo Data/oisst/likelihood_timeseries/nmfs_trawl_regions/OISSTv2_anom_gulf_of_maine_likelihood_ts.csv"
-} else{
-  gom_path <- "NSF OKN Demo Data/oisst/likelihood_timeseries/nmfs_trawl_regions/OISSTv2_anom_gulf_of_maine_likelihood_ts.csv"
-}
+# Switch path based on local vs. docker
+timeseries_path <- switch(
+  EXPR = tolower(params$region),
+  "gulf of maine" = "oisst/regional_timeseries/gmri_sst_focal_areas/OISSTv2_anom_apershing_gulf_of_maine.csv",
+  "cpr gulf of maine" = "oisst/regional_timeseries/gmri_sst_focal_areas/OISSTv2_anom_cpr_gulf_of_maine.csv",
+  "northwest atlantic" = "oisst/regional_timeseries/gmri_sst_focal_areas/OISSTv2_anom_northwest_atlantic.csv")
+
+timeseries_path <- str_c(okn_path, timeseries_path)
   
-gom_ts <- read_csv(gom_path,
+# Load timeseries
+region_timeseries <- read_csv(timeseries_path,
                    guess_max = 1e5,
                    col_types = cols())
 
-head(gom_ts) %>% kable() %>% kable_styling()
+head(region_timeseries) %>% mutate_if(is_numeric, round, 2) %>% kable() %>% kable_styling()
 ```
 
 
@@ -262,7 +173,7 @@ Climatologies are currently set up to calculate daily averages on a modified jul
 
 The [{heatwaveR}](https://robwschlegel.github.io/heatwaveR/) package provides a relatively quick way of working with tabular data to calculate a seasonal climate mean, as well as heatwaves and coldwaves at a desired threshold. These functions can be used to get the climatology using the standard day of year if desired, and track the number and length of heatwave events. Heatwave events follow the definition of [Hobday et al. 2016](http://www.marineheatwaves.org/all-about-mhws.html)
 
-The heatwave history for the Gulf of Maine trawl region (~from the NELME regions shapefile~) is as follows:
+The heatwave history for the Gulf of Maine trawl region displayed above is as follows:
 
 ```{r}
 # Wrapper function to do heatwaves and coldwaves simultaneously at 90%
@@ -331,14 +242,14 @@ pull_heatwave_events <- function(temperature_timeseries) {
 
 # Use function
 #
-gom_heatwaves <- pull_heatwave_events(gom_ts)
+region_heatwaves <- pull_heatwave_events(region_timeseries)
 
 ```
 
 
 Heatwave timelines can be interactively plotted using {ggplot2} for static plots or {plotly} for interactive content.
 
-#### Interactive Plot
+#### Interactive SST Timeline
 
 For anything we wish to host on the web there is an option to display tables and graphs that are interactive. The {plotly} package is one-such tool for producing plots that allow users to pan, zoom, and highlight discrete observations.
 
@@ -405,9 +316,15 @@ plotly_mhw_plots <- function(data){
                              line = list(color = "rgb(65, 105, 225)", 
                                          width = 2)) 
     
-    
+    # Axis Formatting
     fig <- fig %>% layout(xaxis = list(title = ""),
                           yaxis = list (title = "Temperature (degrees C)"))
+    
+    
+    # Legend formatting
+    fig <- fig %>% layout(legend = list(orientation = 'h'))
+    
+    
     return(fig)
 }
 
@@ -415,12 +332,12 @@ plotly_mhw_plots <- function(data){
 
 # Plot the last year
 last_year <- Sys.Date() - 365
-gom_heatwaves %>% 
+region_heatwaves %>% 
   filter(time >= last_year) %>% 
   plotly_mhw_plots()
 ```
 
-#### Static Plot
+#### Static SST Timeline
 
 In most cases a static image will suffice, in  which case {ggplot2} is a familiar go-to.
 
@@ -439,7 +356,7 @@ color_vals <- c(
 ylab <- expression("Sea Surface Temperature"~degree~C)
 
 # Plot the last 365 days
-gom_heatwaves %>% 
+region_heatwaves %>% 
   filter(time >= last_year) %>% 
   ggplot(aes(x = time)) +
     geom_segment(aes(x = time, xend = time, y = seas, yend = sst), color = "royalblue", alpha = 0.25) +
@@ -458,7 +375,7 @@ gom_heatwaves %>%
 ```
 
 
-#### Warming Trends {.tabset .tabset-pills}
+#### Warming Rates {.tabset .tabset-pills}
 
 Regional warming trends below were calculated using annual averages, and consequently the model parameters reflect annual increases in sea surface temperature.
 
@@ -474,11 +391,12 @@ Things to add:
 
 ```{r}
 # Summarise by year to return mean annual anomalies and variance
-annual_summary <- gom_ts %>% 
+annual_summary <- region_timeseries %>% 
   mutate(year = year(time)) %>% 
   group_by(year) %>% 
   summarise(sst = mean(sst, na.rm = T),
-            sst_anom = mean(sst_anom, na.rm = T)) 
+            sst_anom = mean(sst_anom, na.rm = T), 
+            .groups = "keep") 
 
 
 # Plot the warming rate for the region
@@ -505,13 +423,14 @@ annual_summary %>%
 
 ```{r}
 # Repeat for the seasons (equal quarters here*)
-quarter_summary <- gom_ts %>% 
+quarter_summary <- region_timeseries %>% 
   mutate(year = year(time),
          season = factor(quarter(time, fiscal_start = 1)),
          season = fct_recode(season, c("Q1" = "1"), c("Q2" = "2"), c("Q3" = "3"), c("Q4" = "4"))) %>% 
   group_by(year, season) %>% 
   summarise(sst = mean(sst, na.rm = T),
-            sst_anom = mean(sst_anom, na.rm = T)) 
+            sst_anom = mean(sst_anom, na.rm = T), 
+            .groups = "keep") 
 
 
 
@@ -535,7 +454,7 @@ quarter_summary %>%
   facet_wrap(~season)
 ```
 
-#### Heatwave Events
+#### Heatwave Event History
 
 As mentioned above heatwave events were determined using the methods of Hobday et al. 2016 and implemented using {heatwaveR} with a 90% threshold. The region used is again that same "NELME" Gulf of Maine region, the bottom right panel of the maps at the beginning of the document.
 
@@ -547,7 +466,7 @@ guide_lab <- expression("Sea Surface Temperature Anomaly"~degree~C)
 # get new axis dimensions, y = year, x = day within year
 # use flate_date so that they don't stair step
 base_date <- as.Date("2000-01-01")
-grid_data <- gom_heatwaves %>% 
+grid_data <- region_heatwaves %>% 
   mutate(year = year(time),
          yday = yday(time),
          flat_date = as.Date(yday-1, origin = base_date))
@@ -609,34 +528,13 @@ The following code will subset the anomalies for July and plot the average sea s
 # Get the mean temperature anomalies for July
 july_dates <- which(str_sub(names(anoms_2020), 7, 8) == "07")
 july_avg <- mean(anoms_2020[[july_dates]])
-#plot(july_avg, main = "Mean Temperature Anomaly - July 2020")
 
-
-# Convert wgs84 to stars
+# Convert wgs84 raster to stars array
 july_st <- st_as_stars(rotate(july_avg))
 
 
 
-####  NOTE: having trouble projecting to either robinson or equal earth projections for some resson  ####
-# Solved : Tranformation vs. Warping https://r-spatial.github.io/stars/articles/stars5.html
-
-# robinson projection
-robinson_proj <- "+proj=robin"
-
-# equal earth projection - not working, don't think sf has functionality for it yet
-eqearth_proj <- "+proj=eqearth"
-
-# warp to equal robinson or earth projection
-robinson_grid <- july_st %>% 
-  st_transform(robinson_proj) %>% 
-  st_bbox() %>%
-  st_as_stars()
-july_robinson <- july_st %>% 
-  st_warp(robinson_grid) 
-
-
-
-# Plot
+# Plot global map
 ggplot() +
   geom_stars(data = july_st) +
   geom_sf(data = world, fill = "gray90") +
@@ -655,28 +553,37 @@ ggplot() +
 ```
 
 
-### GoM
+### Regional Map
 
-Using the July average sst anomaly we can then clip down to the Gulf of Maine for an aerial view of the region. For this execution I will be using a general extent for a demonstration of how that can be done.
+Using the July average sst anomaly we can then clip down to the Gulf of Maine for an aerial view of the region. For this execution the bounding box of lat-lon coordinates from the regional extent will be used.
 
 ```{r}
 
 # Clip Raster - Convert to stars
-gom_ras <- crop(rotate(july_avg), extent(-73, -64, 40, 46))
-gom_st <- st_as_stars(gom_ras)
+shape_extent <- c(crop_x, crop_y)
+region_ras <- crop(rotate(july_avg), extent(shape_extent))
+region_st <- st_as_stars(region_ras)
 
 # Get crop bounds for coord_sf
-crop_x <- st_bbox(gom_st)[c(1,3)] 
-crop_y <- st_bbox(gom_st)[c(2,4)]
+crop_x <- st_bbox(region_st)[c(1,3)] 
+crop_y <- st_bbox(region_st)[c(2,4)]
+
+
+# Zoom out for cpr extent, same as Andy's GOM
+if(tolower(params$region) == "cpr gulf of maine"){
+  crop_x <- c(-71, -65.5)
+  crop_y <- c(40.5, 45)}
+
 
 # Plot Gulf of Maine - wgs84
 ggplot() +
-  geom_stars(data = gom_st) +
+  geom_stars(data = region_st) +
   geom_sf(data = new_england, fill = "gray90") +
   geom_sf(data = canada, fill = "gray90") +
+  geom_sf(data = greenland, fill = "gray90") +
   scale_fill_gradient2(low = "blue", mid = "white", high = "red", na.value = "transparent") +
   map_theme +
-  coord_sf(xlim = crop_x, ylim = crop_y, expand = F) +
+  coord_sf(xlim = crop_x, ylim = crop_y, expand = T) +
   guides("fill" = guide_colorbar(
     title = "Average Sea Surface Temperature Anomaly",
     title.position = "top",
@@ -689,125 +596,92 @@ ggplot() +
 
 
 
-####  BONUS: Projecting to Albers Equal Area Projection  ####
-####  Albers Projection - Working  ####
-
-
-
-# # albers equal area: centered on -70 degrees
-# # The settings for lat_1 and lat_2 are the locations at which the cone intersects the earth, so distortion is minimized at those latitudes
-# alb_70 <- "+proj=aea +lat_1=30 +lat_2=50 +lon_0=-70"
-# 
-# 
-# # # Projecting a raster - results in curvilinear grid - not plottable in ggplot
-# # gom_alb <- st_transform(gom_st, st_crs(alb_70))
-# # plot(gom_alb)
-# 
-# 
-# # warping instead of transforming:
-# # create regular grid in new coordinate reference system
-# # then warp values over
-# newgrid <- gom_st %>% 
-#   st_transform(alb_70) %>% 
-#   st_bbox() %>%
-#   st_as_stars()
-# gom_alb <- gom_st %>% 
-#   st_warp(newgrid) 
-# 
-# # transform polygons because we will use them again
-# ne_alb <- st_transform(new_england, alb_70)
-# can_alb <- st_transform(canada, alb_70)
-# world_alb <- st_transform(world, alb_70)
-# 
-# # Crop bounds using albers projection
-# crop_x <- st_bbox(gom_alb)[c(1,3)] 
-# crop_y <- st_bbox(gom_alb)[c(2,4)]
-# 
-# 
-# gom_albers_plot <- ggplot() +
-#   geom_stars(data = gom_alb) +
-#   geom_sf(data = ne_alb, fill = "gray90") +
-#   geom_sf(data = can_alb, fill = "gray90") +
-#   scale_fill_gradient2(low = "blue", mid = "white", high = "red", na.value = "transparent") +
-#   map_theme +
-#   coord_sf(crs = alb_70, xlim = crop_x, ylim = crop_y, expand = T) +
-#   guides("fill" = guide_colorbar(
-#     title = "Average Sea Surface Temperature Anomaly",
-#     title.position = "top", 
-#     title.hjust = 0.5,
-#     barwidth = unit(4, "in"), 
-#     frame.colour = "black", 
-#     ticks.colour = "black"))
- 
-
-
 ```
 
-### NW Atlantic
+### Regionally Projected Map
 
-I was not able to locate a shapefile for the Northwest Atlantic Region so I'm going to eyeball it for now off the image in the word doc. Good practice for making masks or shapes programmatically.
+These lat/lon region extent boxes are good showcases of how something that is "rectangular" by its lat/lon dimensions that has its shape change to when projected onto a non-flat surface of the earth. 
 
-Andy's changes:   
+To get the OISST anomaly grid to display on a curviliniear projection the originals were cropped using the corner coordinates of the extent plotted above. The raster was then warped into a regular grid using an appropriate projection as displayed below.
 
- > I’d suggest we move the southern extent down to at least Long Island, and we may want to move the eastern bound a bit further to pick up the southern part of E Greenland (~over to 40 W long).
-
-
-
-This custom region is a good showcase of how something that is "rectangular" by its lat/lon dimensions that has its shape change to when projected onto a non-flat surface of the earth. To get the OISST anomalies curved the originals were cropped using the corner ccoordinates of the extent plotted above. The raster was then warped into a regular grid in the stereographic projection displayed below.
+For the most dramatic case set the region parameter to "Northwest Atlantic"
 
 ```{r}
 
-# Create a general extent to use for the area
-nw_extent <- tribble(
-  ~"lon",  ~"lat",
-  -73,	40.5, 
-  -40,	40.5, 
-  -40,	70, 
-  -73,	70, 
-  -73,	40.5
-) %>% as.matrix() %>% 
-  list() %>% 
-  st_polygon()
 
-# create simple feature collection
-nw_region <- st_sf(area = "Northwest Atlantic Testing", st_sfc(nw_extent), crs = 4326)
-greenland <- ne_states(country = "greenland") %>% st_as_sfc(crs = 4326)
+#### Candidate coordinate reference systems ####
 
-# new sterographic projection for this area, centered using lon_0
+####  NOTE: 
+# transformation from rasters different than polygons 
+# as cells need to stretch and bend  ####
+# Resource: Tranformation vs. Warping 
+# https://r-spatial.github.io/stars/articles/stars5.html
+
+# Robinson projection
+robinson_proj <- "+proj=robin"
+
+# Albers equal area: centered on -70 degrees
+# The settings for lat_1 and lat_2 are the locations at which 
+# the cone intersects the earth, so distortion is minimized at those latitudes
+alb_70 <- "+proj=aea +lat_1=30 +lat_2=50 +lon_0=-70"
+
+# custom sterographic projection for this nw atlantic, centered using lon_0
 stereographic_north <- "+proj=stere +lat_0=90 +lat_ts=75 +lon_0=-57"
-nw_north            <- st_transform(nw_region, crs = stereographic_north)
-canada_north        <- st_transform(canada, stereographic_north)
-newengland_north    <- st_transform(new_england, stereographic_north)
-greenland_north     <- st_transform(greenland, stereographic_north)
+
+# equal earth projection - not working, don't think sf has functionality for it yet
+eqearth_proj <- "+proj=eqearth"
+
+# Choose crs using parameter
+projection_crs <- switch(
+  tolower(params$region),
+  "gulf of maine" = alb_70,
+  "cpr gulf of maine" = alb_70,
+  "northwest atlantic" = stereographic_north)
+
+
+# Transform all the polygons
+region_projected        <- st_transform(region_extent, crs = projection_crs)
+canada_projected        <- st_transform(canada, crs = projection_crs)
+newengland_projected    <- st_transform(new_england, crs = projection_crs)
+greenland_projected     <- st_transform(greenland, crs = projection_crs)
 
 # coord_sf Crop bounds in projection units for coord_sf
-crop_x <- st_bbox(nw_north)[c(1,3)] 
-crop_y <- st_bbox(nw_north)[c(2,4)]
+crop_x <- st_bbox(region_projected)[c(1,3)] 
+crop_y <- st_bbox(region_projected)[c(2,4)]
 
-# Lower the ymin a touch
-crop_y <- crop_y - c(100000, 0)
 
-# Clip Raster - Convert to stars
-nw_ras <- crop(rotate(july_avg), extent(-73, -40, 40.5, 70))
-nw_st <- st_as_stars(nw_ras)
+# Zoom out for cpr extent, same as Andy's GOM
+if(tolower(params$region) == "cpr gulf of maine"){
+  crop_x <- c(-73185.13, 386673.34)
+  crop_y <- c(4269044,   4813146)}
 
-# Warp to stereographic CRS
-north_grid <- nw_st %>% 
-  st_transform(stereographic_north) %>% 
+# Lower the ymin a touch for NW Atlantic
+if(tolower(params$region) == "northwest atlantic"){crop_y <- crop_y - c(100000, 0)}
+
+
+# # Clip Raster - Convert to stars
+# nw_ras <- crop(rotate(july_avg), extent(-73, -40, 40.5, 70))
+# nw_st <- st_as_stars(nw_ras)
+
+# Warp to grid of chosen CRS
+projection_grid <- region_st %>% 
+  st_transform(projection_crs) %>% 
   st_bbox() %>%
   st_as_stars()
-nw_stereo_ras <- nw_st %>% 
-  st_warp(north_grid) 
+region_warp_ras <- region_st %>% 
+  st_warp(projection_grid) 
 
 
 # Plot everything together
 ggplot() +
-  geom_stars(data = nw_stereo_ras) +
-  #geom_sf(data = nw_north, color = "black", fill = "transparent", linetype = 2) +
-  geom_sf(data = newengland_north, fill = "gray90") +
-  geom_sf(data = canada_north, fill = "gray90") +
-  geom_sf(data = greenland_north, fill = "gray90") +
-  coord_sf(crs = stereographic_north, xlim = crop_x, ylim = crop_y, expand = T) +
+  geom_stars(data = region_warp_ras) +
+  #geom_sf(data = region_projected, color = "black", fill = "transparent", linetype = 2) +
+  geom_sf(data = newengland_projected, fill = "gray90") +
+  geom_sf(data = canada_projected, fill = "gray90") +
+  geom_sf(data = greenland_projected, fill = "gray90") +
+  coord_sf(crs = projection_crs, 
+           xlim = crop_x, ylim = crop_y, expand = T) +
+  map_theme +
   scale_fill_gradient2(low = "blue",
                      mid = "white",
                      high = "red",
