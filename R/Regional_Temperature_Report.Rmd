@@ -43,7 +43,7 @@ box_paths <- research_access_paths()
 
 # File Paths
 mills_path <- box_paths$mills
-res_path   <- box_paths$res
+res_path   <- str_replace(box_paths$res, "RES Data", "RES_Data")
 okn_path   <- box_paths$okn  
 
 
@@ -115,10 +115,11 @@ ggplot() +
   geom_sf(data = greenland, fill = "gray90") +
   geom_sf(data = region_extent, color = "royalblue", 
           fill = "transparent", linetype = 2, size = 1) +
-  scale_fill_gradient2("Sea Surface Temperature Anomaly",
-                       low = "blue",
-                       mid = "white",
-                       high = "red") +
+  # scale_fill_gradient2("Sea Surface Temperature Anomaly",
+  #                      low = "blue",
+  #                      mid = "white",
+  #                      high = "red") +
+  scale_fill_distiller(palette = "RdBu", na.value = "transparent") +
   map_theme +
   guides("fill" = guide_colorbar(title.position = "top", 
                                  title.hjust = 0.5,
@@ -400,19 +401,20 @@ annual_summary <- region_timeseries %>%
             .groups = "keep") 
 
 
+
 # Plot the warming rate for the region
 annual_summary %>% 
   ggplot(aes(year, sst_anom)) +
   geom_line(group = 1) +
   geom_point() +
   geom_smooth(method = "lm", 
-              aes(color = "Gulf of Maine Trend"),
+              aes(color = "Regional Trend"),
               formula = y ~ x, se = F, linetype = 2) +
   stat_poly_eq(formula = y ~ x,
-               aes(color = "Gulf of Maine Trend",
+               aes(color = "Regional Trend",
                    label = paste(..eq.label.., ..rr.label.., sep = "~~~")),
                parse = T) +
-  scale_color_manual(values = c("Gulf of Maine Trend" = "royalblue")) +
+  scale_color_manual(values = c("Regional Trend" = "royalblue")) +
   labs(x = "", y = "Sea Surface Temperature Anomaly") +
   theme(legend.title = element_blank(),
         legend.position = c(0.85, 0.2),
@@ -487,7 +489,9 @@ ggplot(grid_data, aes(x = flat_date, y = year)) +
   scale_x_date(date_labels = "%b", date_breaks = "1 month", expand = c(0,0)) +
   scale_y_continuous(limits = c(1980.5, 2020.5), expand = c(0,0)) +
   labs(x = "", y = "") +
-  scale_fill_gradient2(low = "blue", mid = "white", high = "red") +
+  #scale_fill_gradient2(low = "blue", mid = "white", high = "red") +
+  scale_fill_distiller(palette = "RdBu", na.value = "transparent") +
+  
   #5 inches is default rmarkdown height for barheight
   guides("fill" = guide_colorbar(title = guide_lab, 
                                  title.position = "right", 
@@ -539,9 +543,10 @@ july_st <- st_as_stars(rotate(july_avg))
 ggplot() +
   geom_stars(data = july_st) +
   geom_sf(data = world, fill = "gray90") +
-  scale_fill_gradient2(low = "blue",
-                       mid = "white",
-                       high = "red") +
+  # scale_fill_gradient2(low = "blue",
+  #                      mid = "white",
+  #                      high = "red") +
+  scale_fill_distiller(palette = "RdBu", na.value = "transparent") +
   map_theme +
   coord_sf(expand = FALSE) +
   guides("fill" = guide_colorbar(title = "Average Sea Surface Temperature Anomaly",
@@ -582,7 +587,8 @@ ggplot() +
   geom_sf(data = new_england, fill = "gray90") +
   geom_sf(data = canada, fill = "gray90") +
   geom_sf(data = greenland, fill = "gray90") +
-  scale_fill_gradient2(low = "blue", mid = "white", high = "red", na.value = "transparent") +
+  #scale_fill_gradient2(low = "blue", mid = "white", high = "red", na.value = "transparent") +
+  scale_fill_distiller(palette = "RdBu", na.value = "transparent") +
   map_theme +
   coord_sf(xlim = crop_x, ylim = crop_y, expand = T) +
   guides("fill" = guide_colorbar(
@@ -683,10 +689,11 @@ ggplot() +
   coord_sf(crs = projection_crs, 
            xlim = crop_x, ylim = crop_y, expand = T) +
   map_theme +
-  scale_fill_gradient2(low = "blue",
-                     mid = "white",
-                     high = "red",
-                     na.value = "transparent") +
+  # scale_fill_gradient2(low = "blue",
+  #                    mid = "white",
+  #                    high = "red",
+  #                    na.value = "transparent") +
+  scale_fill_distiller(palette = "RdBu", na.value = "transparent") +
   guides("fill" = guide_colorbar(title = "Average Sea Surface Temperature Anomaly",
                                  title.position = "top", 
                                  title.hjust = 0.5,
