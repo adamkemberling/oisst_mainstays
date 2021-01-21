@@ -29,8 +29,19 @@ Once the environment is running Rstudio server can be found at
 
 For colleagues wishing to access shared resources a
 `docker-compose.override.yaml` file will need to be placed in the main
-directory of this repository to link shared paths to shared
-resources.
+directory of this repository to link shared paths to shared resources.
+
+### Operating locally for `BASE` steps
+
+The workflow steps that make up the core foundation of the workflow are
+often too large to run succesfully in docker. To get around this a
+suitable conda environment may be needed to run the notebooks. In my
+case I need to navigate to this repo in the terminal and type `conda
+activate py36`.
+
+Most of the notebooks will have a “workspace” parameter to be set which
+determines the path structures for the rest of the notebooks
+accordingly.
 
 ## Data Access
 

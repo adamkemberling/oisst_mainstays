@@ -28,6 +28,7 @@ notebooks/.local*
 notebooks/.jupyter*
 notebooks/.config*
 notebooks/.ipython*
+notebooks/__pycache__
 
 # rmarkdown intermediate files
 R/GOM_Report_files/*
