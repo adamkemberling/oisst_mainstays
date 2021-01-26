@@ -219,12 +219,13 @@ p1 / p2
 
 ####  Boken NETCDF Connections  ####
 test_stack <- raster::stack("~/Box/RES_Data/OISST/oisst_mainstays/annual_observations/sst.day.mean.1982.v2.nc")
-plot(test_stack$X1982.01.01)
+
 
 # northeast large marine ecosystem, trawl area only
 nelme_sf <- read_sf("~/Box/RES_Data/Shapefiles/NELME_regions/NELME_sf.shp")
-p1 <- ggplot() +
-  geom_sf(data = nelme_sf)
+coca_gom_sf <- read_sf("~/Box/RES_Data/Shapefiles/NELME_regions/GoM_sf.shp")
+p1 <- ggplot() + geom_sf(data = nelme_sf)
+p1 <- ggplot() + geom_sf(data = coca_gom_sf)
 
 # nelme temperature timeline
 nelme_temp <- read_csv("/Users/akemberling/Box/RES_Data/OISST/oisst_mainstays/regional_timeseries/NELME_regions/OISSTv2_anom_northeastern_us_shelf.csv")
@@ -232,11 +233,13 @@ p2 <- nelme_temp %>%
   mutate(year = lubridate::year(time)) %>% 
   group_by(year) %>% 
   summarise(sst = mean(sst),
-            sst_anom = mean(sst_anom)) %>% 
-  ggplot(aes(year, sst_anom)) +
+            sst_anom = mean(sst)) %>% 
+  ggplot(aes(year, sst)) +
+  #ggplot(aes(year, sst_anom)) +
   geom_line() +
   geom_point() +
-  labs(x = "", y = "Sea Surface Temperature Anomaly (degree C)")
+  labs(x = "", y = "Sea Surface Temperature(degree C)")
+  #labs(x = "", y = "Sea Surface Temperature Anomaly (degree C)")
 
 # Compare to:
 
@@ -252,10 +255,12 @@ p4 <- nelme_true_temp %>%
   group_by(year) %>% 
   summarise(sst = mean(sst, na.rm = T),
             sst_anom = mean(sst_anom, na.rm = T)) %>% 
-  ggplot(aes(year, sst_anom)) +
+  #ggplot(aes(year, sst_anom)) +
+  ggplot(aes(year, sst)) +
   geom_line() +
   geom_point() +
-  labs(x = "", y = "Sea Surface Temperature Anomaly (degree C)")
+  labs(x = "", y = "Sea Surface Temperature(degree C)")
+  #labs(x = "", y = "Sea Surface Temperature Anomaly (degree C)")
 
 
 # Side by side

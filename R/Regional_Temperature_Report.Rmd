@@ -45,6 +45,7 @@ box_paths <- research_access_paths()
 mills_path <- box_paths$mills
 res_path   <- str_replace(box_paths$res, "RES Data", "RES_Data")
 okn_path   <- box_paths$okn  
+oisst_path <- paste0(res_path, "OISST/oisst_mainstays/")
 
 
 # set ggplot theme for figures
@@ -153,11 +154,11 @@ The naming convention in the folder is: `regional_timeseries/nmfs_trawl_regions/
 # Switch path based on local vs. docker
 timeseries_path <- switch(
   EXPR = tolower(params$region),
-  "gulf of maine" = "oisst/regional_timeseries/gmri_sst_focal_areas/OISSTv2_anom_apershing_gulf_of_maine.csv",
-  "cpr gulf of maine" = "oisst/regional_timeseries/gmri_sst_focal_areas/OISSTv2_anom_cpr_gulf_of_maine.csv",
-  "northwest atlantic" = "oisst/regional_timeseries/gmri_sst_focal_areas/OISSTv2_anom_northwest_atlantic.csv")
+  "gulf of maine" = "OISSTv2_anom_apershing_gulf_of_maine.csv",
+  "cpr gulf of maine" = "OISSTv2_anom_cpr_gulf_of_maine.csv",
+  "northwest atlantic" = "OISSTv2_anom_northwest_atlantic.csv")
 
-timeseries_path <- str_c(okn_path, timeseries_path)
+timeseries_path <- str_c(oisst_path, "regional_timeseries/gmri_sst_focal_areas/", timeseries_path)
   
 # Load timeseries
 region_timeseries <- read_csv(timeseries_path,
@@ -514,9 +515,9 @@ For demonstration purposes I will only be loading the 2020 global anomaly data f
 ```{r}
 
 # Access information to netcdf on box
-okn_path <- shared.path(group = "NSF OKN", folder = "oisst/annual_anomalies/")
 nc_year <- "2020"
-anom_path <- str_c(okn_path, "daily_anoms_", nc_year, ".nc")
+anom_path <- str_c(oisst_path, "annual_anomalies/daily_anoms_", nc_year, ".nc")
+
 
 # Load 2020 as stack
 anoms_2020 <- stack(anom_path)
@@ -718,7 +719,7 @@ The warming rates are then ranked from high to low to identify areas with the mo
 
 ```{r}
 # Access information to netcdf on box
-rates_path <- shared.path(group = "NSF OKN", folder = "oisst/warming_rates/")
+rates_path <- paste0(oisst_path, "warming_rates/")
 rates_stack <- stack(str_c(rates_path, "annual_warming_rates.nc"), varname = "annual_warming_rate")
 ranks_stack <- stack(str_c(rates_path, "annual_warming_rates.nc"), varname = "rate_percentile")
 
