@@ -137,13 +137,13 @@ ggplot() +
 
 # Accessing OISST on Box
 
-For many of our most-used areas climatologies and anomalies have been processed using a handful of jupyter notebook workflows to take advantage of {xarray}. The following sections will highlight what those workflows are, what they detail, and how they can be updated using the Gulf of Maine as an example.
+For many of our most-used areas climatologies and anomalies have been processed using a handful of jupyter notebook work flows to take advantage of {xarray}. The following sections will highlight what those work flows are, what they detail, and how they can be updated using the Gulf of Maine as an example.
 
 The root folder for the following OISST products is `~/Box/NSF OKN Demo Data/oisst`.
 
 ##  Masked Regional Timeseries
 
-A region-masked timeseries is the most basic building block for relaying information for any of these areas. For any desired area (represented by a spatial polygon) a timeseries table of observed sea surface temperature is returned that contains the mean sea surface temperature over that area at each time step. Rather than repeat this process again for the climatology table and the anomalies these three values and a few additional fields are stored in the same table.
+A region-masked time series is the most basic building block for relaying information for any of these areas. For any desired area (represented by a spatial polygon) a time series table of observed sea surface temperature is returned that contains the mean sea surface temperature over that area at each time step. Rather than repeat this process again for the climatology table and the anomalies these three values and a few additional fields are stored in the same table.
 
 Pre-processed tables have been placed on box as part of the NSF C-ACCEL project under the folder: `~/Box/NSF OKN Demo Data/oisst/regional_timeseries`
 
@@ -154,8 +154,8 @@ The naming convention in the folder is: `regional_timeseries/nmfs_trawl_regions/
 # Switch path based on local vs. docker
 timeseries_path <- switch(
   EXPR = tolower(params$region),
-  "gulf of maine" = "OISSTv2_anom_apershing_gulf_of_maine.csv",
-  "cpr gulf of maine" = "OISSTv2_anom_cpr_gulf_of_maine.csv",
+  "gulf of maine"      = "OISSTv2_anom_apershing_gulf_of_maine.csv",
+  "cpr gulf of maine"  = "OISSTv2_anom_cpr_gulf_of_maine.csv",
   "northwest atlantic" = "OISSTv2_anom_northwest_atlantic.csv")
 
 timeseries_path <- str_c(oisst_path, "regional_timeseries/gmri_sst_focal_areas/", timeseries_path)
@@ -335,9 +335,11 @@ plotly_mhw_plots <- function(data){
 
 # Plot the last year
 last_year <- Sys.Date() - 365
+last_year <- last_year - yday(last_year) + 1
 region_heatwaves %>% 
   filter(time >= last_year) %>% 
   plotly_mhw_plots()
+
 ```
 
 #### Static SST Timeline
@@ -371,18 +373,16 @@ region_heatwaves %>%
     geom_line(aes(y = mcs_thresh, color = "MCS Threshold"), lty = 2, size = .5) +
     geom_line(aes(y = seas, color = "Seasonal Climatology"), size = .5) +
     scale_color_manual(values = color_vals) +
-  scale_x_date(date_labels = "%b", date_breaks = "1 month") +
+    scale_x_date(date_labels = "%b", date_breaks = "1 month") +
     theme(legend.title = element_blank(),
           legend.position = "bottom") +
-    labs(x = "", y = ylab)
+    labs(x = "", y = ylab, caption = paste0("X-axis start: ", last_year))
 ```
 
 
 #### Warming Rates {.tabset .tabset-pills}
 
 Regional warming trends below were calculated using annual averages, and consequently the model parameters reflect annual increases in sea surface temperature.
-
-**NOTE:** The trends produced below use OISST data clipped from the global extent using the "NELME" shapefile that includes Georges Bank and the Bay of Fundy.
 
 
 Things to add:   
@@ -458,7 +458,7 @@ quarter_summary %>%
   facet_wrap(~season)
 ```
 
-#### Heatwave Event History
+#### Heatwave Event Heatmap
 
 As mentioned above heatwave events were determined using the methods of Hobday et al. 2016 and implemented using {heatwaveR} with a 90% threshold. The region used is again that same "NELME" Gulf of Maine region, the bottom right panel of the maps at the beginning of the document.
 
@@ -478,18 +478,22 @@ grid_data <- region_heatwaves %>%
 
 # assemble plot
 ggplot(grid_data, aes(x = flat_date, y = year)) +
+  
   # background box fill for missing dates
   geom_rect(xmin = base_date, xmax = base_date + 365, 
             ymin = min(grid_data$year) - .5, ymax = max(grid_data$year) + .5, 
             fill = "gray75", color = "transparent") +
+  
   # tile for sst colors
   geom_tile(aes(fill = sst_anom)) +
+  
   # points for heatwave events
   geom_point(data = filter(grid_data, mhw_event == TRUE),
              aes(x = flat_date, y = year), size = .25)  +
   scale_x_date(date_labels = "%b", date_breaks = "1 month", expand = c(0,0)) +
   scale_y_continuous(limits = c(1980.5, 2020.5), expand = c(0,0)) +
   labs(x = "", y = "") +
+  
   #scale_fill_gradient2(low = "blue", mid = "white", high = "red") +
   scale_fill_distiller(palette = "RdBu", na.value = "transparent") +
   
