@@ -333,10 +333,14 @@ plotly_mhw_plots <- function(data){
 
 
 
-# Plot the last year
+# Grab data from the most recent year through present day
 last_year <- Sys.Date() - 365
 last_year <- last_year - yday(last_year) + 1
-region_heatwaves %>% 
+last_yr_heatwaves <- region_heatwaves %>% 
+  filter(time >= last_year)
+
+# Plot that timeseries
+last_yr_heatwaves %>% 
   filter(time >= last_year) %>% 
   plotly_mhw_plots()
 
@@ -360,9 +364,16 @@ color_vals <- c(
 # Set the label with degree symbol
 ylab <- expression("Sea Surface Temperature"~degree~C)
 
+
+# How many heatwave events:
+num_events <- max(last_yr_heatwaves$mhw_event_no, na.rm = T) - min(last_yr_heatwaves$mhw_event_no, na.rm = T)
+
+# How many heatwave days
+num_hw_days <- sum(last_yr_heatwaves$mhw_event, na.rm = T)
+
+
 # Plot the last 365 days
-region_heatwaves %>% 
-  filter(time >= last_year) %>% 
+last_yr_heatwaves  %>% 
   ggplot(aes(x = time)) +
     geom_segment(aes(x = time, xend = time, y = seas, yend = sst), color = "royalblue", alpha = 0.25) +
     geom_segment(aes(x = time, xend = time, y = mhw_thresh, yend = hwe), color = "darkred", alpha = 0.25) +
@@ -376,7 +387,9 @@ region_heatwaves %>%
     scale_x_date(date_labels = "%b", date_breaks = "1 month") +
     theme(legend.title = element_blank(),
           legend.position = "bottom") +
-    labs(x = "", y = ylab, caption = paste0("X-axis start: ", last_year))
+    labs(x = "", y = ylab, caption = paste0("X-axis start date: ", last_year, 
+                                            "\nNumber of Heatwave events: ", num_events,
+                                            "\nNumber of Heatwave Days: ", num_hw_days))
 ```
 
 
