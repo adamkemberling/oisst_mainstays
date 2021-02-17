@@ -21,6 +21,7 @@ params:
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE, message = F, warning = F)
 
+# Packages
 library(lubridate)
 library(ncdf4)
 library(raster)
@@ -38,8 +39,10 @@ library(heatwaveR)
 library(plotly)
 library(ggpmisc)
 
+
 #box paths
 box_paths <- research_access_paths()
+
 
 # File Paths
 mills_path <- box_paths$mills
@@ -48,26 +51,27 @@ okn_path   <- box_paths$okn
 oisst_path <- paste0(res_path, "OISST/oisst_mainstays/")
 
 
-# set ggplot theme for figures
+# Set ggplot theme for figures
 theme_set(theme_bw())
 
 
-# change theme up for maps
+# Set theme up for maps
 map_theme <- list(
   theme(
-    panel.border = element_rect(color = "black", fill = NA),
-    plot.background = element_rect(color = "transparent", fill = "transparent"),
-    line = element_blank(),
-    axis.title.x = element_blank(), # turn off titles
-    axis.title.y = element_blank(),
-    legend.position = "bottom", 
+    panel.border       = element_rect(color = "black", fill = NA),
+    plot.background    = element_rect(color = "transparent", fill = "transparent"),
+    line               = element_blank(),
+    axis.title.x       = element_blank(), # turn off titles
+    axis.title.y       = element_blank(),
+    legend.position    = "bottom", 
     legend.title.align = 0.5))
+
 
 # Polygons for mapping
 new_england <- ne_states("united states of america") %>% st_as_sf(crs = 4326) 
-canada <- ne_states("canada") %>% st_as_sf(crs = 4326)
-world <- ne_countries() %>% st_as_sf(crs = 4326)
-greenland <- ne_states(country = "greenland") %>% st_as_sfc(crs = 4326)
+canada      <- ne_states("canada") %>% st_as_sf(crs = 4326)
+world       <- ne_countries() %>% st_as_sf(crs = 4326)
+greenland   <- ne_states(country = "greenland") %>% st_as_sfc(crs = 4326)
 ```
 
 `r gmRi::use_gmri_style_rmd(css = "gmri_rmarkdown.css")`
@@ -85,15 +89,14 @@ The spatial extent for `r params$region` is displayed below. This bounding box i
 
 # File paths for various extents based on params$region
 poly_path <- switch(
-  tolower(params$region),
-  "gulf of maine" = "Shapefiles/gmri_sst_focal_areas/apershing_gulf_of_maine.geojson",
-  "cpr gulf of maine" = "Shapefiles/gmri_sst_focal_areas/cpr_gulf_of_maine.geojson",
-  "northwest atlantic" = "Shapefiles/gmri_sst_focal_areas/aak_northwest_atlantic.geojson"
-  )
+  EXPR = tolower(params$region),
+  "gulf of maine"      = "Shapefiles/gmri_sst_focal_areas/apershing_gulf_of_maine.geojson",
+  "cpr gulf of maine"  = "Shapefiles/gmri_sst_focal_areas/cpr_gulf_of_maine.geojson",
+  "northwest atlantic" = "Shapefiles/gmri_sst_focal_areas/aak_northwest_atlantic.geojson")
 
-poly_path <- paste0(res_path, poly_path)
 
 # Load the bounding box for Andy's GOM to show they align
+poly_path <- paste0(res_path, poly_path)
 region_extent <- st_read(poly_path, quiet = TRUE)
 
 
@@ -110,23 +113,12 @@ if(tolower(params$region) == "cpr gulf of maine"){
 
 # Full plot
 ggplot() +
-  #geom_stars(data = andy_stars) + # see GMRI_template_focus_areas.R
   geom_sf(data = new_england, fill = "gray90") +
   geom_sf(data = canada, fill = "gray90") +
   geom_sf(data = greenland, fill = "gray90") +
   geom_sf(data = region_extent, color = "royalblue", 
           fill = "transparent", linetype = 2, size = 1) +
-  # scale_fill_gradient2("Sea Surface Temperature Anomaly",
-  #                      low = "blue",
-  #                      mid = "white",
-  #                      high = "red") +
-  scale_fill_distiller(palette = "RdBu", na.value = "transparent") +
   map_theme +
-  guides("fill" = guide_colorbar(title.position = "top", 
-                                 title.hjust = 0.5,
-                                 barwidth = unit(4, "in"), 
-                                 frame.colour = "black", 
-                                 ticks.colour = "black")) +
   coord_sf(xlim = crop_x, 
            ylim = crop_y, expand = T) 
 
@@ -135,19 +127,19 @@ ggplot() +
 
 
 
-# Accessing OISST on Box
+# GMRI OISST Resources on Box
 
-For many of our most-used areas climatologies and anomalies have been processed using a handful of jupyter notebook work flows to take advantage of {xarray}. The following sections will highlight what those work flows are, what they detail, and how they can be updated using the Gulf of Maine as an example.
+For many of our most-used areas, regional climatologies and anomalies have been processed using a handful of jupyter notebook work flows to take advantage of {xarray}. The following sections will highlight what those work flows are, what they detail, and how they can be updated using the Gulf of Maine as an example.
 
-The root folder for the following OISST products is `~/Box/NSF OKN Demo Data/oisst`.
+The root folder for the following OISST products is `~/Box/RES_Data/OISST/oisst_mainstays`.
 
-##  Masked Regional Timeseries
+##  Regional Timeseries
 
-A region-masked time series is the most basic building block for relaying information for any of these areas. For any desired area (represented by a spatial polygon) a time series table of observed sea surface temperature is returned that contains the mean sea surface temperature over that area at each time step. Rather than repeat this process again for the climatology table and the anomalies these three values and a few additional fields are stored in the same table.
+A region-masked time series is the most basic building block for relaying information for any of these areas. For any desired area (represented by a spatial polygon) a time series table of observed sea surface temperature is returned that contains the mean sea surface temperature for that area only for each time step. 
 
-Pre-processed tables have been placed on box as part of the NSF C-ACCEL project under the folder: `~/Box/NSF OKN Demo Data/oisst/regional_timeseries`
+Rather than repeat this process again for the climatology table and the anomalies these three values and a few additional fields are stored in the same table.
 
-The naming convention in the folder is: `regional_timeseries/nmfs_trawl_regions/OISST_v2_anom_` + **region_name** + `.csv` 
+Pre-processed tables have been placed on box as part of the NSF C-ACCEL project under the folder: `~/Box/RES_Data/OISST/oisst_mainstays/regional_timeseries`. A function to quickly access these timelines has been added to the {gmRi} package as `oisst_access_timeseries()`.
 
 ```{r}
 
@@ -158,23 +150,37 @@ timeseries_path <- switch(
   "cpr gulf of maine"  = "OISSTv2_anom_cpr_gulf_of_maine.csv",
   "northwest atlantic" = "OISSTv2_anom_northwest_atlantic.csv")
 
-timeseries_path <- str_c(oisst_path, "regional_timeseries/gmri_sst_focal_areas/", timeseries_path)
+# Append to form complete path
+timeseries_path <- str_c(
+  oisst_path, 
+  "regional_timeseries/gmri_sst_focal_areas/", 
+  timeseries_path)
   
+
 # Load timeseries
 region_timeseries <- read_csv(timeseries_path,
-                   guess_max = 1e5,
-                   col_types = cols())
+                              guess_max = 1e5,
+                              col_types = cols())
 
-head(region_timeseries) %>% mutate_if(is_numeric, round, 2) %>% kable() %>% kable_styling()
+# Display Table of first 6 entries
+head(region_timeseries) %>% 
+  mutate_if(is_numeric, round, 2) %>% 
+  kable() %>% 
+  kable_styling()
 ```
 
 
-Climatologies are currently set up to calculate daily averages on a modified julian day, such that every March 1st and all days after fall on the same day, regardless of whether it is a leap year or not. In these tables `sst` is the mean temperature observed for that date averaged across all cells within the area. `sst_clim` & `clim_sd` are the climate means and standard deviations for a 1982-2011 climatology. `sst_anom` is the daily observed minus the climate mean, and `log_lik` is the log likelihood of getting that value given a normal distribution with mean of `sst_clim` and sd of `clim_sd`.
+Climatologies are currently set up to calculate daily averages on a modified julian day, such that every March 1st and all days after fall on the same day, regardless of whether it is a leap year or not. This preserves comparisons across calendar dates such-as: "The average temperature on march 1st is ____ for the reference period ____ to ____"
+
+
+In these tables `sst` is the mean temperature observed for that date averaged across all cells within the area. `sst_clim` & `clim_sd` are the climate means and standard deviations for a 1982-2011 climatology. `sst_anom` is the daily observed minus the climate mean, and `log_lik` is the log likelihood of getting that value given a normal distribution with mean of `sst_clim` and standard  deviation of `clim_sd`.
 
 
 ### Marine Heatwaves {.tabset .tabset-pills}
 
-The [{heatwaveR}](https://robwschlegel.github.io/heatwaveR/) package provides a relatively quick way of working with tabular data to calculate a seasonal climate mean, as well as heatwaves and coldwaves at a desired threshold. These functions can be used to get the climatology using the standard day of year if desired, and track the number and length of heatwave events. Heatwave events follow the definition of [Hobday et al. 2016](http://www.marineheatwaves.org/all-about-mhws.html)
+The [{heatwaveR}](https://robwschlegel.github.io/heatwaveR/) package provides a relatively quick way of working with tabular data to calculate a seasonal climate mean, as well as heatwaves and coldwaves at a desired threshold. 
+
+These functions can be used to get the climatology using the standard day of year if desired, and track the number and length of heatwave events. Heatwave events follow the definition of [Hobday et al. 2016](http://www.marineheatwaves.org/all-about-mhws.html) and are set up to use a 90% threshold for heatwave/coldwave detection.
 
 The heatwave history for the Gulf of Maine trawl region displayed above is as follows:
 
@@ -242,21 +248,21 @@ pull_heatwave_events <- function(temperature_timeseries) {
 }
 
 
-
-# Use function
-#
+# Use function to process heatwave data for plotting
 region_heatwaves <- pull_heatwave_events(region_timeseries)
 
 ```
 
 
-Heatwave timelines can be interactively plotted using {ggplot2} for static plots or {plotly} for interactive content.
+Heatwave timelines can be then be plotted using the {ggplot2} package for static plots, or by using the {plotly} package for interactive content.
+
 
 #### Interactive SST Timeline
 
+
 For anything we wish to host on the web there is an option to display tables and graphs that are interactive. The {plotly} package is one-such tool for producing plots that allow users to pan, zoom, and highlight discrete observations.
 
-```{r}
+```{r mhw plotly}
 # Helper function
 plotly_mhw_plots <- function(data){
     
@@ -350,7 +356,7 @@ last_yr_heatwaves %>%
 
 In most cases a static image will suffice, in  which case {ggplot2} is a familiar go-to.
 
-```{r}
+```{r mhw ggplot}
 
 # Set colors by name
 color_vals <- c(
@@ -373,10 +379,11 @@ num_hw_days <- sum(last_yr_heatwaves$mhw_event, na.rm = T)
 
 
 # Plot the last 365 days
-last_yr_heatwaves  %>% 
-  ggplot(aes(x = time)) +
-    geom_segment(aes(x = time, xend = time, y = seas, yend = sst), color = "royalblue", alpha = 0.25) +
-    geom_segment(aes(x = time, xend = time, y = mhw_thresh, yend = hwe), color = "darkred", alpha = 0.25) +
+ggplot(last_yr_heatwaves, aes(x = time)) +
+    geom_segment(aes(x = time, xend = time, y = seas, yend = sst), 
+                 color = "royalblue", alpha = 0.25) +
+    geom_segment(aes(x = time, xend = time, y = mhw_thresh, yend = hwe), 
+                 color = "darkred", alpha = 0.25) +
     geom_line(aes(y = sst, color = "Sea Surface Temperature")) +
     geom_line(aes(y = hwe, color = "Heatwave Event")) +
     geom_line(aes(y = cse, color = "Cold Spell Event")) +
@@ -387,9 +394,10 @@ last_yr_heatwaves  %>%
     scale_x_date(date_labels = "%b", date_breaks = "1 month") +
     theme(legend.title = element_blank(),
           legend.position = "bottom") +
-    labs(x = "", y = ylab, caption = paste0("X-axis start date: ", last_year, 
-                                            "\nNumber of Heatwave events: ", num_events,
-                                            "\nNumber of Heatwave Days: ", num_hw_days))
+    labs(x = "", y = ylab, 
+         caption = paste0("X-axis start date: ", last_year, 
+                          "\nNumber of Heatwave events: ", num_events,
+                          "\nNumber of Heatwave Days: ", num_hw_days))
 ```
 
 
@@ -412,23 +420,32 @@ annual_summary <- region_timeseries %>%
   group_by(year) %>% 
   summarise(sst = mean(sst, na.rm = T),
             sst_anom = mean(sst_anom, na.rm = T), 
-            .groups = "keep") 
+            .groups = "keep") %>% ungroup() %>% 
+  mutate(yr_as_dtime = as.Date(paste0(year, "-07-02")))
 
 
 
 # Plot the warming rate for the region
 annual_summary %>% 
-  ggplot(aes(year, sst_anom)) +
-  geom_line(group = 1) +
-  geom_point() +
+  ggplot(aes(yr_as_dtime, sst_anom)) +
+  # Add daily data
+  geom_line(data = region_timeseries, aes(time, sst_anom), 
+            alpha = 0.5, color = "gray") +
+  # Overlay yearly means
+  geom_line(alpha = 0.7) +
+  geom_point(alpha = 0.7) +
+  # Add regression line
   geom_smooth(method = "lm", 
               aes(color = "Regional Trend"),
-              formula = y ~ x, se = F, linetype = 2) +
+              formula = y ~ x, se = F, 
+              linetype = 2) +
+  # Add equation
   stat_poly_eq(formula = y ~ x,
-               aes(color = "Regional Trend",
-                   label = paste(..eq.label.., ..rr.label.., sep = "~~~")),
+               aes(label = paste(..eq.label.., ..rr.label.., sep = "~~~~~")),
+               color = gmri_cols("gmri blue"),
                parse = T) +
-  scale_color_manual(values = c("Regional Trend" = "royalblue")) +
+  # Colors, labels, theme
+  scale_color_manual(values = c("Regional Trend" = as.character(gmri_cols("orange")))) +
   labs(x = "", y = "Sea Surface Temperature Anomaly") +
   theme(legend.title = element_blank(),
         legend.position = c(0.85, 0.2),
@@ -443,7 +460,8 @@ annual_summary %>%
 quarter_summary <- region_timeseries %>% 
   mutate(year = year(time),
          season = factor(quarter(time, fiscal_start = 1)),
-         season = fct_recode(season, c("Q1" = "1"), c("Q2" = "2"), c("Q3" = "3"), c("Q4" = "4"))) %>% 
+         season = fct_recode(season, c("Q1" = "1"), c("Q2" = "2"), 
+                             c("Q3" = "3"), c("Q4" = "4"))) %>% 
   group_by(year, season) %>% 
   summarise(sst = mean(sst, na.rm = T),
             sst_anom = mean(sst_anom, na.rm = T), 
@@ -456,13 +474,13 @@ quarter_summary %>%
   geom_line(group = 1) +
   geom_point() +
   geom_smooth(method = "lm", 
-              aes(color = "Gulf of Maine Trend"),
+              aes(color = "Regional Trend"),
               formula = y ~ x, se = F, linetype = 2) +
   stat_poly_eq(formula = y ~ x,
-               aes(color = "Gulf of Maine Trend",
-                   label = paste(..eq.label.., ..rr.label.., sep = "~~~")),
+               color = gmri_cols("gmri blue"),
+               aes(label = paste(..eq.label.., ..rr.label.., sep = "~~~")),
                parse = T) +
-  scale_color_manual(values = c("Gulf of Maine Trend" = "royalblue")) +
+  scale_color_manual(values = c("Regional Trend" = as.character(gmri_cols("orange")))) +
   labs(x = "", y = "Sea Surface Temperature Anomaly") +
   theme(legend.title = element_blank(),
         legend.position = c(0.875, 0.05),
@@ -473,7 +491,7 @@ quarter_summary %>%
 
 #### Heatwave Event Heatmap
 
-As mentioned above heatwave events were determined using the methods of Hobday et al. 2016 and implemented using {heatwaveR} with a 90% threshold. The region used is again that same "NELME" Gulf of Maine region, the bottom right panel of the maps at the beginning of the document.
+As mentioned above heatwave events were determined using the methods of Hobday et al. 2016 and implemented using {heatwaveR} with a 90% threshold. The region used is again that same polygon outlined in the first figure, the bottom right panel of the maps at the beginning of the document.
 
 ```{r}
 
@@ -605,7 +623,6 @@ ggplot() +
   geom_sf(data = new_england, fill = "gray90") +
   geom_sf(data = canada, fill = "gray90") +
   geom_sf(data = greenland, fill = "gray90") +
-  #scale_fill_gradient2(low = "blue", mid = "white", high = "red", na.value = "transparent") +
   scale_fill_distiller(palette = "RdBu", na.value = "transparent") +
   map_theme +
   coord_sf(xlim = crop_x, ylim = crop_y, expand = T) +
@@ -684,10 +701,6 @@ if(tolower(params$region) == "cpr gulf of maine"){
 if(tolower(params$region) == "northwest atlantic"){crop_y <- crop_y - c(100000, 0)}
 
 
-# # Clip Raster - Convert to stars
-# nw_ras <- crop(rotate(july_avg), extent(-73, -40, 40.5, 70))
-# nw_st <- st_as_stars(nw_ras)
-
 # Warp to grid of chosen CRS
 projection_grid <- region_st %>% 
   st_transform(projection_crs) %>% 
@@ -700,17 +713,12 @@ region_warp_ras <- region_st %>%
 # Plot everything together
 ggplot() +
   geom_stars(data = region_warp_ras) +
-  #geom_sf(data = region_projected, color = "black", fill = "transparent", linetype = 2) +
   geom_sf(data = newengland_projected, fill = "gray90") +
   geom_sf(data = canada_projected, fill = "gray90") +
   geom_sf(data = greenland_projected, fill = "gray90") +
   coord_sf(crs = projection_crs, 
            xlim = crop_x, ylim = crop_y, expand = T) +
   map_theme +
-  # scale_fill_gradient2(low = "blue",
-  #                    mid = "white",
-  #                    high = "red",
-  #                    na.value = "transparent") +
   scale_fill_distiller(palette = "RdBu", na.value = "transparent") +
   guides("fill" = guide_colorbar(title = "Average Sea Surface Temperature Anomaly",
                                  title.position = "top", 
@@ -730,70 +738,177 @@ ggplot() +
 
 ## Warming Rates {.tabset .tabset-pills}
 
-Global warming rates are calculated by getting the average temperature for each year across all cells in the data, then using a linear regression for each to determine the annual warming rate in degrees celsius.
+Global warming rates are calculated by getting the average temperature for each year across all cells in the data, then using a linear regression for each to determine the annual warming rate in degrees Celsius.
 
 The warming rates are then ranked from high to low to identify areas with the most rapid ocean warming. The following maps display the warming rates and the percentile ranks for the top 20% of warming rates, or rates above the 80th percentile of the data.
 
 ```{r}
-# Access information to netcdf on box
-rates_path <- paste0(oisst_path, "warming_rates/")
-rates_stack <- stack(str_c(rates_path, "annual_warming_rates.nc"), varname = "annual_warming_rate")
-ranks_stack <- stack(str_c(rates_path, "annual_warming_rates.nc"), varname = "rate_percentile")
+# Access information to warming rate netcdf files on box
+rates_path <- paste0(oisst_path, "warming_rates/annual_warming_rates")
 
-# Going to reclassify raster: 
+
+# Going to reclassify raster from continuous to discrete: 
 # Source: https://www.earthdatascience.org/courses/earth-analytics/lidar-raster-data-r/classify-raster/
-# create classification matrix
-reclass_df <- c(0.00, 0.05,  0,
-                0.05, 0.10,  5,
-                0.10, 0.15, 10,
-                0.15, 0.20, 15,
-                0.20, 0.25, 20,
-                0.25, 0.30, 25,
-                0.30, 0.35, 30,
-                0.35, 0.40, 35,
-                0.40, 0.45, 40,
-                0.45, 0.50, 45,
-                0.50, 0.55, 50,
-                0.55, 0.60, 55,
-                0.60, 0.65, 60,
-                0.65, 0.70, 65,
-                0.70, 0.75, 70,
-                0.75, 0.80, 75,
-                0.80, 0.85, 80,
-                0.85, 0.90, 85,
-                0.90, 0.95, 90,
-                0.95,    1, 95)
 
-# reshape the object into a matrix with columns and rows
-reclass_m <- matrix(reclass_df,
-                ncol = 3,
-                byrow = TRUE)
+reclassify_to_discrete <- function(ranks_stack, rates_stack, percentile_cutoff = 80){
 
-# reclassify the raster using the reclass object - reclass_m
-ranks_classified <- reclassify(ranks_stack,
-                               reclass_m)
+  # create classification matrix
+  reclass_df <- c(0.00, 0.05,  0, #####
+                  0.05, 0.10,  5,
+                  0.10, 0.15, 10,
+                  0.15, 0.20, 15,
+                  0.20, 0.25, 20,
+                  0.25, 0.30, 25,
+                  0.30, 0.35, 30,
+                  0.35, 0.40, 35,
+                  0.40, 0.45, 40,
+                  0.45, 0.50, 45,
+                  0.50, 0.55, 50,
+                  0.55, 0.60, 55,
+                  0.60, 0.65, 60,
+                  0.65, 0.70, 65,
+                  0.70, 0.75, 70,
+                  0.75, 0.80, 75,
+                  0.80, 0.85, 80,
+                  0.85, 0.90, 85,
+                  0.90, 0.95, 90,
+                  0.95,    1, 95)
+  #####
+  
+  
+  # reshape the object into a matrix with columns and rows
+  reclass_m <- matrix(reclass_df,
+                  ncol = 3,
+                  byrow = TRUE)
+  
+  # reclassify the raster using the reclass object - reclass_m
+  ranks_classified <- reclassify(ranks_stack,
+                                 reclass_m)
+  
+  # Save the un-masked layers as stars objects
+  rates_raw_st <- st_as_stars(rotate(rates_stack))
+  ranks_raw_st <- st_as_stars(rotate(ranks_stack))
+  
+  # Masking Below percentile cutoff - for ranking raster and rates raster
+  ranks_stack[ranks_classified < percentile_cutoff] <- NA
+  rates_stack[ranks_classified < percentile_cutoff] <- NA
+  
+  # Converting to stars
+  rates_st   <- st_as_stars(rotate(rates_stack))
+  ranks_st   <- st_as_stars(rotate(ranks_stack))
+  ranks_c_st <- st_as_stars(rotate(ranks_classified))
+  
+  # #get scale ranges so they still pop
+  # rate_range <- c("min" = cellStats(rates_stack, 'min')[1], 
+  #                 "max" = cellStats(rates_stack,'max')[1])
+  
+  # Return the three stars objects
+  return(list("rates_raw" = rates_raw_st,
+              "ranks_raw" = ranks_raw_st,
+              "rates" = rates_st, 
+              "ranks" = ranks_st, 
+              "ranks_discrete" = ranks_c_st))
 
-
-# # Masking Below percentile cutoff - for ranking raster and rates raster
-percentile_cutoff <- 80
-ranks_stack[ranks_classified < percentile_cutoff] <- NA
-rates_stack[ranks_classified < percentile_cutoff] <- NA
-# plot(ranks_classified, main = "Reclassified Warming Ranks - top 20%")
-# plot(rates_stack, main = "Top 20% Warming Rates")
-
-# Converting to stars
-rates_st   <- st_as_stars(rotate(rates_stack))
-ranks_st   <- st_as_stars(rotate(ranks_stack))
-ranks_c_st <- st_as_stars(rotate(ranks_classified))
-
-
-#get scale ranges so they still pop
-rate_range <- c("min" = cellStats(rates_stack, 'min')[1], "max" = cellStats(rates_stack,'max')[1])
+}
 ```
 
-### Global Rates
+
+### 1982-2011 {.tabset}
 
 ```{r}
+####  Data Prep  ####
+percentile_cutoff <- 80
+
+# 1982-2020
+rates_stack_all <- stack(str_c(rates_path, "1982to2020.nc"), 
+                         varname = "annual_warming_rate")
+ranks_stack_all <- stack(str_c(rates_path, "1982to2020.nc"), 
+                         varname = "rate_percentile")
+
+rates_prepped <- reclassify_to_discrete(rates_stack = rates_stack_all, 
+                                        ranks_stack = ranks_stack_all,
+                                        percentile_cutoff = percentile_cutoff)
+
+rates_st <- rates_prepped$rates
+rates_raw_st <- rates_prepped$rates_raw
+ranks_st <- rates_prepped$ranks
+```
+
+
+#### Global Rates
+
+
+```{r}
+
+####  Plot Setup  ####
+
+# guide label
+guide_lab <- expression("Annual Warming Rate - "~degree~C)
+
+# ggplot using stars
+ggplot() +
+  geom_stars(data = rates_st) +
+  #geom_stars(data = rates_raw_st) +
+  geom_sf(data = world, fill = "gray90") + 
+  scale_fill_viridis_c(na.value = "black", option = "plasma") +
+  guides("fill" = guide_colorbar(title = guide_lab,
+                                 title.position = "top", 
+                                 title.hjust = 0.5,
+                                 barwidth = unit(4, "in"), 
+                                 frame.colour = "black", 
+                                 ticks.colour = "black")) +
+  map_theme +
+  coord_sf(expand = FALSE) +
+  labs(caption = str_c("Top ", percentile_cutoff, "% of Warming Rates Shown.",
+                       "\n Data from Years: 1982-2020"))
+  
+```
+
+#### Global Ranks
+
+```{r}
+
+# ggplot using stars
+ggplot() +
+  geom_stars(data = ranks_st) +
+  geom_sf(data = world, fill = "gray90") + 
+  scale_fill_viridis_c(na.value = "black", option = "plasma") +
+  guides("fill" = guide_colorbar(title = "Percentile of Annual Warming Rate",
+                                 title.position = "top", 
+                                 title.hjust = 0.5,
+                                 barwidth = unit(4, "in"), 
+                                 frame.colour = "black", 
+                                 ticks.colour = "black")) +
+  map_theme +
+  coord_sf(expand = FALSE) +
+  labs(caption = str_c("Top ", percentile_cutoff, "% of Warming Rates Shown.",
+                       "\n Data from Years: 1982-2020"))
+  
+```
+
+### 2006-2011 {.tabset}
+
+```{r}
+####  Data Prep  ####
+
+# 2006-2020
+rates_stack_all <- stack(str_c(rates_path, "2006to2020.nc"), 
+                         varname = "annual_warming_rate")
+ranks_stack_all <- stack(str_c(rates_path, "2006to2020.nc"), 
+                         varname = "rate_percentile")
+
+rates_prepped <- reclassify_to_discrete(rates_stack = rates_stack_all, 
+                                        ranks_stack = ranks_stack_all)
+
+rates_st <- rates_prepped$rates
+ranks_st <- rates_prepped$ranks
+```
+
+#### Global Rates
+
+
+```{r}
+####  Plot Setup  ####
 
 # guide label
 guide_lab <- expression("Annual Warming Rate - "~degree~C)
@@ -811,11 +926,12 @@ ggplot() +
                                  ticks.colour = "black")) +
   map_theme +
   coord_sf(expand = FALSE) +
-  labs(caption = str_c("Top ", percentile_cutoff, "% of Warming Rates Shown."))
+  labs(caption = str_c("Top ", percentile_cutoff, "% of Warming Rates Shown.",
+                       "\n Data from Years: 2006-2020"))
   
 ```
 
-### Global Ranks
+#### Global Ranks
 
 ```{r}
 # ggplot using stars
@@ -831,7 +947,8 @@ ggplot() +
                                  ticks.colour = "black")) +
   map_theme +
   coord_sf(expand = FALSE) +
-  labs(caption = str_c("Top ", percentile_cutoff, "% of Warming Rates Shown."))
+  labs(caption = str_c("Top ", percentile_cutoff, "% of Warming Rates Shown.",
+                       "\n Data from Years: 2006-2020"))
   
 ```
 

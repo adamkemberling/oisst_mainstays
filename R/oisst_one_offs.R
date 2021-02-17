@@ -39,6 +39,25 @@ gom_oisst <- oisst_window_load(oisst_path = oisst_path,
                                anomalies = FALSE)
 
 
+#### Save it as Raster for Mackenzie  ####
+# 
+one_off_path <- paste0(box_paths$res, "OISST/oisst_one_off_area_clips/oisst_gom_general_area_02042021.grd")
+
+# Set the dates as the z dimmension before saving
+gom_oisst_save <- gom_oisst %>% 
+  map(function(ras_stack) {ras_out <- setZ(ras_stack, names(ras_stack))}) %>% 
+  stack()
+
+# raster::writeRaster(gom_oisst_save, 
+#                     filename = one_off_path, 
+#                     format="raster")
+
+# Load to ensure names saved
+oisst_check <- stack(one_off_path)
+
+#check names
+names(gom_oisst_save)[1:5] == names(oisst_check)[1:5]
+
 # make it a table
 gom.df.wide <- map_dfr(gom_oisst, function(x) {as.data.frame(x, xy = TRUE)})
 rm(gom_oisst)
@@ -61,3 +80,7 @@ gom.df.long %>%
   filter(oisst_date == "2020-03-09") %>% 
   ggplot(aes(x, y, fill = sst)) +
   geom_tile() 
+
+
+
+####  Save for Mackenzie  ####
