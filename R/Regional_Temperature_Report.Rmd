@@ -426,17 +426,16 @@ annual_summary <- region_timeseries %>%
 
 
 # Plot the warming rate for the region
-annual_summary %>% 
-  ggplot(aes(yr_as_dtime, sst_anom)) +
+ggplot(annual_summary, aes(yr_as_dtime, sst_anom)) +
   # Add daily data
   geom_line(data = region_timeseries, aes(time, sst_anom), 
             alpha = 0.5, color = "gray") +
   # Overlay yearly means
   geom_line(alpha = 0.7) +
   geom_point(alpha = 0.7) +
-  # Add regression line
+  # Add regression line - all data
   geom_smooth(method = "lm", 
-              aes(color = "Regional Trend"),
+              aes(color = "1982-2020 Regional Trend"),
               formula = y ~ x, se = F, 
               linetype = 2) +
   # Add equation
@@ -444,16 +443,31 @@ annual_summary %>%
                aes(label = paste(..eq.label.., ..rr.label.., sep = "~~~~~")),
                color = gmri_cols("gmri blue"),
                parse = T) +
+  # Add regression line - all data
+  geom_smooth(data = filter(annual_summary, year %in% c(2006:2020)),
+              method = "lm", 
+              aes(color = "2006-2020 Regional Trend"),
+              formula = y ~ x, se = F, 
+              linetype = 2) +
+  # Add equation
+  stat_poly_eq(data = filter(annual_summary, year %in% c(2006:2020)),
+               formula = y ~ x,
+               aes(label = paste(..eq.label.., ..rr.label.., sep = "~~~~~")),
+               color = gmri_cols("orange"),
+               parse = T, label.x = 0.05, label.y = 0.9) +
   # Colors, labels, theme
-  scale_color_manual(values = c("Regional Trend" = as.character(gmri_cols("orange")))) +
-  labs(x = "", y = "Sea Surface Temperature Anomaly") +
+  scale_color_manual(values = c(
+    "1982-2020 Regional Trend" = as.character(gmri_cols("gmri blue")),
+    "2006-2020 Regional Trend" = as.character(gmri_cols("orange")))) +
+  labs(x = "", y = "Sea Surface Temperature Anomaly",
+       caption = "Regression Coefficients Reflect Annual Change in Degree C.") +
   theme(legend.title = element_blank(),
-        legend.position = c(0.85, 0.2),
+        legend.position = c(0.85, 0.1),
         legend.background = element_rect(fill = "transparent"),
         legend.key = element_rect(fill = "transparent", color = "transparent"))
 ```
 
-##### Yearly Quarters
+##### Quarterly
 
 ```{r}
 # Repeat for the seasons (equal quarters here*)
@@ -489,7 +503,7 @@ quarter_summary %>%
   facet_wrap(~season)
 ```
 
-#### Heatwave Event Heatmap
+#### Heatwave Events
 
 As mentioned above heatwave events were determined using the methods of Hobday et al. 2016 and implemented using {heatwaveR} with a 90% threshold. The region used is again that same polygon outlined in the first figure, the bottom right panel of the maps at the beginning of the document.
 
