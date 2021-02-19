@@ -18,16 +18,25 @@ def add_mod(grid_obj, time_dim, out_coord = "modified_ordinal_day"):
 
     """
     # Flag days that are not in leap years
-    not_leap_year        = ~grid_obj.indexes['time'].is_leap_year
+    not_leap_year        = ~grid_obj.indexes[time_dim].is_leap_year
     
     # Flag days in the year that are march or later
-    march_or_later       = oisst.time.dt.month >= 3
+    march_or_later       = grid_obj[time_dim].dt.month >= 3
     
     # Pull day of year
-    ordinal_day          = oisst.time.dt.dayofyear
+    ordinal_day          = grid_obj[time_dim].dt.dayofyear
     
     # Bump day of year if after march and a leap year
     modified_ordinal_day = ordinal_day + (not_leap_year & march_or_later)
+    
+    # Add MOD as a variable
+    grid_obj = grid_obj.assign(modified_ordinal_day = modified_ordinal_day)
+    
+    # Add as coordinate as well
+    grid_obj = grid_obj.assign_coords(MOD = modified_ordinal_day)
+    
+    # return the grid with new var/coordinates
+    return grid_obj
     
 #-----------------------------------------------------
 #   
