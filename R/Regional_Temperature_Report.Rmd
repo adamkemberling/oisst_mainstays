@@ -782,11 +782,16 @@ The warming rates are then ranked from high to low to identify areas with the mo
 # Access information to warming rate netcdf files on box
 rates_path <- paste0(oisst_path, "warming_rates/annual_warming_rates")
 
+# Percentile cutoff for displaying warming rates on map
+percentile_cutoff <- 80
+
+
 
 # Going to reclassify raster from continuous to discrete: 
 # Source: https://www.earthdatascience.org/courses/earth-analytics/lidar-raster-data-r/classify-raster/
 
-reclassify_to_discrete <- function(ranks_stack, rates_stack, percentile_cutoff = 80){
+reclassify_to_discrete <- function(ranks_stack, rates_stack, 
+                                   percentile_cutoff = 80){
 
   # create classification matrix
   reclass_df <- c(0.00, 0.05,  0, #####
@@ -849,16 +854,20 @@ reclassify_to_discrete <- function(ranks_stack, rates_stack, percentile_cutoff =
 ```
 
 
+
+
 ### 1982-2011 {.tabset}
+
+
 
 ```{r}
 ####  Data Prep  ####
-percentile_cutoff <- 80
 
-# 1982-2020
-rates_stack_all <- stack(str_c(rates_path, "1982to2020.nc"), 
+
+# 1982-2011
+rates_stack_all <- stack(str_c(rates_path, "1982to2011.nc"), 
                          varname = "annual_warming_rate")
-ranks_stack_all <- stack(str_c(rates_path, "1982to2020.nc"), 
+ranks_stack_all <- stack(str_c(rates_path, "1982to2011.nc"), 
                          varname = "rate_percentile")
 
 rates_prepped <- reclassify_to_discrete(rates_stack = rates_stack_all, 
@@ -868,8 +877,19 @@ rates_prepped <- reclassify_to_discrete(rates_stack = rates_stack_all,
 rates_st <- rates_prepped$rates
 rates_raw_st <- rates_prepped$rates_raw
 ranks_st <- rates_prepped$ranks
+
+# Get the average warming rate and rank across the area:
+rates_crop <- crop(rotate(rates_stack_all), region_extent)
+region_rate <- round(cellStats(rates_crop, mean), 3) 
+
+ranks_crop <- crop(rotate(ranks_stack_all), region_extent)
+region_rank <- round(cellStats(ranks_crop, mean) , 3)
+
 ```
 
+
+The averaged sea surface warming rate percentile for the `r params$region` over the 1982-2011 period was: `r region_rank`. With a regional warming rate of `r region_rate` degrees Celsius per year.
+<br/>
 
 #### Global Rates
 
@@ -938,7 +958,20 @@ rates_prepped <- reclassify_to_discrete(rates_stack = rates_stack_all,
 
 rates_st <- rates_prepped$rates
 ranks_st <- rates_prepped$ranks
+
+
+# Get the average warming rate and rank across the area:
+rates_crop <- crop(rotate(rates_stack_all), region_extent)
+region_rate <- round(cellStats(rates_crop, mean), 3) 
+
+ranks_crop <- crop(rotate(ranks_stack_all), region_extent)
+region_rank <- round(cellStats(ranks_crop, mean) , 3)
+
 ```
+
+
+The averaged sea surface warming rate percentile for the `r params$region` over the 2006-2020 period was: `r region_rank`. With a regional warming rate of `r region_rate` degrees Celsius per year.   
+<br/>
 
 #### Global Rates
 
@@ -985,6 +1018,91 @@ ggplot() +
   coord_sf(expand = FALSE) +
   labs(caption = str_c("Top ", percentile_cutoff, "% of Warming Rates Shown.",
                        "\n Data from Years: 2006-2020"))
+  
+```
+
+### 1982-2020 {.tabset}
+
+```{r}
+####  Data Prep  ####
+
+
+# 1982-2020
+rates_stack_all <- stack(str_c(rates_path, "1982to2020.nc"), 
+                         varname = "annual_warming_rate")
+ranks_stack_all <- stack(str_c(rates_path, "1982to2020.nc"), 
+                         varname = "rate_percentile")
+
+rates_prepped <- reclassify_to_discrete(rates_stack = rates_stack_all, 
+                                        ranks_stack = ranks_stack_all,
+                                        percentile_cutoff = percentile_cutoff)
+
+rates_st <- rates_prepped$rates
+rates_raw_st <- rates_prepped$rates_raw
+ranks_st <- rates_prepped$ranks
+
+
+# Get the average warming rate and rank across the area:
+rates_crop <- crop(rotate(rates_stack_all), region_extent)
+region_rate <- round(cellStats(rates_crop, mean), 3) 
+
+ranks_crop <- crop(rotate(ranks_stack_all), region_extent)
+region_rank <- round(cellStats(ranks_crop, mean) , 3)
+
+```
+
+
+The averaged sea surface warming rate percentile for the `r params$region` over the 1982-2020 period was: `r region_rank`. With a regional warming rate of `r region_rate` degrees Celsius per year.
+<br/>
+
+#### Global Rates
+
+
+```{r}
+
+####  Plot Setup  ####
+
+# guide label
+guide_lab <- expression("Annual Warming Rate - "~degree~C)
+
+# ggplot using stars
+ggplot() +
+  geom_stars(data = rates_st) +
+  #geom_stars(data = rates_raw_st) +
+  geom_sf(data = world, fill = "gray90") + 
+  scale_fill_viridis_c(na.value = "black", option = "plasma") +
+  guides("fill" = guide_colorbar(title = guide_lab,
+                                 title.position = "top", 
+                                 title.hjust = 0.5,
+                                 barwidth = unit(4, "in"), 
+                                 frame.colour = "black", 
+                                 ticks.colour = "black")) +
+  map_theme +
+  coord_sf(expand = FALSE) +
+  labs(caption = str_c("Top ", percentile_cutoff, "% of Warming Rates Shown.",
+                       "\n Data from Years: 1982-2020"))
+  
+```
+
+#### Global Ranks
+
+```{r}
+
+# ggplot using stars
+ggplot() +
+  geom_stars(data = ranks_st) +
+  geom_sf(data = world, fill = "gray90") + 
+  scale_fill_viridis_c(na.value = "black", option = "plasma") +
+  guides("fill" = guide_colorbar(title = "Percentile of Annual Warming Rate",
+                                 title.position = "top", 
+                                 title.hjust = 0.5,
+                                 barwidth = unit(4, "in"), 
+                                 frame.colour = "black", 
+                                 ticks.colour = "black")) +
+  map_theme +
+  coord_sf(expand = FALSE) +
+  labs(caption = str_c("Top ", percentile_cutoff, "% of Warming Rates Shown.",
+                       "\n Data from Years: 1982-2020"))
   
 ```
 
