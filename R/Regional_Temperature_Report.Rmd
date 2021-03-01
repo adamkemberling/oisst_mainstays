@@ -76,7 +76,9 @@ greenland   <- ne_states(country = "greenland") %>% st_as_sfc(crs = 4326)
 
 `r gmRi::use_gmri_style_rmd(css = "gmri_rmarkdown.css")`
 
+
 #  `r params$region` Sea Surface Temperature Outlook
+
 
 ## Region Extent {.tabset .tabset-pills}
 
@@ -129,9 +131,12 @@ ggplot() +
 
 # GMRI OISST Resources on Box
 
-For many of our most-used areas, regional climatologies and anomalies have been processed using a handful of jupyter notebook work flows to take advantage of {xarray}. The following sections will highlight what those work flows are, what they detail, and how they can be updated using the Gulf of Maine as an example.
+For many of our most-used areas, regional climatologies and anomalies have been processed using a handful of jupyter notebook work flows to take advantage of {[xarray](http://xarray.pydata.org/en/stable/index.html)}. 
+
+The following sections will highlight what those work flows are, what they detail, and how they can be updated using the one of our focal regions as an example.
 
 The root folder for the following OISST products is `~/Box/RES_Data/OISST/oisst_mainstays`.
+
 
 ##  Regional Timeseries
 
@@ -139,7 +144,9 @@ A region-masked time series is the most basic building block for relaying inform
 
 Rather than repeat this process again for the climatology table and the anomalies these three values and a few additional fields are stored in the same table.
 
-Pre-processed tables have been placed on box as part of the NSF C-ACCEL project under the folder: `~/Box/RES_Data/OISST/oisst_mainstays/regional_timeseries`. A function to quickly access these timelines has been added to the {gmRi} package as `oisst_access_timeseries()`.
+Pre-processed tables have been placed on box for quick access from within the `RES_Data` folder: `RES_Data/OISST/oisst_mainstays/regional_timeseries`.    
+
+A function to quickly access these time-lines has been added to the {[gmRi](https://github.com/gulfofmaine/gmri)} package as `oisst_access_timeseries()`.
 
 ```{r}
 
@@ -579,9 +586,9 @@ ggplot(grid_data, aes(x = flat_date, y = year)) +
 
 
 
-## Anomaly Maps {.tabset .tabset-pills}
+## Sea Surface Temperature Anomaly Maps {.tabset .tabset-pills}
 
-For demonstration purposes I will only be loading the 2020 global anomaly data for the below images.
+The 2020 global sea surface temperature anomalies have been loaded and displayed below to visualize how different areas of the ocean experience swings in temperature.
 
 ```{r}
 
