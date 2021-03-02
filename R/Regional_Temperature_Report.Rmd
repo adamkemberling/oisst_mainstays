@@ -167,7 +167,8 @@ timeseries_path <- str_c(
 # Load timeseries
 region_timeseries <- read_csv(timeseries_path,
                               guess_max = 1e5,
-                              col_types = cols())
+                              col_types = cols()) %>% 
+  mutate(time = as.Date(time))
 
 # Display Table of first 6 entries
 head(region_timeseries) %>% 
@@ -197,15 +198,18 @@ annual_summary <- region_timeseries %>%
   group_by(year) %>% 
   summarise(sst = mean(sst, na.rm = T),
             sst_anom = mean(sst_anom, na.rm = T), 
-            .groups = "keep") %>% ungroup() %>% 
+            .groups = "keep") %>% 
+  ungroup() %>% 
   mutate(yr_as_dtime = as.Date(paste0(year, "-07-02")))
 
 
 # Build Regression Equations
-lm_all <- lm(sst_anom ~ year, data = annual_summary) %>% 
+lm_all <- lm(sst_anom ~ year, 
+             data = filter(annual_summary, year <= 2020)) %>% 
   coef() %>% 
   round(3)
-lm_15  <- lm(sst_anom ~ year, data = filter(annual_summary, year %in% c(2006:2020))) %>% 
+lm_15  <- lm(sst_anom ~ year, 
+             data = filter(annual_summary, year %in% c(2006:2020))) %>% 
   coef() %>% 
   round(3)
 
@@ -227,7 +231,8 @@ ggplot(data = annual_summary, aes(yr_as_dtime, sst_anom)) +
   geom_point(alpha = 0.7) +
   
   # Add regression lines 
-  geom_smooth(method = "lm",
+  geom_smooth(data = filter(annual_summary, year <= 2020),
+              method = "lm",
               aes(color = "1982-2020 Regional Trend"),
               formula = y ~ x, se = F,
               linetype = 2) +
@@ -246,26 +251,16 @@ ggplot(data = annual_summary, aes(yr_as_dtime, sst_anom)) +
   scale_color_manual(values = c(
     "1982-2020 Regional Trend" = as.character(gmri_cols("gmri blue")),
     "2006-2020 Regional Trend" = as.character(gmri_cols("orange")))) +
-  labs(x = "", y = "Sea Surface Temperature Anomaly",
-       caption = expression("Regression Coefficients Reflect Annual Change in"~degree~C)) +
+  labs(x = "", 
+       y = expression("Sea Surface Temperature Anomaly"~degree~C),
+       caption = paste0("Regression coefficients reflect annual change in sea surface temperature.
+                         Anomalies calculated using 1982-2011 reference period.")) +
   theme(legend.title = element_blank(),
         legend.position = c(0.85, 0.1),
         legend.background = element_rect(fill = "transparent"),
         legend.key = element_rect(fill = "transparent", color = "transparent"))
 
 
-# Removed when daily data was added
-# # Add equation for full timeseries using the input data
-# stat_poly_eq(formula = y ~ x,
-#              aes(label = paste(..eq.label.., ..rr.label.., sep = "~~~~~")),
-#              color = gmri_cols("gmri blue"),
-#              parse = T) +
-# Add regression line - all data
-# Add equation for last 15 years
-# stat_poly_eq(formula = y ~ x,
-#              aes(label = paste(..eq.label.., ..rr.label.., sep = "~~~~~")),
-#              color = gmri_cols("orange"),
-#              parse = T, label.x = 0.05, label.y = 0.9) +
 ```
 
 #### Quarterly
@@ -527,7 +522,8 @@ ggplot(last_yr_heatwaves, aes(x = time)) +
     labs(x = "", y = ylab, 
          caption = paste0("X-axis start date: ", last_year, 
                           "\nNumber of Heatwave events: ", num_events,
-                          "\nNumber of Heatwave Days: ", num_hw_days))
+                          "\nNumber of Heatwave Days: ", num_hw_days,
+                          "\nClimate reference period : 1982-2011"))
 ```
 
 
@@ -549,6 +545,10 @@ grid_data <- region_heatwaves %>%
          flat_date = as.Date(yday-1, origin = base_date))
 
 
+# Set palette limits to center it on 0 with scale_fill_distiller
+limit <- max(abs(grid_data$sst_anom)) *c(-1,1)
+
+
 # assemble plot
 ggplot(grid_data, aes(x = flat_date, y = year)) +
   
@@ -564,11 +564,14 @@ ggplot(grid_data, aes(x = flat_date, y = year)) +
   geom_point(data = filter(grid_data, mhw_event == TRUE),
              aes(x = flat_date, y = year), size = .25)  +
   scale_x_date(date_labels = "%b", date_breaks = "1 month", expand = c(0,0)) +
-  scale_y_continuous(limits = c(1980.5, 2020.5), expand = c(0,0)) +
-  labs(x = "", y = "") +
+  scale_y_continuous(limits = c(1980.5, 2021.5), expand = c(0,0)) +
+  labs(x = "", 
+       y = "",
+       "\nClimate reference period : 1982-2011") +
   
   #scale_fill_gradient2(low = "blue", mid = "white", high = "red") +
-  scale_fill_distiller(palette = "RdBu", na.value = "transparent") +
+  scale_fill_distiller(palette = "RdBu", na.value = "transparent", limit = limit
+                       ) +
   
   #5 inches is default rmarkdown height for barheight
   guides("fill" = guide_colorbar(title = guide_lab, 
