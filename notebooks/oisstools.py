@@ -339,20 +339,32 @@ def build_annual_from_cache(last_month, this_month, workspace = "local", verbose
     # List of update files
     daily_files = []
     
-    # Last month
-    for file in os.listdir(f"{last_month_cache}"):
-      if file.endswith(".nc"):
-        daily_files.append(f"{last_month_cache}{file}")
     
-    # This month
-    for file in os.listdir(f"{this_month_cache}"):
-      if file.endswith(".nc"):
-        daily_files.append(f"{this_month_cache}{file}")
-            
+    # Option 1 :  Using any month prior to build dataset from caches only
+    month_folders = ["%.2d" % i for i in range(1, int(this_month) + 1)]
+    for folder in month_folders:
+      for file in os.listdir(f"{_cache_root}update_caches/{folder}"):
+        if file.endswith(".nc"):
+          daily_files.append(f"{_cache_root}update_caches/{folder}/{file}")
+    
     # Use open_mfdataset to access all the new downloads as one file
-    oisst_update = xr.open_mfdataset(daily_files, combine = "by_coords")        
-            
+    oisst_update = xr.open_mfdataset(daily_files, combine = "by_coords")     
     
+    
+    # # Option 2 : Use the last two months, get the rest from annual file
+    # # Last month
+    # for file in os.listdir(f"{last_month_cache}"):
+    #   if file.endswith(".nc"):
+    #     daily_files.append(f"{last_month_cache}{file}")
+    # 
+    # # This month
+    # for file in os.listdir(f"{this_month_cache}"):
+    #   if file.endswith(".nc"):
+    #     daily_files.append(f"{this_month_cache}{file}")
+    #         
+    # # Use open_mfdataset to access all the new downloads as one file
+    # oisst_update = xr.open_mfdataset(daily_files, combine = "by_coords")        
+            
     
     
     ####  Clean up Dataset structure  ####
@@ -371,68 +383,75 @@ def build_annual_from_cache(last_month, this_month, workspace = "local", verbose
     
     
     
-    
+    ####  TESTING: Just use all the cache folders and don't bother appending
     ####  Load and Append to Year File  ####
     
-    # Pull the current year since I don't trust myself to not overwrite old files
-    update_yr = datetime.datetime.now().year
+    # # Pull the current year since I don't trust myself to not overwrite old files
+    # update_yr = datetime.datetime.now().year
+    # 
+    # # Load the yearly file we're appending to
+    # try:
+    #     oisst = xr.open_dataset(f"{annual_loc}sst.day.mean.{update_yr}.v2.nc")
+    # except:
+    #     last_file = int(update_yr)-1
+    #     oisst = xr.open_dataset(f"{annual_loc}sst.day.mean.{last_file}.v2.nc")
+    #     oisst = oisst.drop("sst")
+    # 
+    # 
+    # 
+    # # Remove dates from annual file that overlap with updates.
+    # # This will make it so the current month will overwrite as it gets finalized.
+    # 
+    # # Boolean flag for whether time is before the update_months set in beginning
+    # def before_update(month):
+    #     return (month < int(last_month) )
+    #   
+    #   # Boolean flag for whether time is after the update_months set in beginning
+    # def beyond_update(month):
+    #     return (month > int(this_month) )
+    # 
+    # 
+    # # Subset dates out of annual file so there isn't overlap on update month
+    # # Don't bother if its January or February
+    # if int(last_month) > 1:
+    # 
+    #   # First - Check for any dates before
+    #   if any(oisst.time.dt.month < int(last_month)):
+    # 
+    #       # Returns the dates
+    #       b4_update = before_update(oisst['time.month'])
+    #       oisst_subset = oisst.sel(time = b4_update)
+    #   
+    #   # If no dates before, use all    
+    #   else:
+    #       oisst_subset = oisst
+    #       
+    #   
+    #   # Next - Check for any dates beyond update
+    #   if any(oisst_subset.time.dt.month > int(this_month)):
+    #       
+    #       # Returns the dates
+    #       after_update = beyond_update(oisst_subset['time.month'])
+    #       oisst_subset = oisst_subset.sel(time = after_update)
+    #       
+    #   
+    #   #  Once subset, append/combine updates to previous months to form combined annual file
+    #   oisst_combined = xr.combine_by_coords(datasets = [oisst_subset, update_prepped]).load()
+    #   oisst_subset.close()
+    #   
+    # # If last month is not > 1 then we only have the update date and no combining is necessary  
+    # else:
+    #   oisst_combined = update_prepped
     
-    # Load the yearly file we're appending to
-    try:
-        oisst = xr.open_dataset(f"{annual_loc}sst.day.mean.{update_yr}.v2.nc")
-    except:
-        last_file = int(update_yr)-1
-        oisst = xr.open_dataset(f"{annual_loc}sst.day.mean.{last_file}.v2.nc")
-        oisst = oisst.drop("sst")
     
     
-  
-    # Remove dates from annual file that overlap with updates.
-    # This will make it so the current month will overwrite as it gets finalized.
-    
-    # Boolean flag for whether time is before the update_months set in beginning
-    def before_update(month):
-        return (month < int(last_month) )
+    # End Testing, use if not loading annual file
+    oisst_combined = update_prepped
       
-      # Boolean flag for whether time is after the update_months set in beginning
-    def beyond_update(month):
-        return (month > int(this_month) )
     
     
-    # Subset dates out of annual file so there isn't overlap on update month
-    # Don't bother if its January or February
-    if int(last_month) > 1:
-  
-      # First - Check for any dates before
-      if any(oisst.time.dt.month < int(last_month)):
-
-          # Returns the dates
-          b4_update = before_update(oisst['time.month'])
-          oisst_subset = oisst.sel(time = b4_update)
-      
-      # If no dates before, use all    
-      else:
-          oisst_subset = oisst
-          
-      
-      # Next - Check for any dates beyond update
-      if any(oisst_subset.time.dt.month > int(this_month)):
-          
-          # Returns the dates
-          after_update = beyond_update(oisst_subset['time.month'])
-          oisst_subset = oisst_subset.sel(time = after_update)
-          
-      #  Once subset, append/combine updates to previous months to form combined annual file
-      oisst_combined = xr.combine_by_coords(datasets = [oisst_subset, update_prepped]).load
-      oisst_subset.close()
-      
-    # If last month is not > 1 then we only have the update date and no combining is necessary  
-    else:
-      oisst_combined = update_prepped
-      
-      
-      
-    #### check again for duplicates, and remove
+    
+    #### Last check, again for duplicates to remove
     oisst_combined = oisst_combined.sel(time = ~oisst_combined.get_index("time").duplicated())
     
     
@@ -457,8 +476,8 @@ def build_annual_from_cache(last_month, this_month, workspace = "local", verbose
     # Load the full year into memory
     oisst_combined = oisst_combined.load()
     
-    # Close the annual file we will be overwriting
-    oisst.close()
+    # # Close the annual file we will be overwriting
+    # oisst.close()
     
     # Return the combined data
     return oisst_combined
