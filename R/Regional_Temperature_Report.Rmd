@@ -227,13 +227,16 @@ global_summary <- global_anoms %>%
 ```{r annual regressions}
 
 # Build Regression Equation Labels
-lm_all <- lm(sst_anom ~ year, data = filter(annual_summary, year <= 2020)) %>% 
+lm_all <- lm(sst_anom ~ year, 
+             data = filter(annual_summary, year %in% c(1982:2020))) %>% 
   coef() %>% 
   round(3)
-lm_15  <- lm(sst_anom ~ year, data = filter(annual_summary, year %in% c(2006:2020))) %>% 
+lm_15  <- lm(sst_anom ~ year, 
+             data = filter(annual_summary, year %in% c(2006:2020))) %>% 
   coef() %>% 
   round(3)
-lm_global <- lm(sst_anom ~ year, data = filter(global_summary, year <= 2020)) %>% 
+lm_global <- lm(sst_anom ~ year, 
+                data = filter(global_summary, year %in% c(1982:2020))) %>% 
   coef() %>% 
   round(3)
 
@@ -613,7 +616,7 @@ ggplot() +
 
 ### Regional Map
 
-Using the July average sst anomaly we can then clip down to the Gulf of Maine for an aerial view of the region. For this execution the bounding box of lat-lon coordinates from the regional extent will be used.
+Using the July average sst anomalies we can then clip the data to just the `r params$region` for an aerial view of the region. For this execution the bounding box of lat-lon coordinates from the regional extent will be used.
 
 ```{r}
 
@@ -627,13 +630,15 @@ crop_x <- st_bbox(region_st)[c(1,3)]
 crop_y <- st_bbox(region_st)[c(2,4)]
 
 
-# Zoom out for cpr extent, same as Andy's GOM
+
+# Zoom out some for cpr extent to be the same as Andy's GOM
 if(tolower(params$region) == "cpr gulf of maine"){
   crop_x <- c(-71, -65.5)
   crop_y <- c(40.5, 45)}
 
 
-# Plot Gulf of Maine - WGS84
+
+# Plot Region - WGS84 Projection
 ggplot() +
   geom_stars(data = region_st) +
   geom_sf(data = new_england, fill = "gray90") +
