@@ -747,8 +747,7 @@ day_plots <- imap(day_count, function(date_index, date_label) {
       barwidth = unit(4, "in"),
       frame.colour = "black",
       ticks.colour = "black")) +
-    labs(subtitle = paste("Heatwave Period", event_start, "-", event_stop, "\nDisplay Date:", date_label),
-         title = "Progression of the Most Recent Heatwave") 
+    labs(subtitle = paste("Heatwave Period", event_start, "-", event_stop, "\nDisplay Date:", date_label)) 
   
   return(day_plot)
   
