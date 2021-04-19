@@ -86,19 +86,20 @@ out_wide <- wide * 3
 out_tall <- tall * 3
 
 
-# Build the empty canvas
-canvas <- raster(nrows = out_tall, 
-                 ncols = out_wide, 
-                 xmn = -360, 
-                 xmx = 720,
-                 ymn = -270,
-                 ymx = 270, resolution = c(0.25, 0.25),
-                 vals = NA)
-
-
-# Can you overlay with mosaic
-test <- mosaic(canvas, center, fun = max)
-plot(test, main = "Test Overlay", col = temp_pal)
+# # Build the empty canvas as a raster or matrix?
+# canvas <- raster(nrows = out_tall, 
+#                  ncols = out_wide, 
+#                  xmn = -360, 
+#                  xmx = 720,
+#                  ymn = -270,
+#                  ymx = 270, 
+#                  resolution = c(0.25, 0.25),
+#                  vals = NA)
+# 
+# 
+# # Can you overlay with mosaic
+# test <- mosaic(canvas, center, fun = max)
+# plot(test, main = "Test Overlay", col = temp_pal)
 
 
 #### Repeat on Sides ####
@@ -106,19 +107,59 @@ plot(test, main = "Test Overlay", col = temp_pal)
 # If we make it a matrix it will be easier to
 # use indices to subset the center, and
 # essentially paste it and spin it as needed
-test_mat <- as.matrix(center)
+orig_mat <- raster::as.matrix(center[[1]])
+dim(orig_mat)
 
-# convert
-as(center, 'SpatialGridDataFrame')
+# make empty matrix
+canvas_mat <- matrix(data = NA, 
+                     nrow = dim(orig_mat)[1] * 3,
+                     ncol = dim(orig_mat)[2] * 3)
 
-dim(test_mat)
-
-
-
-
-
-
-
-
+# Add the values for the center row
+canvas_mat[721:1440, 1:1440]    <- orig_mat
+canvas_mat[721:1440, 1441:2880] <- orig_mat
+canvas_mat[721:1440, 2881:4320] <- orig_mat
+image(canvas_mat)
 
 
+# Flip them upside down for top and bottom
+flip_mat <- apply(orig_mat, 2, rev)
+dim(flip_mat)
+
+
+# Add to top row
+canvas_mat[1:720, 1:1440]    <- flip_mat
+canvas_mat[1:720, 1441:2880] <- flip_mat
+canvas_mat[1:720, 2881:4320] <- flip_mat
+
+# add to bottom row
+canvas_mat[1441:2160, 1:1440]    <- flip_mat
+canvas_mat[1441:2160, 1441:2880] <- flip_mat
+canvas_mat[1441:2160, 2881:4320] <- flip_mat
+
+# convert to raster
+rsample_ras <- raster(nrows = out_tall, 
+                      ncols = out_wide, 
+                      xmn = -360, 
+                      xmx = 720,
+                      ymn = -270,
+                      ymx = 270, 
+                      resolution = c(0.25, 0.25),
+                      vals = canvas_mat)
+
+# Plot the Resampling Grid
+plot(rsample_ras, col = temp_pal)
+
+# Add the sampling extent to sample values from
+extent_sf <- as(extent(center), "SpatialPolygons") %>% st_as_sf()
+plot(extent_sf$geometry, add = T, lwd = 2)
+
+
+
+####  Next Steps:
+
+# Get Shape size you are resampling with in terms of nrow x ncol
+# randomly select center pixels from within the center global extent
+# build out adequate row and column space from center pixel
+# get average warming rates from new box
+# Optional: discard and resample iif NA count over a threshold %
