@@ -1,5 +1,5 @@
 ---
-title: "OISST Sea Surface Temperature Report"
+title: "OISSTv2 Sea Surface Temperature Report"
 author: "Adam A. Kemberling"
 date: "Updated on: `r Sys.Date()`"
 output: 
@@ -13,9 +13,9 @@ editor_options:
 params: 
   region: 
     label: "Select a Focal Region:" 
-    value: "Gulf of Maine"
+    value: "apershing_gulf_of_maine"
     input: select
-    choices: ["Gulf of Maine", "CPR Gulf of Maine", "Northwest Atlantic", "Northeast Shelf"]
+    choices: !r gmRi::get_region_names(region_group = "gmri_sst_focal_areas")
 ---
 
 ```{r setup, include=FALSE}
@@ -75,38 +75,35 @@ new_england <- ne_states("united states of america") %>% st_as_sf(crs = 4326)
 canada      <- ne_states("canada") %>% st_as_sf(crs = 4326)
 world       <- ne_countries() %>% st_as_sf(crs = 4326)
 greenland   <- ne_states(country = "greenland") %>% st_as_sfc(crs = 4326)
+
+# clean up the name
+tidy_name <- str_replace_all(params$region, "_", " ") %>% str_to_title()
+tidy_name <- str_replace(tidy_name, "Aak ", "")
+tidy_name <- str_replace(tidy_name, "Apershing  ", "")
+tidy_name <- str_replace(tidy_name, "Cpr  ", "")
 ```
 
 `r gmRi::use_gmri_style_rmd(css = "gmri_rmarkdown.css")`
 
 
-#  `r params$region` Sea Surface Temperature Outlook
+#  `r tidy_name` Sea Surface Temperature Outlook
 
 
 ## Region Extent {.tabset .tabset-pills}
 
-The spatial extent for `r params$region` is displayed below. This bounding box is the same bounding box coordinates used to clip the OISST data when constructing the time series data from the array.
+The spatial extent for `r tidy_name` is displayed below. This bounding box is the same bounding box coordinates used to clip the OISST data when constructing the time series data from the array.
 
 
 
 ```{r}
 # testing regions
-# params$region <- "Northeast Shelf"
-# params$region <- "cpr gulf of maine"
-# params$region <- "gulf of maine"
-# params$region <- "northwest atlantic"
+# params$region <- "apershing_gulf_of_maine"
 
 # File paths for various extents based on params$region
-poly_path <- switch(
-  EXPR = tolower(params$region),
-  "gulf of maine"      = "Shapefiles/gmri_sst_focal_areas/apershing_gulf_of_maine.geojson",
-  "cpr gulf of maine"  = "Shapefiles/gmri_sst_focal_areas/cpr_gulf_of_maine.geojson",
-  "northwest atlantic" = "Shapefiles/gmri_sst_focal_areas/aak_northwest_atlantic.geojson",
-  "northeast shelf"    = "Shapefiles/NELME_regions/NELME_sf.shp")
-
+region_paths <- get_timeseries_paths(region_group = "gmri_sst_focal_areas")
 
 # Load the bounding box for Andy's GOM to show they align
-poly_path <- paste0(res_path, poly_path)
+poly_path     <- region_paths[[params$region]][["shape_path"]]
 region_extent <- st_read(poly_path, quiet = TRUE)
 
 
@@ -141,47 +138,32 @@ ggplot() +
 
 
 
-# GMRI OISST Resources on Box
+# OISSTv2 Resources on Box
 
-For many of our most-used areas, regional climatologies and anomalies have been processed using a handful of jupyter notebook work flows to take advantage of {[xarray](http://xarray.pydata.org/en/stable/index.html)}. 
+For many of the area we look at frequently here at GMRI, regional climatologies and anomalies have been processed for quick access to aid in other research endeavors. 
 
-The following sections will highlight what those work flows are, what they detail, and how they can be updated using the one of our focal regions as an example.
 
-The root folder for the following OISST products is `~/Box/RES_Data/OISST/oisst_mainstays`.
+These resources were processed using a handful of jupyter notebook work flows to take advantage of {[xarray](http://xarray.pydata.org/en/stable/index.html)}. 
+
+
+The root folder for the following OISST products is `~/Box/RES_Data/OISST/oisst_mainstays`. Resources can be accessed manually through the box folder or more directly using the gmRi R package.
 
 
 ##  Regional Timeseries
 
 Area-specific time series are the most basic building block for relaying temporal trends. For any desired area (represented by a spatial polygon) we can generate a time series table of the mean sea surface temperature within that area for each day. Additionally, we can compare how observed temperatures correspond with the expected conditions based on a climatology using a specified  reference period. 
 
-Pre-processed tables have been placed on box for quick access from within the `RES_Data` folder: `RES_Data/OISST/oisst_mainstays/regional_timeseries`.    
+**Accessing the Data**
 
-A function to quickly access these time-lines has been added to the {[gmRi](https://github.com/gulfofmaine/gmri)} package as `oisst_access_timeseries()`.
+Pre-processed tables have been placed on box for quick access from within the `RES_Data` folder: `RES_Data/OISST/oisst_mainstays/regional_timeseries`. 
 
-Additional functions exists to both look up what timeseries are available `gmRi::get_region_names()`, with additional functionality to return both the path to the data and the path to the shapefile used to generate the timeseries: `gmRi::get_timeseries_paths()`
+A function to quickly access these time-lines has been added to the {[gmRi](https://github.com/gulfofmaine/gmri)} package as `oisst_access_timeseries()`. Additional functions exist to look up what timeseries are available`gmRi::get_region_names()`. And an additional function was made to return both the path to the timeseries data and the path to the shapefile used to generate the timeseries using: `gmRi::get_timeseries_paths()`.
 
 ```{r}
 
 # Use {gmRi} instead to load timeseries to tye up loose ends
-
-#finnicky naming
-poly_name <- switch(EXPR = params$region,
-                    "Gulf of Maine"      = "apershing gulf of maine", 
-                    "CPR Gulf of Maine"  = "cpr gulf of maine", 
-                    "Northwest Atlantic" = "northwest atlantic",
-                    "Northeast Shelf"    = "northeast us shelf" )
-
-
-
-
-# load with oisst_access_timeseries
-if(params$region == "Northeast Shelf"){
-  region_timeseries <- read_csv(paste0(oisst_path, "regional_timeseries/NELME_regions/OISSTv2_anom_NELME.csv"))
-} else {
-  region_timeseries <- oisst_access_timeseries(oisst_path = oisst_path, 
-                                               region_family = "gmri focus areas", 
-                                               poly_name = poly_name)
-}
+timeseries_path <- region_paths[[params$region]][["timeseries_path"]]
+region_timeseries <- read_csv(timeseries_path, col_types = cols())
 
 # format dates
 region_timeseries <- region_timeseries %>% 
@@ -384,27 +366,23 @@ quarter_summary %>%
 
 ### Marine Heatwaves {.tabset .tabset-pills}
 
-For the figures below heatwave events were determined using the methods of Hobday et al. 2016 and implemented using the R package [{heatwaveR}](https://robwschlegel.github.io/heatwaveR/) using a 90% threshold for both heatwave and cold spell events. 
+For the figures below heatwave events were determined using the methods of Hobday et al. 2016 and implemented using the R package [{heatwaveR}](https://robwschlegel.github.io/heatwaveR/) 
 
+The [{heatwaveR}](https://robwschlegel.github.io/heatwaveR/) package provides a relatively quick way of working with tabular data to calculate a seasonal climate mean, as well as track heatwave and coldspell events that pass a desired threshold.
 
-The [{heatwaveR}](https://robwschlegel.github.io/heatwaveR/) package provides a relatively quick way of working with tabular data to calculate a seasonal climate mean, as well as heatwaves and coldwaves at a desired threshold.
+These functions were used to track heatwave and cold spell events, counting their frequencies, and tracking their durations. Heatwave events follow the definition of [Hobday et al. 2016](http://www.marineheatwaves.org/all-about-mhws.html): 
 
-These functions can be used to get the climatology using the standard day of year if desired, and track the number and length of heatwave events. Heatwave events follow the definition of [Hobday et al. 2016](http://www.marineheatwaves.org/all-about-mhws.html) and are set up to use a 90% threshold for heatwave/coldwave detection.
+A marine heatwave is defined a when seawater temperatures exceed a seasonally-varying threshold (usually the 90th percentile) for at least 5 consecutive days. Successive heatwaves with gaps of 2 days or less are considered part of the same event.
 
-
-> A marine heatwave is defined a when seawater temperatures exceed a seasonally-varying threshold (usually the 90th percentile) for at least 5 consecutive days. Successive heatwaves with gaps of 2 days or less are considered part of the same event.
-
-The heatwave history for the region displayed above is as follows:
+The heatwave threshold used below was 90%. The heatwave history for `r tidy_name` is displayed below:
 
 ```{r}
 
 # Use function to process heatwave data for plotting
-region_heatwaves <- pull_heatwave_events(region_timeseries, threshold = 90)
+region_heatwaves <- pull_heatwave_events(region_timeseries, threshold = 90) %>% 
+  distinct(time, .keep_all = T)
 
 ```
-
-
-Heatwave timelines can be then be plotted using the {ggplot2} package for static plots, or by using the {plotly} package for interactive content.
 
 
 #### Interactive SST Timeline
@@ -609,28 +587,32 @@ anoms_2020 <- stack(anom_path)
 
 ### Mean Global
 
-The following code will subset the anomalies for July and plot the average sea surface temperature anomalies for that month:
+The following code will subset the anomalies for the last full month and plot the average sea surface temperature anomalies for that month:
 
 ```{r}
-# Get the mean temperature anomalies for July
-july_dates <- which(str_sub(names(anoms_2020), 7, 8) == "07")
-july_avg   <- mean(anoms_2020[[july_dates]])
+# Get the mean temperature anomalies for the last full month
+which_month <- str_sub(Sys.Date(), 6, 7)
+which_month <- str_pad(as.numeric(which_month) - 1, width = 2, side = "left", pad = "0")
+
+# Pull last month from the anomaly stack
+last_month_dates <- which(str_sub(names(anoms_2020), 7, 8) == which_month)
+last_month_avg   <- mean(anoms_2020[[last_month_dates]])
 
 # Convert wgs84 raster to stars array
-july_st <- st_as_stars(rotate(july_avg))
+last_month_st <- st_as_stars(rotate(last_month_avg))
 
 
 # Set palette limits to center it on 0 with scale_fill_distiller
-limit <- max(abs(july_st[[1]]), na.rm = T) * c(-1,1)
+limit <- max(abs(last_month_st[[1]]), na.rm = T) * c(-1,1)
 
 # Plot global map
 ggplot() +
-  geom_stars(data = july_st) +
+  geom_stars(data = last_month_st) +
   geom_sf(data = world, fill = "gray90") +
   scale_fill_distiller(palette = "RdBu", na.value = "transparent", limit = limit) +
   map_theme +
   coord_sf(expand = FALSE) +
-  guides("fill" = guide_colorbar(title = "Average Sea Surface Temperature Anomaly",
+  guides("fill" = guide_colorbar(title = "Mean Sea Surface Temperature Anomaly",
                                  title.position = "top", 
                                  title.hjust = 0.5,
                                  barwidth = unit(4, "in"), 
@@ -642,13 +624,13 @@ ggplot() +
 
 ### Regional Map
 
-Using the July average sst anomalies we can then clip the data to just the `r params$region` for an aerial view of the region. For this execution the bounding box of lat-lon coordinates from the regional extent will be used.
+Using the July average sst anomalies we can then clip the data to just the `r tidy_name` for an aerial view of the region. For this execution the bounding box of lat-lon coordinates from the regional extent will be used.
 
 ```{r}
 
 # Clip Raster - Convert to stars
 shape_extent <- c(crop_x, crop_y)
-region_ras   <- crop(rotate(july_avg), extent(shape_extent))
+region_ras   <- crop(rotate(last_month_avg), extent(shape_extent))
 region_st    <- st_as_stars(region_ras)
 
 # Get crop bounds for coord_sf
@@ -739,6 +721,12 @@ day_labs  <- str_replace_all(day_labs, "X", "")
 day_count <- c(1:day_count) %>% setNames(day_labs)
 
 
+# TESTING: Progress through daily timeline to indicate date
+hw_timeline <- cellStats(this_yr, mean)
+hw_timeline <- data.frame(date = as.Date(day_labs),
+                          sst_anom = hw_timeline)
+
+
 # Set palette limits to center it on 0 with scale_fill_distiller
 limit <- c(max(values(this_yr), na.rm = T) * -1, 
            max(values(this_yr), na.rm = T) )
@@ -750,15 +738,15 @@ day_plots <- imap(day_count, function(date_index, date_label) {
   # grab dates
   heatwaves_st  <- st_as_stars(this_yr[[date_index]])
   
-  # plot every day
+  #### 1. Map the Anomalies in Space
   day_plot <- ggplot() +
     geom_stars(data = heatwaves_st) +
     geom_sf(data = new_england, fill = "gray90") +
     geom_sf(data = canada, fill = "gray90") +
     geom_sf(data = greenland, fill = "gray90") +
     scale_fill_distiller(palette = "RdBu", 
-                         na.value = "transparent", limit = limit
-                         ) +
+                         na.value = "transparent", 
+                         limit = limit) +
     map_theme +
     coord_sf(xlim = crop_x, ylim = crop_y, expand = T) +
     guides("fill" = guide_colorbar(
@@ -767,10 +755,28 @@ day_plots <- imap(day_count, function(date_index, date_label) {
       title.hjust = 0.5,
       barwidth = unit(4, "in"),
       frame.colour = "black",
-      ticks.colour = "black")) +
-    labs(subtitle = paste("Heatwave Period", event_start, "-", event_stop, "\nDisplay Date:", date_label)) 
+      ticks.colour = "black")) 
   
-  return(day_plot)
+  
+  
+  
+  #### 2.  Plot the day and the overall anomaly to track dates
+  date_timeline <- ggplot() +
+    geom_line(data = hw_timeline, aes(date, sst_anom),
+              color = gmri_cols("gmri blue"),
+              show.legend = F) +
+    geom_point(data = filter(hw_timeline, date == as.Date(date_label)),
+               aes(date, sst_anom), 
+               color = gmri_cols("orange"), 
+               size = 3) + 
+    labs(x = "", y = "SST Anomaly")
+  
+  
+  ####  3. Assemble plot
+  plot_agg <- (date_timeline / day_plot) + plot_layout(heights = c(1, 3))
+  
+  
+  return(plot_agg )
   
   
 })
@@ -906,7 +912,7 @@ region_rank <- round(cellStats(ranks_crop, mean) , 3)
 ```
 
 
-The averaged sea surface warming rate percentile for the `r params$region` over the 1982-2011 period was: `r region_rank`. With a regional warming rate of `r region_rate` degrees Celsius per year.
+The averaged sea surface warming rate percentile for the `r tidy_name` over the 1982-2011 period was: `r region_rank`. With a regional warming rate of `r region_rate` degrees Celsius per year.
 <br/>
 
 #### Global Rates
@@ -922,7 +928,6 @@ guide_lab <- expression("Annual Warming Rate - "~degree~C)
 # ggplot using stars
 ggplot() +
   geom_stars(data = rates_st) +
-  #geom_stars(data = rates_raw_st) +
   geom_sf(data = world, fill = "gray90") + 
   scale_fill_viridis_c(na.value = "black", option = "plasma") +
   guides("fill" = guide_colorbar(title = guide_lab,
@@ -988,7 +993,7 @@ region_rank <- round(cellStats(ranks_crop, mean) , 3)
 ```
 
 
-The averaged sea surface warming rate percentile for the `r params$region` over the 2006-2020 period was: `r region_rank`. With a regional warming rate of `r region_rate` degrees Celsius per year.   
+The averaged sea surface warming rate percentile for the `r tidy_name` over the 2006-2020 period was: `r region_rank`. With a regional warming rate of `r region_rate` degrees Celsius per year.   
 <br/>
 
 #### Global Rates
@@ -1070,7 +1075,7 @@ region_rank <- round(cellStats(ranks_crop, mean) , 3)
 ```
 
 
-The averaged sea surface warming rate percentile for the `r params$region` over the 1982-2020 period was: `r region_rank`. With a regional warming rate of `r region_rate` degrees Celsius per year.
+The averaged sea surface warming rate percentile for the `r tidy_name` over the 1982-2020 period was: `r region_rank`. With a regional warming rate of `r region_rate` degrees Celsius per year.
 <br/>
 
 #### Global Rates

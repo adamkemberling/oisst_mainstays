@@ -7,7 +7,7 @@
 # 
 # NOTE: BROKEN
 # Process All the shapes ahead of time
-# Then Prepare the lookup lists
+# Then Prepare the look up lists
 
 ####  Packages  ####
 library(lubridate)
