@@ -153,7 +153,6 @@ percentile_cutoff <- 80
 
 
 
-
 ### 2006-2020 {.tabset}
 
 ```{r}
@@ -175,9 +174,6 @@ ranks_st <- rates_prepped$ranks
 
 ```
 
-
-The averaged sea surface warming rate percentile for the `r tidy_name` over the 2006-2020 period was: `r region_rank`. With a regional warming rate of `r region_rate` degrees Celsius per year.   
-<br/>
 
 #### Global Rates
 
@@ -307,7 +303,7 @@ ggplot() +
 
 ## Shifting Baselines
 
-In 2021 NOAA is transitioning standard climatologies from the 30-year period of 1982-2011 to a new period spanning 1992-2020. When looking specifically at `r tidy_name` here is what that looks like:
+In 2021 NOAA is transitioning standard climatologies from the 30-year period of 1982-2011 to a new period spanning 1992-2020.
 
 ```{r, eval = FALSE}
 
