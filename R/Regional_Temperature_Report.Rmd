@@ -23,7 +23,7 @@ knitr::opts_chunk$set(echo = TRUE,
                       message = F, 
                       warning = F, 
                       comment = "", 
-                      fid.align = "center")
+                      fig.align = "center")
 
 # Packages
 library(lubridate)
@@ -370,15 +370,11 @@ quarter_summary %>%
 
 ### Marine Heatwaves {.tabset .tabset-pills}
 
-For the figures below heatwave events were determined using the methods of Hobday et al. 2016 and implemented using the R package [{heatwaveR}](https://robwschlegel.github.io/heatwaveR/) 
-
-The [{heatwaveR}](https://robwschlegel.github.io/heatwaveR/) package provides a relatively quick way of working with tabular data to calculate a seasonal climate mean, as well as track heatwave and coldspell events that pass a desired threshold.
+For the figures below heatwave events were determined using the methods of Hobday et al. 2016 and implemented using the R package [{heatwaveR}](https://robwschlegel.github.io/heatwaveR/). The {heatwaveR} package provides a relatively quick way of working with tabular data to calculate a seasonal climate mean, as well as track heatwave and coldspell events that pass a desired threshold.
 
 These functions were used to track heatwave and cold spell events, counting their frequencies, and tracking their durations. Heatwave events follow the definition of [Hobday et al. 2016](http://www.marineheatwaves.org/all-about-mhws.html): 
 
-A marine heatwave is defined a when seawater temperatures exceed a seasonally-varying threshold (usually the 90th percentile) for at least 5 consecutive days. Successive heatwaves with gaps of 2 days or less are considered part of the same event.
-
-The heatwave threshold used below was 90%. The heatwave history for `r tidy_name` is displayed below:
+A marine heatwave is defined a when seawater temperatures exceed a seasonally-varying threshold (usually the 90th percentile) for at least 5 consecutive days. Successive heatwaves with gaps of 2 days or less are considered part of the same event.The heatwave threshold used below was 90%. The heatwave history for `r tidy_name` is displayed below:
 
 ```{r}
 
@@ -462,19 +458,10 @@ ggplot(last_yr_heatwaves, aes(x = time)) +
     scale_color_manual(values = color_vals) +
     scale_x_date(date_labels = "%b", date_breaks = "1 month") +
     theme(legend.title = element_blank(),
-          legend.position = "bottom") +
+          legend.position = "top") +
     labs(x = "", 
          y = ylab, 
-         caption = paste0("X-axis start date: ", last_year, 
-                          "\nNumber of Heatwave events in ", 
-                          year(last_year), 
-                          ":                  ", 
-                          num_events,
-                          "\nNumber of Heatwave Days in ", 
-                          year(last_year),
-                          ":              ", 
-                          num_hw_days,
-                          "\nClimate reference period :  1982-2011"))
+         caption = paste0("Climate reference period :  1982-2011"))
 ```
 
 
@@ -537,63 +524,91 @@ heatwave_heatmap <- ggplot(grid_data, aes(x = flat_date, y = year)) +
 
 
 
-#### summary side plots:
-
-
-# number of heatwaves
-# remove NA as a distinct heatwave number
-n_waves <- grid_data %>% 
-    group_by(year(time), mhw_event_no) %>% 
-    summarise(total_days = sum(mhw_event, na.rm = T), .groups = "keep") %>% 
-    ungroup() %>% 
-    drop_na() %>%
-    group_by(`year(time)`) %>% 
-    summarise(num_waves = n_distinct(mhw_event_no), .groups = "keep")
-
-# average heatwave duration
-wave_len <- grid_data %>% 
-  group_by(year(time), mhw_event_no) %>% 
-  summarise(total_days = sum(mhw_event, na.rm = T), .groups = "keep") %>% 
-  ungroup() %>% 
-  drop_na() %>%
-  group_by(`year(time)`) %>% 
-  summarise(avg_length = mean(total_days), .groups = "keep")
-
-
-wave_summary <- left_join(n_waves, wave_len)
-
-
 
 # Assemble pieces
 heatwave_heatmap
 ```
 
+#### Heatwave Trends
+
+Looking more closely at how patterns in heatwave events are progressing:
+
+```{r, fig.width=8}
+#### Annual Heatwave Summary Details
+
+# number of heatwaves
+# average heatwave duration
+# remove NA as a distinct heatwave number
+wave_summary <- grid_data %>% 
+    group_by(year(time), mhw_event_no) %>% 
+    summarise(total_days = sum(mhw_event, na.rm = T),
+              avg_anom = mean(sst_anom, na.rm = T),
+              peak_anom = max(sst_anom, na.rm = T),
+              .groups = "keep") %>% 
+    ungroup() %>% 
+    drop_na() %>%
+    group_by(`year(time)`) %>% 
+    summarise(num_waves = n_distinct(mhw_event_no),
+              avg_length = mean(total_days, na.rm = T),
+              avg_intensity = mean(avg_anom, na.rm = T),
+              peak_intensity = max(peak_anom, na.rm = T),
+              .groups = "keep") %>% 
+  rename(year = `year(time)`)
 
 
 
-## Sea Surface Temperature Anomaly Maps {.tabset .tabset-pills}
+
+####  Plotting
+
+# number of heatwaves
+hw_counts <- ggplot(wave_summary, aes(y = year, x = num_waves)) +
+  geom_segment(aes(yend = year, xend = 0), 
+               color = gmri_cols("gmri blue")) +
+  geom_point(color = gmri_cols("gmri blue")) +
+  labs(x = "Heatwave Eents", y = "")
+
+# average duration
+hw_lengths <- ggplot(wave_summary, aes(y = year, x = avg_length)) +
+  geom_segment(aes(yend = year, xend = 0), 
+               color = gmri_cols("orange")) +
+  geom_point(color = gmri_cols("orange")) +
+  labs(x = "Heatwave Duration", y = "")
+
+# avg temp
+hw_temps <- ggplot(wave_summary, aes(y = year, x = avg_intensity)) +
+  geom_segment(aes(yend = year, xend = 0), 
+               color = gmri_cols("green")) +
+  geom_point(color = gmri_cols("green")) +
+  labs(x = "Avg Anomaly Temp", y = "")
+
+# peak temp
+hw_peaks <-  ggplot(wave_summary, aes(y = year, x = peak_intensity)) +
+  geom_segment(aes(yend = year, xend = 0), 
+               color = gmri_cols("teal")) +
+  geom_point(color = gmri_cols("teal")) +
+  labs(x = "Peak Anom Temp", y = "")
+
+
+hw_counts | hw_lengths | hw_temps | hw_peaks
+
+```
+
+
+
+
+## SST Anomaly Maps {.tabset .tabset-pills}
 
 The 2020 global sea surface temperature anomalies have been loaded and displayed below to visualize how different areas of the ocean experience swings in temperature.
 
 ```{r}
 
 # Access information to netcdf on box
-nc_year <- "2020"
+nc_year <- "2021"
 anom_path <- str_c(oisst_path, "annual_anomalies/1982to2011_climatology/daily_anoms_", nc_year, ".nc")
-
 
 # Load 2020 as stack
 anoms_2020 <- stack(anom_path)
 
-
-```
-
-
-### Mean Global
-
-The following code will subset the anomalies for the last full month and plot the average sea surface temperature anomalies for that month:
-
-```{r}
 # Get the mean temperature anomalies for the last full month
 which_month <- str_sub(Sys.Date(), 6, 7)
 which_month <- str_pad(as.numeric(which_month) - 1, width = 2, side = "left", pad = "0")
@@ -606,27 +621,11 @@ last_month_avg   <- mean(anoms_2020[[last_month_dates]])
 last_month_st <- st_as_stars(rotate(last_month_avg))
 
 
-# Set palette limits to center it on 0 with scale_fill_distiller
-limit <- max(abs(last_month_st[[1]]), na.rm = T) * c(-1,1)
-
-# Plot global map
-ggplot() +
-  geom_stars(data = last_month_st) +
-  geom_sf(data = world, fill = "gray90") +
-  scale_fill_distiller(palette = "RdBu", na.value = "transparent", limit = limit) +
-  map_theme +
-  coord_sf(expand = FALSE) +
-  guides("fill" = guide_colorbar(title = "Mean Sea Surface Temperature Anomaly",
-                                 title.position = "top", 
-                                 title.hjust = 0.5,
-                                 barwidth = unit(4, "in"), 
-                                 frame.colour = "black", 
-                                 ticks.colour = "black"))
-  
 ```
 
 
-### Regional Map
+
+### Regional Anomaly Map
 
 Using the July average sst anomalies we can then clip the data to just the `r tidy_name` for an aerial view of the region. For this execution the bounding box of lat-lon coordinates from the regional extent will be used.
 
@@ -700,11 +699,15 @@ date_seq <- seq.Date(from = event_start,
                      by   = 1)
 
 
+# Expand the area out to see the larger patterns
+crop_x <- crop_x + c(-2, 2)
+crop_y <- crop_y + c(-1, 1)
+
 # Load the heatwave dates
 data_window <- data.frame(
   time = c(min(date_seq) , max(date_seq) ),
-  lon  = crop_x + c(-1, 1),
-  lat  = crop_y + c(-.5, .5))
+  lon  = crop_x,
+  lat  = crop_y)
 
 
 # Pull data off box
@@ -768,8 +771,8 @@ day_plots <- imap(day_count, function(date_index, date_label) {
                          na.value = "transparent", 
                          limit = limit) +
     map_theme +
-    coord_sf(xlim = crop_x + c(-1, 1), 
-             ylim = crop_y + c(-.5, .5), 
+    coord_sf(xlim = crop_x, 
+             ylim = crop_y, 
              expand = T) +
     guides("fill" = guide_colorbar(
       title = expression("Sea Surface Temperature Anomaly"~degree~C),
@@ -784,15 +787,13 @@ day_plots <- imap(day_count, function(date_index, date_label) {
   
   #### 2.  Plot the day and the overall anomaly to track dates
   date_timeline <- ggplot(data = hw_timeline, aes(x = time)) +
-    # Static Line - temp
-    geom_line(aes(y = sst),
-              color = "darkred",
-              show.legend = F) +
-     # Static Line - cliamet
-    geom_line(aes(y = seas),
-              color = "gray30",
-              linetype = 2,
-              show.legend = F) +
+    geom_line(aes(y = sst, color = "Sea Surface Temperature")) +
+    geom_line(aes(y = hwe, color = "Heatwave Event")) +
+    geom_line(aes(y = cse, color = "Cold Spell Event")) +
+    geom_line(aes(y = mhw_thresh, color = "MHW Threshold"), lty = 3, size = .5) +
+    geom_line(aes(y = mcs_thresh, color = "MCS Threshold"), lty = 3, size = .5) +
+    geom_line(aes(y = seas, color = "Daily Climatology"), lty = 2, size = .5) +
+    scale_color_manual(values = color_vals) +
     
     # Animated Point /  line
     geom_point(
@@ -815,7 +816,7 @@ day_plots <- imap(day_count, function(date_index, date_label) {
   
   ####  3. Assemble plot(s)
   p_layout <- c(
-    area(t = 1, l = 2, b = 2, r = 6.5),
+    area(t = 1, l = 2, b = 2, r = 7),
     area(t = 3, l = 1, b = 8, r = 8)
   )
   
@@ -907,273 +908,39 @@ sst_rast <- extracto_to_rast(extracto_obj = sst,
 
 
 
-## Warming Rates {.tabset .tabset-pills}
 
-Global warming rates are calculated by getting the average temperature for each year across all cells in the data, then using a linear regression for each to determine the annual warming rate in degrees Celsius.
+## Shifting Baselines
 
-The warming rates are then ranked from high to low to identify areas with the most rapid ocean warming. The following maps display the warming rates and the percentile ranks for the top 20% of warming rates, or rates above the 80th percentile of the data.
+In 2021 NOAA is transitioning standard climatologies from the 30-year period of 1982-2011 to a new period spanning 1992-2020. When looking specifically at `r tidy_name` here is what that looks like:
 
-```{r}
-# Access information to warming rate netcdf files on box
-rates_path <- paste0(oisst_path, "warming_rates/annual_warming_rates")
+```{r, eval = FALSE}
 
-# Percentile cutoff for displaying warming rates on map
-percentile_cutoff <- 80
+# # Load Climatology shift
+# clim_82 <- stack(str_c(oisst_path, "daily_climatologies/daily_clims_1982to2011.nc"))
+# clim_91 <- stack(str_c(oisst_path, "daily_climatologies/daily_clims_1991to2020.nc"))
+# clim_82_avg <- calc(clim_82, fun = mean, na.rm = T)
+# clim_91_avg <- calc(clim_91, fun = mean, na.rm = T)
+# clim_diff <- clim_91_avg - clim_82_avg
 
-```
-
-
-
-
-### 1982-2011 {.tabset}
+# Load the pre-processed version
+clim_diff <- stack(str_c(oisst_path, "daily_climatologies/climatology_shift_82to91.nc"))
 
 
-
-```{r}
-####  Data Prep  ####
-
-
-# 1982-2011
-rates_stack_all <- stack(str_c(rates_path, "1982to2011.nc"), 
-                         varname = "annual_warming_rate")
-ranks_stack_all <- stack(str_c(rates_path, "1982to2011.nc"), 
-                         varname = "rate_percentile")
-
-# Reclassify to discrete scale
-rates_prepped <- reclassify_to_discrete(rates_stack = rates_stack_all, 
-                                        ranks_stack = ranks_stack_all,
-                                        percentile_cutoff = percentile_cutoff)
-
-# pull out components
-rates_st     <- rates_prepped$rates
-rates_raw_st <- rates_prepped$rates_raw
-ranks_st     <- rates_prepped$ranks
-
-# Get the average warming rate and rank across the area:
-rates_crop  <- crop(rotate(rates_stack_all), region_extent)
-region_rate <- round(cellStats(rates_crop, mean), 3) 
-
-ranks_crop  <- crop(rotate(ranks_stack_all), region_extent)
-region_rank <- round(cellStats(ranks_crop, mean) , 3)
-
-```
+# Convert wgs84 raster to stars array
+clim_shift_st <- st_as_stars(rotate(clim_diff))
 
 
-The averaged sea surface warming rate percentile for the `r tidy_name` over the 1982-2011 period was: `r region_rank`. With a regional warming rate of `r region_rate` degrees Celsius per year.
-<br/>
+# Set palette limits to center it on 0 with scale_fill_distiller
+limit <- max(abs(clim_shift_st[[1]]), na.rm = T) * c(-1,1)
 
-#### Global Rates
-
-
-```{r}
-
-####  Plot Setup  ####
-
-# guide label
-guide_lab <- expression("Annual Warming Rate - "~degree~C)
-
-# ggplot using stars
+# Plot global map
 ggplot() +
-  geom_stars(data = rates_st) +
-  geom_sf(data = world, fill = "gray90") + 
-  scale_fill_viridis_c(na.value = "black", option = "plasma") +
-  guides("fill" = guide_colorbar(title = guide_lab,
-                                 title.position = "top", 
-                                 title.hjust = 0.5,
-                                 barwidth = unit(4, "in"), 
-                                 frame.colour = "black", 
-                                 ticks.colour = "black")) +
-  map_theme +
-  coord_sf(expand = FALSE) +
-  labs(caption = str_c("Top ", percentile_cutoff, "% of Warming Rates Shown.",
-                       "\n Data from Years: 1982-2020"))
-  
-```
-
-#### Global Ranks
-
-```{r}
-
-# ggplot using stars
-ggplot() +
-  geom_stars(data = ranks_st) +
-  geom_sf(data = world, fill = "gray90") + 
-  scale_fill_viridis_c(na.value = "black", option = "plasma") +
-  guides("fill" = guide_colorbar(title = "Percentile of Annual Warming Rate",
-                                 title.position = "top", 
-                                 title.hjust = 0.5,
-                                 barwidth = unit(4, "in"), 
-                                 frame.colour = "black", 
-                                 ticks.colour = "black")) +
-  map_theme +
-  coord_sf(expand = FALSE) +
-  labs(caption = str_c("Top ", percentile_cutoff, "% of Warming Rates Shown.",
-                       "\n Data from Years: 1982-2020"))
-  
-```
-
-### 2006-2020 {.tabset}
-
-```{r}
-####  Data Prep  ####
-
-# 2006-2020
-rates_stack_all <- stack(str_c(rates_path, "2006to2020.nc"), 
-                         varname = "annual_warming_rate")
-ranks_stack_all <- stack(str_c(rates_path, "2006to2020.nc"), 
-                         varname = "rate_percentile")
-
-rates_prepped <- reclassify_to_discrete(rates_stack = rates_stack_all, 
-                                        ranks_stack = ranks_stack_all)
-
-rates_st <- rates_prepped$rates
-ranks_st <- rates_prepped$ranks
-
-
-# Get the average warming rate and rank across the area:
-rates_crop <- crop(rotate(rates_stack_all), region_extent)
-region_rate <- round(cellStats(rates_crop, mean), 3) 
-
-ranks_crop <- crop(rotate(ranks_stack_all), region_extent)
-region_rank <- round(cellStats(ranks_crop, mean) , 3)
-
+  geom_stars(data = clim_shift_st) +
+  geom_sf(data = world, fill = "gray90") +
+  scale_fill_distiller(palette = "RdBu", na.value = "transparent", limit = limit) +
+  labs(subtitle = "Shift in Mean Annual Climate")
 ```
 
 
-The averaged sea surface warming rate percentile for the `r tidy_name` over the 2006-2020 period was: `r region_rank`. With a regional warming rate of `r region_rate` degrees Celsius per year.   
-<br/>
-
-#### Global Rates
-
-
-```{r}
-####  Plot Setup  ####
-
-# guide label
-guide_lab <- expression("Annual Warming Rate - "~degree~C)
-
-# ggplot using stars
-ggplot() +
-  geom_stars(data = rates_st) +
-  geom_sf(data = world, fill = "gray90") + 
-  scale_fill_viridis_c(na.value = "black", option = "plasma") +
-  guides("fill" = guide_colorbar(title = guide_lab,
-                                 title.position = "top", 
-                                 title.hjust = 0.5,
-                                 barwidth = unit(4, "in"), 
-                                 frame.colour = "black", 
-                                 ticks.colour = "black")) +
-  map_theme +
-  coord_sf(expand = FALSE) +
-  labs(caption = str_c("Top ", percentile_cutoff, "% of Warming Rates Shown.",
-                       "\n Data from Years: 2006-2020"))
-  
-```
-
-#### Global Ranks
-
-```{r}
-# ggplot using stars
-ggplot() +
-  geom_stars(data = ranks_st) +
-  geom_sf(data = world, fill = "gray90") + 
-  scale_fill_viridis_c(na.value = "black", option = "plasma") +
-  guides("fill" = guide_colorbar(title = "Percentile of Annual Warming Rate",
-                                 title.position = "top", 
-                                 title.hjust = 0.5,
-                                 barwidth = unit(4, "in"), 
-                                 frame.colour = "black", 
-                                 ticks.colour = "black")) +
-  map_theme +
-  coord_sf(expand = FALSE) +
-  labs(caption = str_c("Top ", percentile_cutoff, "% of Warming Rates Shown.",
-                       "\n Data from Years: 2006-2020"))
-  
-```
-
-### 1982-2020 {.tabset}
-
-```{r}
-####  Data Prep  ####
-
-
-# 1982-2020
-rates_stack_all <- stack(str_c(rates_path, "1982to2020.nc"), 
-                         varname = "annual_warming_rate")
-ranks_stack_all <- stack(str_c(rates_path, "1982to2020.nc"), 
-                         varname = "rate_percentile")
-
-rates_prepped <- reclassify_to_discrete(rates_stack = rates_stack_all, 
-                                        ranks_stack = ranks_stack_all,
-                                        percentile_cutoff = percentile_cutoff)
-
-rates_st <- rates_prepped$rates
-rates_raw_st <- rates_prepped$rates_raw
-ranks_st <- rates_prepped$ranks
-
-
-# Get the average warming rate and rank across the area:
-rates_crop <- crop(rotate(rates_stack_all), region_extent)
-region_rate <- round(cellStats(rates_crop, mean), 3) 
-
-ranks_crop <- crop(rotate(ranks_stack_all), region_extent)
-region_rank <- round(cellStats(ranks_crop, mean) , 3)
-
-```
-
-
-The averaged sea surface warming rate percentile for the `r tidy_name` over the 1982-2020 period was: `r region_rank`. With a regional warming rate of `r region_rate` degrees Celsius per year.
-<br/>
-
-#### Global Rates
-
-
-```{r}
-
-####  Plot Setup  ####
-
-# guide label
-guide_lab <- expression("Annual Warming Rate - "~degree~C)
-
-# ggplot using stars
-ggplot() +
-  geom_stars(data = rates_st) +
-  #geom_stars(data = rates_raw_st) +
-  geom_sf(data = world, fill = "gray90") + 
-  scale_fill_viridis_c(na.value = "black", option = "plasma") +
-  guides("fill" = guide_colorbar(title = guide_lab,
-                                 title.position = "top", 
-                                 title.hjust = 0.5,
-                                 barwidth = unit(4, "in"), 
-                                 frame.colour = "black", 
-                                 ticks.colour = "black")) +
-  map_theme +
-  coord_sf(expand = FALSE) +
-  labs(caption = str_c("Top ", percentile_cutoff, "% of Warming Rates Shown.",
-                       "\n Data from Years: 1982-2020"))
-  
-```
-
-#### Global Ranks
-
-```{r}
-
-# ggplot using stars
-ggplot() +
-  geom_stars(data = ranks_st) +
-  geom_sf(data = world, fill = "gray90") + 
-  scale_fill_viridis_c(na.value = "black", option = "plasma") +
-  guides("fill" = guide_colorbar(title = "Percentile of Annual Warming Rate",
-                                 title.position = "top", 
-                                 title.hjust = 0.5,
-                                 barwidth = unit(4, "in"), 
-                                 frame.colour = "black", 
-                                 ticks.colour = "black")) +
-  map_theme +
-  coord_sf(expand = FALSE) +
-  labs(caption = str_c("Top ", percentile_cutoff, "% of Warming Rates Shown.",
-                       "\n Data from Years: 1982-2020"))
-  
-```
 
 `r insert_gmri_footer()`
