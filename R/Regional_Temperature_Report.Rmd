@@ -82,9 +82,9 @@ greenland   <- ne_states(country = "greenland") %>% st_as_sfc(crs = 4326)
 
 # clean up the name
 tidy_name <- str_replace_all(params$region, "_", " ") %>% str_to_title()
-tidy_name <- str_replace(tidy_name, "Aak ", "")
-tidy_name <- str_replace(tidy_name, "Apershing  ", "")
-tidy_name <- str_replace(tidy_name, "Cpr  ", "")
+tidy_name <- str_remove(tidy_name, "Aak ")
+tidy_name <- str_remove(tidy_name, "Apershing ")
+tidy_name <- str_remove(tidy_name, "Cpr ")
 ```
 
 `r gmRi::use_gmri_style_rmd(css = "gmri_rmarkdown.css")`
