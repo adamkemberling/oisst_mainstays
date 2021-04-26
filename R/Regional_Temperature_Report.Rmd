@@ -676,8 +676,7 @@ ggplot() +
 
 Currently in development.
 
-
-Looking specifically at the last heatwave event, step through how the even progressed over time, and developing pockets or warmer/colder water masses.
+Looking specifically at the last heatwave event, step through how the even progressed over time, and developing pockets or warmer/colder water masses by looking at the Belkin-O'Reilly fronts.
 
 ```{r, eval = T}
 
@@ -699,8 +698,8 @@ date_seq <- seq.Date(from = event_start,
 
 
 # Expand the area out to see the larger patterns
-crop_x <- crop_x + c(-2, 2)
-crop_y <- crop_y + c(-1, 1)
+crop_x <- crop_x + c(-2.5, 2.5)
+crop_y <- crop_y + c(-1.5, 1)
 
 # Load the heatwave dates
 data_window <- data.frame(
@@ -717,14 +716,9 @@ hw_stack <- oisst_window_load(oisst_path = oisst_path,
 
 #drop any empty years that bug in
 hw_stack <- hw_stack[map(hw_stack, class) != "character"]
-```
 
-
-
-```{r}
 
 ##### Format the layers and loop through the maps  ####
-
 
 # Grab only current year, format dates
 this_yr   <- stack(hw_stack)
@@ -733,11 +727,16 @@ day_labs  <- str_replace_all(names(this_yr), "[.]","-")
 day_labs  <- str_replace_all(day_labs, "X", "")
 day_count <- c(1:day_count) %>% setNames(day_labs)
 
-
-# TESTING: Progress through daily timeline to indicate 
-# Using the heatwaveR table
+# Progress through daily timeline to indicate heatwave status and severity
 hw_timeline <- region_heatwaves %>% 
   filter(time %in% as.Date(day_labs))
+
+
+```
+
+
+
+```{r, eval = T, animation.hook = 'gifski', fig.height=8, fig.width=9}
 
 
 ####  Plot Settings:
@@ -745,13 +744,6 @@ hw_timeline <- region_heatwaves %>%
 # Set palette limits to center it on 0 with scale_fill_distiller
 limit <- c(max(values(this_yr), na.rm = T) * -1, 
            max(values(this_yr), na.rm = T) )
-
-```
-
-
-
-```{r, eval = T, animation.hook = 'gifski', fig.height=8, fig.width=8}
-
 
 
 # Plot Heatwave 1 day at a time as a GIF
@@ -803,7 +795,7 @@ day_plots <- imap(day_count, function(date_index, date_label) {
       data = filter(hw_timeline, time == as.Date(date_label)),
       aes(time, sst, shape = factor(mhw_event)), 
       color = gmri_cols("gmri blue"), 
-      size = 3) + 
+      size = 3, show.legend = FALSE) + 
     geom_vline(data = filter(hw_timeline, time == as.Date(date_label)),
                aes(xintercept = time), 
                color = "gray50", 
@@ -812,16 +804,16 @@ day_plots <- imap(day_count, function(date_index, date_label) {
                alpha = 0.8) + 
     labs(x = "", 
          y = "",
+         color = "",
          subtitle = expression("Regional Temperature"~degree~"C"),
          shape = "Heatwave Event") +
-    theme(legend.position = c(0.8))
+    theme(legend.position = "bottom")
   
   
   ####  3. Assemble plot(s)
   p_layout <- c(
-    area(t = 1, l = 2, b = 2, r = 7),
-    area(t = 3, l = 1, b = 8, r = 8)
-  )
+    area(t = 1, l = 1, b = 2, r = 8),
+    area(t = 3, l = 1, b = 8, r = 8))
   
   # plot_agg <- (date_timeline / day_plot) + plot_layout(heights = c(1, 3))
   plot_agg <- date_timeline + day_plot + plot_layout(design = p_layout)
@@ -842,71 +834,99 @@ walk(day_plots, print)
 
 Same idea as above but looking at the fronts rather than absolute values
 
-```{r, eval = FALSE}
-# remotes::install_github("galuardi/boaR", 
-#                         force = T, 
-#                         build = T, 
-#                         dependencies = "ask",
-#                         upgrade = "ask")
+```{r, eval = T, animation.hook = 'gifski', fig.height=8, fig.width=9}
+# Use belkin fronts function to get the sst fronts
+this_yr_fronts <- map(unstack(this_yr), get_belkin_fronts) %>% 
+  stack() %>% 
+  setNames(names(this_yr))
 
-library(boaR)
-
-# front test
-front_test <- this_yr[[1]]
-front_matrix <- as.matrix(front_test)
-dim(front_matrix)
-
-# getting coordinates
-test_coords <- raster::coordinates(front_test)
-xcoords <- sort(unique(test_coords[,"x"]))
-ycoords <- sort(unique(test_coords[,"y"]))
-rownames(front_matrix) <- ycoords
-colnames(front_matrix) <- xcoords
-image(front_matrix)
+# Set palette limits to center it on 0 with scale_fill_distiller
+limit <- c(max(values(this_yr_fronts), na.rm = T) * -1, 
+           max(values(this_yr_fronts), na.rm = T) )
 
 
-# Getting Belkin O'Reilly Fronts
-boaR::boa(lon = test_coords[,"x"], 
-          lat = test_coords[,"y"], 
-          ingrid = front_matrix, 
-          nodata = NA, 
-          direction = FALSE)
+# Build Plots for Animation
 
-##########################
+# Plot Heatwave 1 day at a time as a GIF
+front_plots <- imap(day_count, function(date_index, date_label) {
+  
+  # grab dates
+  sst_fronts_st  <- st_as_stars(this_yr_fronts[[date_index]])
+  
+  #### 1. Map the Anomalies in Space
+  day_plot <- ggplot() +
+    geom_stars(data = sst_fronts_st) +
+    geom_sf(data = new_england, fill = "gray90") +
+    geom_sf(data = canada, fill = "gray90") +
+    geom_sf(data = greenland, fill = "gray90") +
+    geom_sf(data = region_extent, 
+            color = gmri_cols("gmri blue"), 
+            linetype = 2, size = 1,
+            fill = "transparent") +
+    scale_fill_distiller(palette = "RdBu", 
+                         na.value = "transparent") +
+    map_theme +
+    coord_sf(xlim = crop_x, 
+             ylim = crop_y, 
+             expand = T) +
+    guides("fill" = guide_colorbar(
+      title = "Front Strength?",
+      title.position = "top",
+      title.hjust = 0.5,
+      barwidth = unit(3, "in"),
+      frame.colour = "black",
+      ticks.colour = "black")) 
+  
+  
+  
+  
+  #### 2.  Plot the day and the overall anomaly to track dates
+  date_timeline <- ggplot(data = hw_timeline, aes(x = time)) +
+    geom_line(aes(y = sst, color = "Sea Surface Temperature")) +
+    geom_line(aes(y = hwe, color = "Heatwave Event")) +
+    geom_line(aes(y = cse, color = "Cold Spell Event")) +
+    geom_line(aes(y = mhw_thresh, color = "MHW Threshold"), lty = 3, size = .5) +
+    geom_line(aes(y = mcs_thresh, color = "MCS Threshold"), lty = 3, size = .5) +
+    geom_line(aes(y = seas, color = "Daily Climatology"), lty = 2, size = .5) +
+    scale_color_manual(values = color_vals) +
+    
+    # Animated Point /  line
+    geom_point(
+      data = filter(hw_timeline, time == as.Date(date_label)),
+      aes(time, sst, shape = factor(mhw_event)), 
+      color = gmri_cols("gmri blue"), 
+      size = 3, show.legend = FALSE) + 
+    geom_vline(data = filter(hw_timeline, time == as.Date(date_label)),
+               aes(xintercept = time), 
+               color = "gray50", 
+               size = 0.5,
+               linetype = 3,
+               alpha = 0.8) + 
+    labs(x = "", 
+         y = "",
+         color = "",
+         subtitle = expression("Regional Temperature"~degree~"C"),
+         shape = "Heatwave Event") +
+    theme(legend.position = "bottom")
+  
+  
+  ####  3. Assemble plot(s)
+  p_layout <- c(
+    area(t = 1, l = 1, b = 2, r = 8),
+    area(t = 3, l = 1, b = 8, r = 8))
+  
+  # plot_agg <- (date_timeline / day_plot) + plot_layout(heights = c(1, 3))
+  plot_agg <- date_timeline + day_plot + plot_layout(design = p_layout)
+  
+  
+  return(plot_agg )
+  
+  
+})
 
-# Andrew's code for Fronts
 
+walk(front_plots, print)
 
-## Land and Biophysical regions
-shape_path <- shared.path(os.use = "unix", group = "RES_Data", folder = "Shapefiles")
-gom_poly<- st_read(paste0(shape_path, "GulfofMainePhysioRegions/PhysioRegions_WGS84.shp"))
-focal_area <- st_bbox(gom_poly)
-land <- st_read(paste0(shape_path, "ne_50m_land/ne_50m_land.shp"))
-
-# Collecting variables of interest ----------------------------------------
-focal_dates<- as.Date(c("2019-04-01", "2019-09-30"))
-
-## Depth - https://www.ngdc.noaa.gov/mgg/global/global.html
-depth_info <- rerddap::info("etopo180")
-depth <- rxtracto_3D(dataInfo = depth_info, 
-                     parameter = "altitude", 
-                     xcoord = focal_area[c(1,3)], 
-                     ycoord = focal_area[c(2,4)])
-
-depth_rast<- extracto_to_rast(extracto_obj = depth, variable = "depth")
-
-## SST - Daily MUR SST, Final product (MUR-JPL-L4-GLOB-v4.1): https://podaac.jpl.nasa.gov/dataset/MUR-JPL-L4-GLOB-v4.1?ids=&values=&search=MUR (0.01 deg grid, 1 km)
-
-sst_info <- rerddap::info("nasa_jpl_28d8_bd66_24b1")
-sst <- rxtracto_3D(dataInfo = sst_info, 
-                   parameter = "analysed_sst", 
-                   xcoord = as.numeric(focal_area[c(1,3)]), 
-                   ycoord = as.numeric(focal_area[c(2,4)]), 
-                   tcoord = focal_dates, tName = "time")
-
-
-sst_rast <- extracto_to_rast(extracto_obj = sst, 
-                             variable = "analysed_sst")
 ```
 
 
