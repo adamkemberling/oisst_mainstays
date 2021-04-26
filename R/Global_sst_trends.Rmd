@@ -307,15 +307,9 @@ In 2021 NOAA is transitioning standard climatologies from the 30-year period of 
 
 ```{r, eval = FALSE}
 
-# # Load Climatology shift
-# clim_82 <- stack(str_c(oisst_path, "daily_climatologies/daily_clims_1982to2011.nc"))
-# clim_91 <- stack(str_c(oisst_path, "daily_climatologies/daily_clims_1991to2020.nc"))
-# clim_82_avg <- calc(clim_82, fun = mean, na.rm = T)
-# clim_91_avg <- calc(clim_91, fun = mean, na.rm = T)
-# clim_diff <- clim_91_avg - clim_82_avg
 
-# Load the pre-processed version
-clim_diff <- stack(str_c(oisst_path, "daily_climatologies/climatology_shift_82to91.nc"))
+# Load the climatology difference
+clim_diff <- stack(str_c(oisst_path, "daily_climatologies/clim_shift_82to91baselines.nc"))
 
 
 # Convert wgs84 raster to stars array

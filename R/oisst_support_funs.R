@@ -98,7 +98,9 @@ reclassify_to_discrete <- function(ranks_stack,
 #' @export
 #'
 #' @examples
-pull_heatwave_events <- function(temperature_timeseries, threshold = 90) {
+pull_heatwave_events <- function(temperature_timeseries, 
+                                 threshold = 90, 
+                                 clim_ref_period = c("1982-01-01", "2011-12-31")) {
   
   # Pull the two column dataframe for mhw estimation
   test_ts <- data.frame(t    = temperature_timeseries$time, 
@@ -106,7 +108,7 @@ pull_heatwave_events <- function(temperature_timeseries, threshold = 90) {
   
   # Detect the events in a time series
   ts  <- ts2clm(data = test_ts, 
-                climatologyPeriod = c("1982-01-01", "2011-12-31"), 
+                climatologyPeriod = clim_ref_period, 
                 pctile = threshold)
   
   #heatwaves
@@ -125,10 +127,11 @@ pull_heatwave_events <- function(temperature_timeseries, threshold = 90) {
   
   
   # 2. Detect cold spells
+  # coldSpells = TRUE flips boolean to < thresh
   ts <- ts2clm(data = test_ts, 
-               climatologyPeriod = c("1982-01-01", "2011-12-31"), 
+               climatologyPeriod = clim_ref_period, 
                pctile = (100 - threshold))
-  mcs <- detect_event(ts, coldSpells = TRUE) #coldSpells = TRUE flips boolean to < thresh
+  mcs <- detect_event(ts, coldSpells = TRUE) 
   
   # prep cold spell data
   mcs_out <- mcs$climatology %>%
@@ -155,7 +158,8 @@ pull_heatwave_events <- function(temperature_timeseries, threshold = 90) {
   # Close the gaps between a mhw event and sst (might not need if full line for temp exists)
   events_out <- events_out %>% 
     mutate(hwe = ifelse(is.na(hwe) & is.na(lag(hwe)) == FALSE, sst, hwe),
-           cse = ifelse(is.na(cse) & is.na(lag(cse)) == FALSE, sst, cse))
+           cse = ifelse(is.na(cse) & is.na(lag(cse)) == FALSE, sst, cse))%>% 
+    distinct(time, .keep_all = T)
   
   
   return(events_out)

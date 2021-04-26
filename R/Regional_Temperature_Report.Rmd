@@ -379,8 +379,7 @@ A marine heatwave is defined a when seawater temperatures exceed a seasonally-va
 ```{r}
 
 # Use function to process heatwave data for plotting
-region_heatwaves <- pull_heatwave_events(region_timeseries, threshold = 90) %>% 
-  distinct(time, .keep_all = T)
+region_heatwaves <- pull_heatwave_events(region_timeseries, threshold = 90) 
 
 ```
 
@@ -767,6 +766,10 @@ day_plots <- imap(day_count, function(date_index, date_label) {
     geom_sf(data = new_england, fill = "gray90") +
     geom_sf(data = canada, fill = "gray90") +
     geom_sf(data = greenland, fill = "gray90") +
+    geom_sf(data = region_extent, 
+            color = gmri_cols("gmri blue"), 
+            linetype = 2, size = 1,
+            fill = "transparent") +
     scale_fill_distiller(palette = "RdBu", 
                          na.value = "transparent", 
                          limit = limit) +
@@ -911,34 +914,41 @@ sst_rast <- extracto_to_rast(extracto_obj = sst,
 
 ## Shifting Baselines
 
-In 2021 NOAA is transitioning standard climatologies from the 30-year period of 1982-2011 to a new period spanning 1992-2020. When looking specifically at `r tidy_name` here is what that looks like:
+In 2021 NOAA is transitioning standard climatologies from the 30-year period of 1982-2011 to a new period spanning 1992-2020. When looking specifically at `r tidy_name` here is how the expected temperature for each day of the year has shifted:
 
-```{r, eval = FALSE}
+```{r}
 
-# # Load Climatology shift
-# clim_82 <- stack(str_c(oisst_path, "daily_climatologies/daily_clims_1982to2011.nc"))
-# clim_91 <- stack(str_c(oisst_path, "daily_climatologies/daily_clims_1991to2020.nc"))
-# clim_82_avg <- calc(clim_82, fun = mean, na.rm = T)
-# clim_91_avg <- calc(clim_91, fun = mean, na.rm = T)
-# clim_diff <- clim_91_avg - clim_82_avg
-
-# Load the pre-processed version
-clim_diff <- stack(str_c(oisst_path, "daily_climatologies/climatology_shift_82to91.nc"))
+# Run heatwave detection using new climate period
+heatwaves_91 <- pull_heatwave_events(region_timeseries, 
+                                     threshold = 90, 
+                                     clim_ref_period = c("1991-01-01", "2020-12-31")) 
 
 
-# Convert wgs84 raster to stars array
-clim_shift_st <- st_as_stars(rotate(clim_diff))
+
+# Subtract old from the new
+heatwaves_91 <- heatwaves_91 %>% 
+  mutate(clim_shift = seas - region_heatwaves$seas,
+         upper_shift = mhw_thresh - region_heatwaves$mhw_thresh,
+         lower_shift = mcs_thresh - region_heatwaves$mcs_thresh)
 
 
-# Set palette limits to center it on 0 with scale_fill_distiller
-limit <- max(abs(clim_shift_st[[1]]), na.rm = T) * c(-1,1)
-
-# Plot global map
-ggplot() +
-  geom_stars(data = clim_shift_st) +
-  geom_sf(data = world, fill = "gray90") +
-  scale_fill_distiller(palette = "RdBu", na.value = "transparent", limit = limit) +
-  labs(subtitle = "Shift in Mean Annual Climate")
+# Plot the differences
+heatwaves_91 %>% 
+  filter(time >= last_year) %>% 
+  mutate(year = year(time),
+         yday = yday(time),
+         flat_date = as.Date(yday-1, origin = base_date)) %>% 
+  distinct(flat_date, .keep_all = T) %>%        
+  ggplot(aes(x = flat_date)) +
+  geom_line(aes(y = clim_shift, color = "Mean Temperature Shift")) + 
+  geom_line(aes(y = upper_shift, color = "MHW Threshold Change")) + 
+  geom_line(aes(y = lower_shift, color = "MCS Threshold Change")) + 
+  labs(x = "", 
+       y = expression("Shift in Expected Temperature"~degree~C),
+       color = "") + 
+  theme(legend.position = "bottom") +
+  scale_color_gmri() +
+  scale_x_date(date_labels = "%b", date_breaks = "1 month", expand = c(0,0))
 ```
 
 
