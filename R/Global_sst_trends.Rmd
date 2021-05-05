@@ -78,6 +78,10 @@ greenland   <- ne_states(country = "greenland") %>% st_as_sfc(crs = 4326)
 
 `r gmRi::use_gmri_style_rmd(css = "gmri_rmarkdown.css")`
 
+```{r}
+# Turn on the gmri font for plots
+showtext::showtext_auto()
+```
 
 #  Global Trends in Sea Surface Temperature
 

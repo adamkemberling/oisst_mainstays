@@ -89,6 +89,10 @@ tidy_name <- str_remove(tidy_name, "Cpr ")
 
 `r gmRi::use_gmri_style_rmd(css = "gmri_rmarkdown.css")`
 
+```{r}
+# Turn on the gmri font for plots
+showtext::showtext_auto()
+```
 
 #  `r tidy_name` Sea Surface Temperature Outlook
 
@@ -920,7 +924,7 @@ front_plots <- imap(day_count, function(date_index, date_label) {
   plot_agg <- date_timeline + day_plot + plot_layout(design = p_layout)
   
   
-  return(plot_agg )
+  return(plot_agg)
   
   
 })

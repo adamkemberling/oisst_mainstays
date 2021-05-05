@@ -34,6 +34,9 @@ library(patchwork)
 library(tidyverse)
 library(kableExtra)
 library(heatwaveR)
+library(thematic)
+
+
 
 # Support Functions
 source(here("R/oisst_support_funs.R"))
@@ -77,6 +80,22 @@ base_map <- ggplot() +
 
 `r gmRi::use_gmri_style_rmd(css = "gmri_rmarkdown.css")`
 
+```{r}
+# Turn on thematic for GMRI styling of plots:
+# Set Style options
+# Turn on thematic:
+# Set Style options
+# thematic_on(
+#   bg = NA,
+#   fg = NA,
+#   accent = NA,
+#   font = "auto"
+# )
+
+# Turn on the gmri font for plots
+showtext::showtext_auto()
+```
+
 
 #  Shifting Norms - Moving Climate Norms to the New Climatology Period
 
@@ -86,12 +105,6 @@ yr_avgs <- str_c(box_paths$oisst, "daily_climatologies/yearly_means/")
 clim_82_avg    <- stack(str_c(yr_avgs, "avg_clim_1982to2011.nc "))
 clim_91_avg    <- stack(str_c(yr_avgs, "avg_clim_1991to2020.nc"))
 clim_shift_avg <- stack(str_c(yr_avgs, "avg_clim_shift_82to91baselines.nc"))
-
-# # load daily_climatologies
-# clim_dailys <- str_c(box_paths$oisst, "daily_climatologies/")
-# clim_82_daily    <- stack(str_c(clim_dailys, "daily_clims_1982to2011.nc "))
-# clim_91_daily    <- stack(str_c(clim_dailys, "daily_clims_1991to2020.nc"))
-# clim_shift_daily <- stack(str_c(clim_dailys, "clim_shift_82to91baselines.nc"))
 
 
 # climatology_lists
@@ -106,8 +119,6 @@ grid_list <- map(grid_list, raster::rotate)
 ```
 
 
-
-
 ```{r plotting shifts}
 # convert annual_avgs to stars objects
 clim_82_st    <- st_as_stars(grid_list$`1982-2011`)
@@ -115,13 +126,16 @@ clim_91_st    <- st_as_stars(grid_list$`1991-2020`)
 clim_shift_st <- st_as_stars(grid_list$`Climate Shift`) 
 
 
-# Warp to world projection
-wgs_84          <- st_crs(4326)
-robinson_crs    <- st_crs(54030)
+# Set the crs to world molleweide
 world_moll      <- st_crs("+proj=moll")
-clim_82_moll    <- warp_grid_projections(clim_82_st,    projection_crs = "world moll")
-clim_91_moll    <- warp_grid_projections(clim_91_st,    projection_crs = "world moll")
-clim_shift_moll <- warp_grid_projections(clim_shift_st, projection_crs = "world moll")
+
+# Warp to world projection
+clim_82_moll    <- warp_grid_projections(clim_82_st,    
+                                         projection_crs = "world moll")
+clim_91_moll    <- warp_grid_projections(clim_91_st,    
+                                         projection_crs = "world moll")
+clim_shift_moll <- warp_grid_projections(clim_shift_st, 
+                                         projection_crs = "world moll")
 
 
 # Get temp limits that fit both
@@ -179,8 +193,8 @@ plot_shift <- ggplot() +
 
 
 
-```{r, fig.width=10, fig.height=10}
-# Just plot them
+```{r, fig.width=10, fig.height=8}
+# Just plot themS
 stacked_clims <- (plot_82 + theme(legend.position = "none")) / plot_91
 stacked_clims
 ```
