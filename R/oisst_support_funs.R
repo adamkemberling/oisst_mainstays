@@ -24,7 +24,7 @@ reclassify_to_discrete <- function(ranks_stack,
                                    percentile_cutoff = 80){
   
   # create classification matrix
-  reclass_df <- c(0.00, 0.05,  0, #####
+  reclass_df <- c(0.00, 0.05,  0, #####_reclassification bins####
                   0.05, 0.10,  5,
                   0.10, 0.15, 10,
                   0.15, 0.20, 15,
@@ -44,7 +44,7 @@ reclassify_to_discrete <- function(ranks_stack,
                   0.85, 0.90, 85,
                   0.90, 0.95, 90,
                   0.95,    1, 95)
-  #####
+  #####_####
   
   
   # reshape the object into a matrix with columns and rows

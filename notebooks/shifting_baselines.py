@@ -31,7 +31,7 @@ new_clim = xr.open_dataset(f"{clim_root}daily_clims_1991to2020.nc")
 
 
 # Get Difference in Baselines
-clim_shift = old_clim - new_clim
+clim_shift = new_clim - old_clim
 
 # Save Climate Shift
 clim_shift.attrs = {
@@ -44,3 +44,31 @@ clim_shift.attrs = {
 
 # Save it
 clim_shift.to_netcdf(path = f"{clim_root}clim_shift_82to91baselines.nc")
+
+
+
+
+####  Yearly Averages  ####
+old_clim = xr.open_dataset(f"{clim_root}daily_clims_1982to2011.nc")
+new_clim = xr.open_dataset(f"{clim_root}daily_clims_1991to2020.nc")
+clim_shift = xr.open_dataset(f"{clim_root}clim_shift_82to91baselines.nc")
+
+
+# Run the Means
+old_clim_avg = old_clim.mean(dim = 'modified_ordinal_day')
+new_clim_avg = new_clim.mean(dim = 'modified_ordinal_day')
+clim_shift_avg = clim_shift.mean(dim = 'modified_ordinal_day')
+
+# # Plot one to check
+# import matplotlib.pyplot as plt
+# clim_shift_avg.sst.plot()
+# plt.show()
+
+# Export
+annual_avgs = f"{clim_root}yearly_means/"
+
+# Save it
+old_clim_avg.to_netcdf(path = f"{annual_avgs}avg_clim_1982to2011.nc")
+new_clim_avg.to_netcdf(path = f"{annual_avgs}avg_clim_1991to2020.nc")
+clim_shift_avg.to_netcdf(path = f"{annual_avgs}avg_clim_shift_82to91baselines.nc")
+

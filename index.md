@@ -8,4 +8,7 @@
  3. [Large Marine Ecosystem Spotlights (under development)]()
  
  
- 2. [Accessing OISST with gmRi package](https://adamkemberling.github.io/oisst_mainstays/R/OISST_with_gmRi.html)
+ 4. [Accessing OISST with gmRi package](https://adamkemberling.github.io/oisst_mainstays/R/OISST_with_gmRi.html)
+ 
+ 
+ 5. [Impact of New Normal](https://adamkemberling.github.io/oisst_mainstays/R/GOM_shifting_baselines.html)

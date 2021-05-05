@@ -507,7 +507,7 @@ heatwave_heatmap <- ggplot(grid_data, aes(x = flat_date, y = year)) +
        "\nClimate reference period : 1982-2011") +
   
   #scale_fill_gradient2(low = "blue", mid = "white", high = "red") +
-  scale_fill_distiller(palette = "RdBu", na.value = "transparent", 
+  scale_fill_distiller(palette = "RdYlBu", na.value = "transparent", 
                        limit = limit) +
   
   #5 inches is default rmarkdown height for barheight
@@ -656,7 +656,7 @@ ggplot() +
   geom_sf(data = new_england, fill = "gray90") +
   geom_sf(data = canada, fill = "gray90") +
   geom_sf(data = greenland, fill = "gray90") +
-  scale_fill_distiller(palette = "RdBu", na.value = "transparent", limit = limit) +
+  scale_fill_distiller(palette = "RdYlBu", na.value = "transparent", limit = limit) +
   map_theme +
   coord_sf(xlim = crop_x, ylim = crop_y, expand = T) +
   guides("fill" = guide_colorbar(
@@ -762,7 +762,7 @@ day_plots <- imap(day_count, function(date_index, date_label) {
             color = gmri_cols("gmri blue"), 
             linetype = 2, size = 1,
             fill = "transparent") +
-    scale_fill_distiller(palette = "RdBu", 
+    scale_fill_distiller(palette = "RdYlBu", 
                          na.value = "transparent", 
                          limit = limit) +
     map_theme +
@@ -863,8 +863,9 @@ front_plots <- imap(day_count, function(date_index, date_label) {
             color = gmri_cols("gmri blue"), 
             linetype = 2, size = 1,
             fill = "transparent") +
-    scale_fill_distiller(palette = "RdBu", 
-                         na.value = "transparent") +
+    scale_fill_distiller(palette = "RdYlBu", 
+                         na.value = "transparent",
+                         limit = limit) +
     map_theme +
     coord_sf(xlim = crop_x, 
              ylim = crop_y, 

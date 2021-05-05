@@ -79,7 +79,7 @@ greenland   <- ne_states(country = "greenland") %>% st_as_sfc(crs = 4326)
 `r gmRi::use_gmri_style_rmd(css = "gmri_rmarkdown.css")`
 
 
-#  Sea Surface Temperature Outlook
+#  Global Trends in Sea Surface Temperature
 
 The 2020 global sea surface temperature anomalies have been loaded and displayed below to visualize how different areas of the ocean experience swings in temperature.
 
@@ -120,7 +120,7 @@ limit <- max(abs(last_month_st[[1]]), na.rm = T) * c(-1,1)
 ggplot() +
   geom_stars(data = last_month_st) +
   geom_sf(data = world, fill = "gray90") +
-  scale_fill_distiller(palette = "RdBu", na.value = "transparent", limit = limit) +
+  scale_fill_distiller(palette = "RdYlBu", na.value = "transparent", limit = limit) +
   map_theme +
   coord_sf(expand = FALSE) +
   guides("fill" = guide_colorbar(title = "Mean Sea Surface Temperature Anomaly",
@@ -323,7 +323,7 @@ limit <- max(abs(clim_shift_st[[1]]), na.rm = T) * c(-1,1)
 ggplot() +
   geom_stars(data = clim_shift_st) +
   geom_sf(data = world, fill = "gray90") +
-  scale_fill_distiller(palette = "RdBu", na.value = "transparent", limit = limit) +
+  scale_fill_distiller(palette = "RdYlBu", na.value = "transparent", limit = limit) +
   labs(subtitle = "Shift in Mean Annual Climate")
 ```
 
