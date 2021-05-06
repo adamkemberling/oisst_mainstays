@@ -192,14 +192,14 @@ plot_shift <- ggplot() +
 ```
 
 
-
 ```{r, fig.width=10, fig.height=8}
-# Just plot themS
+# Plotting them stacked
 stacked_clims <- (plot_82 + theme(legend.position = "none")) / plot_91
 stacked_clims
 ```
 
 ```{r, fig.width=10}
+# Plotting the change
 plot_shift
 ```
 
@@ -253,7 +253,7 @@ gom_map | shelf_map
 
 
 
-## Average Regional Temperatures
+## Change in Annual Regional Temperatures {.tabset}
 
 ```{r, fig.height=4}
 # masking function
@@ -262,11 +262,80 @@ mask_sf <- function(in_ras, sf_mask){
   r2 <- mask(r1, sf_mask)
   return(r2)}
 
-# Get Average Temp and Change in Climate
-shift_table <- imap_dfr(grid_list, function(in_ras, climatology){
+# Mask them all
+masked_grids <- map(grid_list, function(in_ras){
   # Get means
-  gom_mean <- mask_sf(in_ras, gom) %>% cellStats(mean, na.rm = T)
-  ne_mean  <- mask_sf(in_ras, ne_shelf) %>% cellStats(mean, na.rm = T)
+  gom_masked <- mask_sf(in_ras, gom) 
+  shelf_masked  <- mask_sf(in_ras, ne_shelf)
+  
+  return(list(
+    "Gulf of Maine" = gom_masked,
+    "Northeast Shelf" = shelf_masked
+  ))
+  
+})
+```
+
+### Gulf of Maine Climate Shift
+
+```{r}
+# Pull Stars Object
+gom_shift_st <- st_as_stars(masked_grids$`Climate Shift`$`Gulf of Maine`)
+
+# Plot the shift in Climate
+ggplot() +
+  geom_stars(data = gom_shift_st) +
+  geom_sf(data = new_england) +
+  geom_sf(data = canada) +
+  geom_sf(data = greenland) +
+  scale_x_continuous(breaks = seq(-180, 180, by = 5)) +
+  coord_sf(xlim = c(-71.25, -65), ylim = c(41, 44.5)) +
+  scale_fill_distiller(palette = "RdYlBu", na.value = "transparent", limit = shift_limits) +
+    guides("fill" = guide_colorbar(title = expression("Sea Surface Temperature Difference"~~degree~C),
+                                   title.position = "top", 
+                                   title.hjust = 0.5,
+                                   barwidth = unit(4, "in"), 
+                                   frame.colour = "black", 
+                                   ticks.colour = "black")) +
+    map_theme +
+    labs(title = "Gulf of Maine Difference in Climate")
+```
+
+
+###  Northeast Shelf Climate Shift
+
+```{r}
+# Pull Stars Object
+ne_shift_st <- st_as_stars(masked_grids$`Climate Shift`$`Northeast Shelf`)
+
+# Plot the shift in Climate
+ggplot() +
+  geom_stars(data = ne_shift_st) +
+  geom_sf(data = new_england) +
+  geom_sf(data = canada) +
+  geom_sf(data = greenland) +
+  scale_x_continuous(breaks = seq(-180, 180, by = 5)) +
+  coord_sf(xlim = map_lims$x, ylim = map_lims$y) +
+  scale_fill_distiller(palette = "RdYlBu", na.value = "transparent", limit = shift_limits) +
+    guides("fill" = guide_colorbar(title = expression("Sea Surface Temperature Difference"~~degree~C),
+                                   title.position = "top", 
+                                   title.hjust = 0.5,
+                                   barwidth = unit(4, "in"), 
+                                   frame.colour = "black", 
+                                   ticks.colour = "black")) +
+    map_theme +
+    labs(title = "Northeast Shelf Difference in Climate")
+```
+
+###  Annual Changes
+
+```{r}
+
+# Get Average Temp and Change in Climate
+shift_table <- imap_dfr(masked_grids, function(in_ras, climatology){
+  # Get means
+  gom_mean <- in_ras[["Gulf of Maine"]] %>% cellStats(mean, na.rm = T)
+  ne_mean  <- in_ras[["Northeast Shelf"]] %>% cellStats(mean, na.rm = T)
   
   # build table
   grid_shift <- data.frame(
@@ -310,7 +379,7 @@ hw_comparison <- function(region_timeseries){
                                        threshold = 90, 
                                        clim_ref_period = c("1982-01-01", "2011-12-31")) %>% 
     select(time, sst, seas_82 = seas, anom_82 = sst_anom, hw_thresh_82 = mhw_thresh, cs_thresh_82 = mcs_thresh,
-           hwe_82 = mhw_event, cse_82 = mcs_event)
+           hwe_82 = mhw_event, cse_82 = mcs_event, hwe_no_82 = mhw_event_no, cse_no_82 = mcs_event_no)
            
   
   
@@ -319,7 +388,7 @@ hw_comparison <- function(region_timeseries){
                                        threshold = 90, 
                                        clim_ref_period = c("1991-01-01", "2020-12-31")) %>% 
     select(time, sst, seas_91 = seas, anom_91 = sst_anom, hw_thresh_91 = mhw_thresh, cs_thresh_91 = mcs_thresh,
-           hwe_91 = mhw_event, cse_91 = mcs_event)
+           hwe_91 = mhw_event, cse_91 = mcs_event, hwe_no_91 = mhw_event_no, cse_no_91 = mcs_event_no)
   
   
   # Subtract old from the new - set up flat date for plots
@@ -367,7 +436,9 @@ seasonality_check <- function(comp_data){
   
   # Plot 82 clim
   p_82 <-ggplot(seasonal_pattern, aes(x = time)) + 
-    geom_line(aes(y = seas_82), color = gmri_cols("gmri blue")) +
+    geom_line(aes(y = seas_82), 
+              color = gmri_cols("gmri blue"),
+              size = 1) +
     geom_line(aes(y = hw_thresh_82), linetype = 2, color = "gray60") +
     geom_line(aes(y = cs_thresh_82), linetype = 2, color = "gray60") +
     labs(x = "", y = expression("SST"~~degree~C),
@@ -376,7 +447,9 @@ seasonality_check <- function(comp_data){
   
   # Plot 91 Clim
   p_91 <- ggplot(seasonal_pattern, aes(x = time)) + 
-    geom_line(aes(y = seas_91), color = gmri_cols("teal")) +
+    geom_line(aes(y = seas_91), 
+              color = gmri_cols("teal"),
+              size = 1) +
     geom_line(aes(y = hw_thresh_91), linetype = 2, color = "gray60") +
     geom_line(aes(y = cs_thresh_91), linetype = 2, color = "gray60") +
     labs(x = "", y = expression("SST"~~degree~C),
@@ -450,13 +523,13 @@ heatwave_checks <- function(comp_data){
               xmax = base_date + 365, 
               ymin = min(comp_data$year) - .5,
               ymax = max(comp_data$year) + .5, 
-              fill = "gray75", 
+              fill = "gray30", 
               color = "transparent") +
     
     # Tile for sst colors
     geom_tile(aes(fill = anom_shift)) +
     
-    # points for heatwave events
+    # Points for heatwave events
     geom_point(data = filter(comp_data, (hwe_82 == TRUE | hwe_91 == TRUE)),
                aes(x = flat_date, 
                    y = year,
@@ -469,7 +542,7 @@ heatwave_checks <- function(comp_data){
     
     # Colors
     scale_fill_gradient2(low =  gmri_cols("gmri blue"), high = "lightblue") + 
-    scale_color_manual(values = c("black", "red")) + 
+    scale_color_manual(values = c("white", "black")) + 
     
     #5 inches is default rmarkdown height for barheight
     guides("fill" = guide_colorbar(title = "Change in Anomaly Magnitude", 
@@ -485,7 +558,8 @@ heatwave_checks <- function(comp_data){
      labs(x = "", 
           y = "") +
     theme_classic() +
-    theme(legend.position = "bottom")
+    theme(legend.position = "bottom",
+          panel.border = element_rect(color  = "black", fill = "transparent", size = 1))
 
 
   # Assemble pieces
@@ -511,5 +585,199 @@ heatwave_checks(ne_comp) +
 ```
 
 
-## Net Drop of Heatwave Events
+## Net Impacts on Heatwave Events {.tabset .tabset-pills}
+
+
+```{r}
+
+
+####  Summarize Yearly Heatwave Totals and Characteristics
+hw_characteristics <- function(comparison_data, clim_group){
+  
+  # Switch between 81 and 92
+  event_number <- switch(clim_group,
+                         "82" = sym("hwe_no_82"),
+                         "91" = sym("hwe_no_91"))
+  event_flag <- switch(clim_group,
+                       "82" = sym("hwe_82"),
+                       "91" = sym("hwe_91"))
+  
+  sst_anom <- switch(clim_group,
+                     "82" = sym("anom_82"),
+                     "91" = sym("anom_91"))
+  
+  clim_period <- switch(clim_group,
+                        "82" = "1982-2011",
+                        "91" = "1991-2020")
+    
+   # 1. Characterize each heatwave event: 
+  # number of heatwaves
+  # average heatwave duration
+  # remove NA as a distinct heatwave number
+  wave_events <- comparison_data %>% 
+      mutate(yr = year(time)) %>% 
+      group_by(yr, !!event_number) %>% 
+      summarise(total_days = sum(!!event_flag, na.rm = T),
+                avg_anom   = mean(!!sst_anom, na.rm = T),
+                peak_anom  = max(!!sst_anom, na.rm = T),
+                .groups = "keep") %>% 
+      ungroup() %>% 
+      drop_na()
+  
+  # 2. Get Annual Means:
+  wave_summary <- wave_events %>%
+      group_by(yr) %>% 
+      summarise(num_waves      = n_distinct(!!event_number),
+                avg_length     = mean(total_days, na.rm = T),
+                avg_intensity  = mean(avg_anom, na.rm = T),
+                peak_intensity = max(peak_anom, na.rm = T),
+                .groups = "keep") %>% 
+    ungroup() %>% 
+    mutate(clim = clim_period)
+  
+  return(wave_summary)
+  
+}
+
+
+
+
+#### Annual Heatwave Summary Details
+gom_hw_82 <- hw_characteristics(comparison_data = gom_comp, clim_group = "82")
+gom_hw_91 <- hw_characteristics(comparison_data = gom_comp, clim_group = "91")
+ne_hw_82  <- hw_characteristics(comparison_data = ne_comp, clim_group = "82")
+ne_hw_91  <- hw_characteristics(comparison_data = ne_comp, clim_group = "91")
+```
+
+
+
+
+```{r}
+#### Change in those characteristics from old to new
+# Join the two periods together for climatology shift plotting
+join_hw_summs <- function(summ_82, summ_91){ # Put the data together
+  summ_91 <- select(summ_91, 
+                    yr,
+                    w = num_waves,
+                    x = avg_length,
+                    y = avg_intensity,
+                    z = peak_intensity) 
+  
+  # Need to join to preserve all years
+  differences <- summ_82 %>% 
+    select(-clim) %>% 
+    full_join(summ_91, by = "yr") %>% 
+    mutate(w = ifelse(is.na(w), 0, w),
+           num_waves = w - num_waves,
+           avg_length = x - avg_length,
+           avg_intensity = y - avg_intensity,
+           peak_intensity = z - peak_intensity)
+  return(differences)
+}
+
+
+gom_shift <- join_hw_summs(gom_hw_82, gom_hw_91)
+ne_shift <- join_hw_summs(ne_hw_82, ne_hw_91)
+
+```
+
+
+
+```{r}
+
+
+####  Plotting
+plot_hw_characteristics <- function(wave_summary){
+  
+ 
+  
+  
+  # number of heatwaves
+  hw_counts <- ggplot(wave_summary, aes(y = yr, x = num_waves)) +
+    geom_segment(aes(yend = yr, xend = 0), 
+                 color = gmri_cols("gmri blue")) +
+    geom_point(color = gmri_cols("gmri blue")) +
+    geom_vline(xintercept = 0, color = "gray30", linetype = 3) +
+    labs(x = "Heatwave Eents", y = "")
+  
+  # average duration
+  hw_lengths <- ggplot(wave_summary, aes(y = yr, x = avg_length)) +
+    geom_segment(aes(yend = yr, xend = 0), 
+                 color = gmri_cols("orange")) +
+    geom_point(color = gmri_cols("orange")) +
+    geom_vline(xintercept = 0, color = "gray30", linetype = 3) +
+    labs(x = "Heatwave Duration", y = "")
+  
+  # avg temp
+  hw_temps <- ggplot(wave_summary, aes(y = yr, x = avg_intensity)) +
+    geom_segment(aes(yend = yr, xend = 0), 
+                 color = gmri_cols("green")) +
+    geom_point(color = gmri_cols("green")) +
+    geom_vline(xintercept = 0, color = "gray30", linetype = 3) +
+    labs(x = "Avg Anomaly Temp", y = "")
+  
+  # peak temp
+  hw_peaks <-  ggplot(wave_summary, aes(y = yr, x = peak_intensity)) +
+    geom_segment(aes(yend = yr, xend = 0), 
+                 color = gmri_cols("teal")) +
+    geom_point(color = gmri_cols("teal")) +
+    geom_vline(xintercept = 0, color = "gray30", linetype = 3) +
+    labs(x = "Peak Anom Temp", y = "")
+  
+  
+  column_plots <- (hw_counts | hw_lengths | hw_temps | hw_peaks)
+  return(column_plots)
+
+}
+
+
+```
+
+### Gulf of Maine {.tabset}
+
+#### 82 Clim
+
+```{r, fig.width=8}
+plot_hw_characteristics(gom_hw_82) + plot_annotation(title = "1982-2011 Climatology")
+
+```
+
+#### 91 Clim
+
+```{r, fig.width=8}
+plot_hw_characteristics(gom_hw_91) + plot_annotation(title = "1991-2020 Climatology")
+```
+
+#### Net Change
+
+```{r, fig.width=8}
+plot_hw_characteristics(gom_shift) + plot_annotation(title = "Chifting from Old to New")
+```
+
+
+### Northeast Shelf {.tabset}
+
+#### 82 Clim
+
+```{r, fig.width=8}
+plot_hw_characteristics(ne_hw_82) + plot_annotation(title = "1982-2011 Climatology")
+
+```
+
+#### 91 Clim
+
+```{r, fig.width=8}
+plot_hw_characteristics(ne_hw_91) + plot_annotation(title = "1991-2020 Climatology")
+```
+
+#### Net Change
+
+```{r, fig.width=8}
+plot_hw_characteristics(ne_shift) + plot_annotation(title = "Chifting from Old to New")
+```
+
+
+
+
+
 
