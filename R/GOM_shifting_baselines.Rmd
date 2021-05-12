@@ -92,8 +92,10 @@ base_map <- ggplot() +
 #   font = "auto"
 # )
 
-# Turn on the gmri font for plots
+# Turn on the gmri font for plots - doesn't really connect to gmri font
 showtext::showtext_auto()
+
+
 ```
 
 

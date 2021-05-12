@@ -21,6 +21,9 @@ daily_climatologies/*
 regional_timeseries/*
 docs/*
 
+# Prefect configs
+.prefect/
+.prefect
 
 # notbook cache data
 notebooks/.cache*

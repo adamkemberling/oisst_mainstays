@@ -61,14 +61,14 @@ oisst_save_update = task(ot.export_annual_update)
 # Scheduling
 schedule = IntervalSchedule(
   start_date = datetime.utcnow() + timedelta(seconds = 1),
-  interval = timedelta(days = 7)
+  interval = timedelta(days = 5)
 )
 
 
 ####  Workflow  ####
 
-with Flow("OISST weekly download") as oisst_flow:
-#with Flow("OISST weekly download", schedule = schedule) as oisst_flow:  
+#with Flow("OISST weekly download") as oisst_flow:
+with Flow("OISST weekly download", schedule = schedule) as oisst_flow:  
   
   # Downloading Daily Files
   workspace = Parameter("workspace", default = "local")        
@@ -109,4 +109,15 @@ with Flow("OISST weekly download") as oisst_flow:
 
 # oisst workflow
 oisst_flow.run(workspace = "local")
+
+####  Registering the Flow with perfect cloud  ####
+oisst_flow.register(project_name = "oisst_mainstays")
+
+# setting up universal deploy using local agent and cloud backend
+# oisst_flow.run_agent(token = api_key) # to force the assignment
+oisst_flow.run_agent()
+
+
+
+
 

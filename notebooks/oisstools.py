@@ -698,7 +698,7 @@ def calc_ll(row, var_name, clim_mu, clim_sd):
 # Masked Timseries from xr.Dataset
 #
 #----------------------------------------------------
-def calc_ts_mask(grid_obj, shp_obj, shp_name, var_name = "sst"):
+def calc_ts_mask(grid_obj, shp_obj, shp_name, var_name = "sst", climatology = False):
   """
   Return a timeseries using data that falls within shapefile. 
   
@@ -710,6 +710,8 @@ def calc_ts_mask(grid_obj, shp_obj, shp_name, var_name = "sst"):
     shp_obj        : shapefile polygon to use as a mask
     shp_name (str) : String to use as name when making mask
     var_name (str) : Optional string identifying the variable to use
+    climatology (bool): Whether you are masking a cliimatology, informs naming conventions and
+    whether to process standard deviation
   """
 
   #### 1. Make the mask
@@ -727,7 +729,12 @@ def calc_ts_mask(grid_obj, shp_obj, shp_name, var_name = "sst"):
   #### 4. Calculate timeseries mean
 
   # Get the timeseries mean of the desired variable
-  masked_ts = getattr(masked_ds, var_name).mean(dim = ("lat", "lon"))
+  if climatology == False:
+    masked_ts = getattr(masked_ds, var_name).mean(dim = ("lat", "lon"))
+    
+  elif climatology == True:
+    masked_ts = getattr(masked_ds, var_name).mean(dim = ("lat", "lon"))
+    masked_ts["clim_sd"] = getattr(masked_ds, var_name).std(dim = ("lat", "lon"))
 
   
   #### 5. Change time index rownames to a column 
@@ -736,8 +743,13 @@ def calc_ts_mask(grid_obj, shp_obj, shp_name, var_name = "sst"):
   masked_ts_df = masked_ts.to_dataframe()
 
   # Reset the index, rename variables
-  masked_ts_df = masked_ts_df.reset_index()[["time", var_name]]
-
+  if climatology == False:
+    masked_ts_df = masked_ts_df.reset_index()[["time", var_name]]
+    
+  elif climatology == True:
+    clim_name = clim_name = f"{var_name}_clim"
+    masked_ts_df = masked_ts_df.reset_index()[["modified_ordinal_day", var_name, "clim_sd"]]
+    masked_ts_df = masked_ts_df.rename(columns = {f"{var_name}" : f"{clim_name}"})
   
   # Return the table as output
   return masked_ts_df
