@@ -678,9 +678,7 @@ ggplot() +
 
 ### Heatwave Progression
 
-Currently in development.
-
-Looking specifically at the last heatwave event, step through how the even progressed over time, and developing pockets or warmer/colder water masses by looking at the Belkin-O'Reilly fronts.
+Looking specifically at the last heatwave event, we can step through how the event progressed over time, and developing pockets or warmer/colder water masses.
 
 ```{r, eval = T}
 
@@ -836,7 +834,7 @@ walk(day_plots, print)
 
 ### Front Progression
 
-Same idea as above but looking at the fronts rather than absolute values
+Same idea as above but looking at the Belkin O'Reilly fronts rather than absolute values.
 
 ```{r, eval = T, animation.hook = 'gifski', fig.height=8, fig.width=9}
 # Use belkin fronts function to get the sst fronts
