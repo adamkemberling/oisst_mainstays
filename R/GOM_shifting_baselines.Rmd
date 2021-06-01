@@ -575,7 +575,7 @@ heatwave_checks <- function(comp_data){
     
     # Colors
     scale_fill_distiller(palette = "RdYlBu", limit = limit) + # for actual anomalies
-    scale_color_manual(values = c("gray50", "black")) + 
+    scale_color_manual(values = c("gray70", "black")) + 
     
     #5 inches is default rmarkdown height for barheight
     guides("fill" = guide_colorbar(title = "Anomaly from 91-2020 Climatology", 
@@ -726,74 +726,98 @@ hw_dumbbell <- function(wave_summary){
   
   # 1. number of heatwaves
   hw_counts <- ggplot(wave_summary) +
-    geom_segment(aes(y = yr, 
-                     x = num_waves,
-                     yend = yr, 
-                     xend = w), 
+    geom_segment(aes(x = yr, 
+                     y = num_waves,
+                     xend = yr, 
+                     yend = w), 
                  color = "gray60",
-                 lineend = "round", # See available arrow types in example above
+                 lineend = "round", 
                  linejoin = "mitre",
                  size = 0.5, 
                  arrow = arrow(length = unit(0.25, "cm"))) +
-    geom_point(aes(x = num_waves, y = yr, color = "1982-2011 Climatology"), size = 2) +
-    geom_point(aes(x = w, y = yr, color = "1991-2020 Climatology"), size = 2) +
-    geom_vline(xintercept = 0, color = "gray30", linetype = 3) +
-    labs(x = "Heatwave Events", y = "", color = "") +
+    geom_point(aes(x = yr, 
+                   y = num_waves, 
+                   color = "1982-2011 Climatology"), size = 2) +
+    geom_point(aes(x = yr,
+                   y = w, 
+                   color = "1991-2020 Climatology"), size = 2) +
+    geom_hline(yintercept = 0, color = "gray30", linetype = 3) +
+    labs(y = "# of Events", 
+         x = "", 
+         color = "") +
     scale_color_gmri() 
   
-  # 2. average duration
+  # 2. Average duration
   hw_lengths <- ggplot(wave_summary) +
-    geom_segment(aes(y = yr, 
-                     x = avg_length,
-                     yend = yr, 
-                     xend = x), 
+    geom_segment(aes(x = yr, 
+                     y = avg_length,
+                     xend = yr, 
+                     yend = x), 
                  color = "gray60",
-                 lineend = "round", # See available arrow types in example above
+                 lineend = "round", 
                  linejoin = "mitre",
                  size = 0.5, 
                  arrow = arrow(length = unit(0.25, "cm"))) +
-    geom_point(aes(x = avg_length, y = yr, color = "1982-2011 Climatology"), size = 2) +
-    geom_point(aes(x = x, y = yr, color = "1991-2020 Climatology"), size = 2) +
-    geom_vline(xintercept = 0, color = "gray30", linetype = 3) +
-    labs(x = "Heatwave Events", y = "", color = "") +
+    geom_point(aes(y = avg_length, 
+                   x = yr, 
+                   color = "1982-2011 Climatology"), size = 2) +
+    geom_point(aes(x = yr, 
+                   y = x, 
+                   color = "1991-2020 Climatology"), size = 2) +
+    geom_hline(yintercept = 0, color = "gray30", linetype = 3) +
+    labs(y = "Event Length", 
+         x = "", 
+         color = "") +
     scale_color_gmri() 
   
   # 3. avg temp
   hw_temps <- ggplot(wave_summary) +
-    geom_segment(aes(y = yr, 
-                     x = avg_intensity,
-                     yend = yr, 
-                     xend = y), 
+    geom_segment(aes(x = yr, 
+                     y = avg_intensity,
+                     xend = yr, 
+                     yend = y), 
                  color = "gray60",
                  lineend = "round", # See available arrow types in example above
                  linejoin = "mitre",
                  size = 0.5, 
                  arrow = arrow(length = unit(0.25, "cm"))) +
-    geom_point(aes(x = avg_intensity, y = yr, color = "1982-2011 Climatology"), size = 2) +
-    geom_point(aes(x = y, y = yr, color = "1991-2020 Climatology"), size = 2) +
-    geom_vline(xintercept = 0, color = "gray30", linetype = 3) +
-    labs(x = "Heatwave Events", y = "", color = "") +
+    geom_point(aes(x = yr, 
+                   y = avg_intensity, 
+                   color = "1982-2011 Climatology"), size = 2) +
+    geom_point(aes(x = yr,
+                   y = y, 
+                   color = "1991-2020 Climatology"), size = 2) +
+    geom_hline(yintercept = 0, color = "gray30", linetype = 3) +
+    labs(x = "", 
+         y = "Avg. Anomaly", 
+         color = "") +
     scale_color_gmri() 
   
   # 4. peak temp
   hw_peaks <-  ggplot(wave_summary) +
-    geom_segment(aes(y = yr, 
-                     x = peak_intensity,
-                     yend = yr, 
-                     xend = z), 
+    geom_segment(aes(x = yr, 
+                     y = peak_intensity,
+                     xend = yr, 
+                     yend = z), 
                  color = "gray60",
-                 lineend = "round", # See available arrow types in example above
+                 lineend = "round", 
                  linejoin = "mitre",
                  size = 0.5, 
                  arrow = arrow(length = unit(0.25, "cm"))) +
-    geom_point(aes(x = peak_intensity, y = yr, color = "1982-2011 Climatology"), size = 2) +
-    geom_point(aes(x = z, y = yr, color = "1991-2020 Climatology"), size = 2) +
-    geom_vline(xintercept = 0, color = "gray30", linetype = 3) +
-    labs(x = "Heatwave Events", y = "", color = "") +
+    geom_point(aes(x = yr,
+                   y = peak_intensity, 
+                   color = "1982-2011 Climatology"), size = 2) +
+    geom_point(aes(x = yr, 
+                   y = z,
+                   color = "1991-2020 Climatology"), size = 2) +
+    geom_hline(yintercept = 0, color = "gray30", linetype = 3) +
+    labs(x = "Year", 
+         y = "Peak Anomaly",
+         color = "") +
     scale_color_gmri() 
   
   # Arrange them
-  column_plots <- (hw_counts | hw_lengths | hw_temps | hw_peaks) + plot_layout(guides = "collect") & theme(legend.position = "bottom")
+  column_plots <- (hw_counts / hw_lengths / hw_temps / hw_peaks) + plot_layout(guides = "collect") & theme(legend.position = "bottom")
   return(column_plots)
 
 }

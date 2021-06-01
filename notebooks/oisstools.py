@@ -872,7 +872,8 @@ def get_region_names(region_group):
   
   # NMFS Regions
   nmfs_regions = ["georges_bank",         "gulf_of_maine", 
-                  "southern_new_england", "mid_atlantic_bight"]
+                  "southern_new_england", "mid_atlantic_bight",
+                  "inuse_strata",         "regions_collection"]
                   
                   
   # NELME Regions
