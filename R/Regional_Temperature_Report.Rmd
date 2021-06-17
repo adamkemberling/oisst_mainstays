@@ -680,7 +680,7 @@ ggplot() +
 
 Looking specifically at the last heatwave event, we can step through how the event progressed over time, and developing pockets or warmer/colder water masses.
 
-```{r, eval = T}
+```{r hw progression, eval = T}
 
 # Identify the last heatwave event that happened
 last_event <- max(region_heatwaves$mhw_event_no, na.rm = T)
@@ -738,7 +738,7 @@ hw_timeline <- region_heatwaves %>%
 
 
 
-```{r, eval = T, animation.hook = 'gifski', fig.height=8, fig.width=9}
+```{r front progression, eval = T, animation.hook = 'gifski', fig.height=8, fig.width=9}
 
 
 ####  Plot Settings:
