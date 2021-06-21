@@ -873,6 +873,7 @@ hw_intraannual_plot <- function(hw_data, region){
       geom_point() +
       geom_smooth(method = "gam", formula = y ~ s(x, bs = "cs")) +
       scale_color_gmri() +
+      scale_x_date(date_labels = "%b", date_breaks = "1 month", expand = c(0,0)) +
       labs(x = "", 
            y = "Temperature Anomaly from 82-2011 Climate",
            color = "Impact of New Normal",
@@ -887,27 +888,35 @@ hw_intraannual_plot <- function(hw_data, region){
 
 # Plot seasonal variability
 seasonal_polar_plot <- function(hw_data){
+  
+  #dataframe to place axis labels
+  label_df <- data.frame(flat_date <- rep(as.Date("2000-01-01"), 6),
+                         anom_82 <- seq(0,5, by = 1))
+  
   hw_data %>% 
   filter(hwe_change == "Still HW") %>% 
   ggplot(aes(flat_date, anom_82, color = anom_82)) + 
-  geom_point() +
-  geom_smooth(method = "gam", formula = y ~ s(x, bs = "cc", k = 5),
-              color = gmri_cols("orange")) +
-  scale_color_distiller(palette = "OrRd", direction = 1) +
-  coord_polar() +
-  scale_x_date(date_labels = "%b", date_breaks = "1 month", expand = c(0,0)) +
-  theme(panel.border = element_blank(),
-        axis.text.y = element_blank(),
-        axis.ticks.y = element_blank(),
-        legend.position = "bottom",
-        title = element_text(hjust = 0.5)) +
-  guides(color = guide_colorbar(title = "Temperature Anomaly from 1982-2011 Climate",
-                                title.position = "top", 
-                                title.hjust = 0.5,
-                                barwidth = unit(4, "inches"), 
-                                frame.colour = "black", 
-                                ticks.colour = "black")) +
-  labs(x = "", y = "", title = "Remaining Heatwaves Under New Climatology")
+    geom_point() +
+    geom_smooth(method = "gam", formula = y ~ s(x, bs = "cc", k = 5),
+                color = gmri_cols("gmri blue")) +
+     geom_label(data = label_df, aes(flat_date, anom_82, color = anom_82, label = anom_82)) +
+    scale_color_distiller(palette = "OrRd", direction = 1) +
+    coord_polar() +
+    scale_x_date(date_labels = "%b", date_breaks = "1 month", expand = c(0,0)) +
+    scale_y_continuous(breaks = seq(0, 6, by = 1),) +
+    theme(panel.border = element_blank(),
+          axis.text.y = element_blank(),
+          axis.ticks.y = element_blank(), 
+          panel.grid.major.y = element_line(linetype = 1),
+          legend.position = "bottom",
+          title = element_text(hjust = 0.5)) +
+    guides(color = guide_colorbar(title = "Temperature Anomaly from 1982-2011 Climate",
+                                  title.position = "top", 
+                                  title.hjust = 0.5,
+                                  barwidth = unit(4, "inches"), 
+                                  frame.colour = "black", 
+                                  ticks.colour = "black")) +
+    labs(x = "", y = "", title = "Remaining Heatwaves Under New Climatology")
 }
 
 
@@ -945,7 +954,7 @@ hw_intraannual_plot(gom_hw, "Gulf of Maine")
 
 **Heatwaves that Stand Out in New Normal**
 
-```{r}
+```{r, fig.height=6}
 
 # Plot seasonal variability
 seasonal_polar_plot(gom_hw)
@@ -982,7 +991,7 @@ hw_intraannual_plot(shelf_hw, "Northeast Shelf")
 
 **Heatwaves that Stand Out in New Normal**
 
-```{r}
+```{r, fig.height=6}
 
 # Plot seasonal variability
 seasonal_polar_plot(shelf_hw)
