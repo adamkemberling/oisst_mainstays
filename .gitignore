@@ -15,6 +15,7 @@ docker-compose.override.yaml
 *.nc
 *.ipynb_checkpoints*
 *.csv
+local_data/
 
 # Data folders
 annual_anomalies/*
