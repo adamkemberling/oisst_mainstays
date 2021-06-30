@@ -9,6 +9,8 @@ library(raster)
 library(patchwork)
 library(heatwaveR)
 library(tidyverse)
+library(ggforce)
+library(magrittr)
 
 #box paths
 box_paths <- research_access_paths()
@@ -50,7 +52,7 @@ gom_21 <- gom_hw %>%
          year = factor(year),
          month = lubridate::month(time)) %>% 
   filter(year == "2012" | year ==  "2021",
-         month < 7)
+         month < 12)
 
 
 clim <- filter(gom_21, year == "2012")
@@ -109,10 +111,14 @@ gom_21 <- gom_21 %>%
   group_by(year) %>% 
   mutate(cum_hw_days = cumsum(mhw_event),
          yday = lubridate::yday(time),
-         excess_degrees = cumsum(sst_anom)) %>% 
+         excess_degrees = cumsum(sst_anom),
+         flat_date = as.Date(flat_date),
+         hw_point_flag = ifelse(mhw_event == TRUE, 4, NA)) %>% 
   ungroup()
 
 
+
+# Plot cumulative hw days
 hw_days <- gom_21 %>% 
   ggplot(aes(flat_date, cum_hw_days)) +
   geom_line(aes(color = year)) +
@@ -125,6 +131,7 @@ hw_days <- gom_21 %>%
        color = "")
 
 
+
 # Cumulative degrees above climatology
 excess_temp <- gom_21 %>% 
   ggplot(aes(flat_date, excess_degrees)) +
@@ -135,15 +142,13 @@ excess_temp <- gom_21 %>%
        x = "Date",
        color = "")
 
-
-hw_days / excess_temp
+# # stack and plot
+# hw_days / excess_temp
 
 
 ####  Percentages  ####
 
 # donut plot?
-library(ggforce)
-library(magrittr)
 
 # maximum possible days
 max_days <- filter(gom_21, year == 2021) %$% max(yday) 
@@ -177,4 +182,101 @@ gom_donuts <- gom_percentages %>%
   labs(fill = "Surface Ocean State", subtitle = "Relative Amount of  Marine Heatwave Days to 'Normal Days'")
 
 
+# Stack and plot
 (hw_days / excess_temp) / gom_donuts
+
+
+
+
+####  Polar Plots  ####
+
+#dataframe to place axis labels
+label_df <- data.frame(flat_date = rep(as.Date("2000-01-01"), 6),
+                       sst_anom  = seq(0,5, by = 1))
+label_df <- bind_rows(mutate(label_df, year = "2012"),
+                      mutate(label_df, year = "2021"))
+
+# Plot on a circle
+gom_21 %>% 
+  ggplot() + 
+  geom_segment(aes(x = flat_date, xend = flat_date, y = 0, yend = sst_anom, color = sst_anom)) +
+  geom_label(data = label_df, aes(flat_date, sst_anom, label = sst_anom), size = 2) +
+  coord_polar() +
+  scale_color_distiller(palette = "OrRd", direction = 1) +
+  facet_wrap(~year) +
+  scale_x_date(date_labels = "%b", date_breaks = "1 month", expand = c(0,0)) +
+  scale_y_continuous(breaks = seq(0, 6, by = 1)) +
+  theme_minimal() +
+  theme(panel.border = element_rect(fill = "transparent"),
+        axis.text.y = element_blank(),
+        axis.ticks.y = element_blank(), 
+        panel.grid.major.y = element_line(linetype = 1),
+        legend.position = "bottom", strip.background = element_rect(color = "black"),
+        plot.title = element_text(hjust = 0.5)) +
+  guides(color = guide_colorbar(title = "Temperature Anomaly from 1982-2011 Climate",
+                                title.position = "top", 
+                                title.hjust = 0.5,
+                                barwidth = unit(4, "inches"), 
+                                frame.colour = "black", 
+                                ticks.colour = "black")) +
+  labs(x = "", y = "", title = "Difference In Anomaly Patterns Between 2012 & 2021")
+
+
+# Is it better not as a circle?
+gom_21 %>% 
+  ggplot() + 
+  geom_segment(aes(x = flat_date, xend = flat_date, 
+                   y = 0, yend = sst_anom, color = sst_anom),
+               size = 1) +
+  #geom_point(aes(flat_date, hw_point_flag, shape = "Heatwave Event"), size = 0.1) +
+  scale_color_distiller(palette = "OrRd", direction = 1) +
+  facet_wrap(~year, nrow = 2) +
+  scale_x_date(date_labels = "%b", date_breaks = "1 month", expand = c(0,0)) +
+  scale_y_continuous(breaks = seq(0, 6, by = 1)) +
+  theme_minimal() +
+  theme(panel.border = element_rect(fill = "transparent"),
+        panel.grid.major.y = element_line(linetype = 1),
+        legend.position = "bottom", strip.background = element_rect(color = "black"),
+        plot.title = element_text(hjust = 0.5)) +
+  guides(color = guide_colorbar(title = expression("Temperature Anomaly "~degree~C),
+                                title.position = "top", 
+                                title.hjust = 0.5,
+                                barwidth = unit(3, "inches"), 
+                                frame.colour = "black", 
+                                ticks.colour = "black"),
+         shape = guide_legend(title = "", 
+                              label.theme = element_text(size = 11),
+                              override.aes = list(size = 1), 
+                              label.position = "top")) +
+  labs(x = "", 
+       y = expression("Temperature Anomaly "~degree~C), 
+       title = "Difference In Anomaly Patterns Between 2012 & 2021",
+       caption = "(Temperature Anomalies from 1982-2011 Climatology for the Gulf of Maine)")
+
+
+
+
+
+# Yes, but columns may be better
+gom_21 %>% 
+  ggplot() + 
+  geom_col(aes(x = flat_date, y = sst_anom, fill = sst_anom), width = 1) +
+  scale_fill_distiller(palette = "OrRd", direction = 1) +
+  facet_wrap(~year, nrow = 2) +
+  scale_x_date(date_labels = "%b", date_breaks = "1 month", expand = c(0,0)) +
+  scale_y_continuous(breaks = seq(0, 6, by = 1)) +
+  theme_minimal() +
+  theme(panel.border = element_rect(fill = "transparent"),
+        panel.grid.major.y = element_line(linetype = 1),
+        legend.position = "bottom", strip.background = element_rect(color = "black"),
+        plot.title = element_text(hjust = 0.5)) +
+  guides(fill = guide_colorbar(title = expression("Temperature Anomaly "~degree~C),
+                               title.position = "top", 
+                               title.hjust = 0.5,
+                               barwidth = unit(4, "inches"), 
+                               frame.colour = "black", 
+                               ticks.colour = "black")) +
+  labs(x = "", 
+       y = expression("Temperature Anomaly "~degree~C), 
+       title = "Contrasting Temperature Anomaly Events of 2012 & 2021",
+       caption = "(Temperature Anomalies from 1982-2011 Climatology for the Gulf of Maine)")
