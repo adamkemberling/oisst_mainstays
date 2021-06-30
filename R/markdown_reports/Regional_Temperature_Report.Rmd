@@ -96,6 +96,9 @@ showtext::showtext_auto()
 
 #  `r tidy_name` Sea Surface Temperature Outlook
 
+This report was created to track the sea surface temperature regimes for marine regions of interest to the [Gulf of Maine Research Institute](https://www.gmri.org). The default region being a central snapshot of the Gulf of Maine.
+
+Satellite sea surface temperature data used was obtained from the National Center for Environmental Information (NCEI). With all maps and figures displaying [NOAA's Optimum Interpolation Sea Surface Temperature Data](https://www.ncdc.noaa.gov/oisst).
 
 ## Region Extent {.tabset .tabset-pills}
 
@@ -146,12 +149,15 @@ ggplot() +
 
 
 
-# OISSTv2 Resources on Box
+## OISSTv2 Resources on Box
 
 For many of the area we look at frequently here at GMRI, regional climatologies and anomalies have been processed for quick access to aid in other research endeavors. 
 
 
-These resources were processed using a handful of jupyter notebook work flows to take advantage of {[xarray](http://xarray.pydata.org/en/stable/index.html)}. 
+These resources were processed using a handful of jupyter notebook work flows to take advantage of {[xarray](http://xarray.pydata.org/en/stable/index.html)}. These can be found online at [this repository](github.com/adamkemberling/oisst_mainstays)
+
+
+Pre-processed timelines are stored on the cloud and can be accessed by GMRI employees using the [{gmRi} R package](github.com/gulfofmaine/gmri).
 
 
 The root folder for the following OISST products is `~/Box/RES_Data/OISST/oisst_mainstays`. Resources can be accessed manually through the box folder or more directly using the gmRi R package.

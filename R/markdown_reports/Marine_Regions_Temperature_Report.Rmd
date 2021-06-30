@@ -81,10 +81,7 @@ world       <- ne_countries() %>% st_as_sf(crs = 4326)
 greenland   <- ne_states(country = "greenland") %>% st_as_sfc(crs = 4326)
 
 # clean up the name
-tidy_name <- str_replace_all(params$region, "_", " ") %>% str_to_title()
-tidy_name <- str_remove(tidy_name, "Aak ")
-tidy_name <- str_remove(tidy_name, "Apershing ")
-tidy_name <- str_remove(tidy_name, "Cpr ")
+tidy_name <- str_replace_all(params$region, "_", " ") %>% toupper()
 ```
 
 `r gmRi::use_gmri_style_rmd(css = "gmri_rmarkdown.css")`
@@ -139,7 +136,7 @@ ggplot() +
 
 
 
-# OISSTv2 Resources on Box
+## OISSTv2 Resources on Box
 
 For many of the area we look at frequently here at GMRI, regional climatologies and anomalies have been processed for quick access to aid in other research endeavors. 
 
