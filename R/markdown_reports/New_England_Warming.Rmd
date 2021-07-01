@@ -100,7 +100,8 @@ gom_ts <- oisst_access_timeseries(oisst_path = box_paths$oisst_mainstays,
                                   region_family = "gmri focus areas", 
                                   poly_name = "apershing gulf of maine")
 shelf_ts <- read_csv(get_timeseries_paths("nelme_regions")$NELME$timeseries_path)
-world_ts <- read_csv(str_c(oisst_path, "/global_timeseries/global_anoms_1982to2011.csv"))
+#world_ts <- read_csv(str_c(oisst_path, "/global_timeseries/global_anoms_1982to2011.csv"))
+world_ts <- read_csv(str_c(oisst_path, "/global_timeseries/global_temps_oisst.csv"))
 
 
 # Put them in a list 
@@ -301,7 +302,7 @@ plot_mhw <- function(timeseries_data){
 
 ### World
 
-```{r, eval = FALSE}
+```{r, eval = TRUE}
 area_hw$`Global Oceans` %>% 
   filter(year(time) == 2021) %>% 
   plot_mhw()
