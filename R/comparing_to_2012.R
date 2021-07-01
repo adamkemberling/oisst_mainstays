@@ -54,7 +54,7 @@ gom_21 <- gom_hw %>%
   filter(year == "2012" | year ==  "2021",
          month < 12)
 
-
+# Pull out a single year to plot the climatology just once
 clim <- filter(gom_21, year == "2012")
 
 # Plot comparison
@@ -73,6 +73,20 @@ ggplot() +
        alpha = "Marine Heatwave",
        x = "Date", 
        y = expression("Sea Surface Temperature"~degree~C)) 
+
+
+# Monthly Summary
+month_summs <- gom_21 %>% 
+  group_by(year, month) %>% 
+  summarise(
+    avg_temp = mean(sst),
+    avg_anom = mean(sst_anom),
+    peak_anom = max(sst_anom),
+    smallest_anom = min(sst_anom),
+    n_hw_days = sum(mhw_event),
+    deg_over = sum(sst_anom)
+  )
+
 
 
 # Degrees above normal
