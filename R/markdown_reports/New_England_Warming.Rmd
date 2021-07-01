@@ -301,7 +301,7 @@ plot_mhw <- function(timeseries_data){
 
 ### World
 
-```{r}
+```{r, eval = FALSE}
 area_hw$`Global Oceans` %>% 
   filter(year(time) == 2021) %>% 
   plot_mhw()
@@ -324,6 +324,83 @@ area_hw$`Gulf of Maine` %>%
   filter(year(time) == 2021) %>% 
   plot_mhw()
 ```
+
+## Heatwave Trends {.tabset}
+
+This section is for looking more closely at how patterns in heatwave events are progressing. For each year summaries for the number of heatwaves, their average duration, and their peak temperatures are recorded.
+
+```{r, eval = FALSE}
+#### Annual Heatwave Summary Details
+
+wave_summary <- grid_data %>% 
+    group_by(year(time), mhw_event_no) %>% 
+    summarise(total_days = sum(mhw_event, na.rm = T),
+              avg_anom = mean(sst_anom, na.rm = T),
+              peak_anom = max(sst_anom, na.rm = T),
+              .groups = "keep") %>% 
+    ungroup() %>% 
+    drop_na() %>%
+    group_by(`year(time)`) %>% 
+    summarise(num_waves = n_distinct(mhw_event_no),
+              avg_length = mean(total_days, na.rm = T),
+              avg_intensity = mean(avg_anom, na.rm = T),
+              peak_intensity = max(peak_anom, na.rm = T),
+              .groups = "keep") %>% 
+  rename(year = `year(time)`)
+
+
+
+
+####  Plotting
+
+# number of heatwaves
+hw_counts <- ggplot(wave_summary, aes(y = year, x = num_waves)) +
+  geom_segment(aes(yend = year, xend = 0), 
+               color = gmri_cols("gmri blue")) +
+  geom_point(color = gmri_cols("gmri blue")) +
+  labs(x = "Heatwave Events\n(Days)", y = "")
+
+# average duration
+hw_lengths <- ggplot(wave_summary, aes(y = year, x = avg_length)) +
+  geom_segment(aes(yend = year, xend = 0), 
+               color = gmri_cols("orange")) +
+  geom_point(color = gmri_cols("orange")) +
+  labs(x = "Heatwave Duration\n(Days)", y = "")
+
+# avg temp
+hw_temps <- ggplot(wave_summary, aes(y = year, x = avg_intensity)) +
+  geom_segment(aes(yend = year, xend = 0), 
+               color = gmri_cols("green")) +
+  geom_point(color = gmri_cols("green")) +
+  labs(x = "Avg Temp. Anomaly\n(Deg C)", y = "")
+
+# peak temp
+hw_peaks <-  ggplot(wave_summary, aes(y = year, x = peak_intensity)) +
+  geom_segment(aes(yend = year, xend = 0), 
+               color = gmri_cols("teal")) +
+  geom_point(color = gmri_cols("teal")) +
+  labs(x = "Peak Temp. Anomaly\n(Deg C)", y = "")
+
+# Line them up
+side_stack <- hw_counts | hw_lengths | hw_temps | hw_peaks
+
+return(side_stack)
+}
+
+
+
+```
+
+
+### World
+
+### Northeast Shelf
+
+### Gulf of Maine
+
+
+
+
 
 ## Gulf of Maine 2021 Highlights {.tabset}
 
@@ -614,7 +691,7 @@ plot_world <- function(plot_month){
   p1 <- ggplot() +
     geom_stars(data = monthly_stars[[plot_month]]) +
     geom_sf(data = world, fill = "gray90", size = .25) +
-    scale_fill_distiller(palette = "RdYlBu", na.value = "transparent", 
+    scale_fill_distiller(palette = "RdBu", na.value = "transparent", 
                          limit = temp_limits, oob = scales::squish) +
     guides("fill" = guide_colorbar(title = guide_lab, 
                                    title.position = "top", 
@@ -694,7 +771,7 @@ plot_shelf <- function(plot_month){
     geom_sf(data = nelme_shape, fill = "transparent", size = .5, 
             color = gmri_cols("gmri blue")) +
     scale_x_continuous(breaks = seq(-180, 180, 5)) +
-    scale_fill_distiller(palette = "RdYlBu", na.value = "transparent", 
+    scale_fill_distiller(palette = "RdBu", na.value = "transparent", 
                          limit = temp_limits, oob = scales::squish) +
     guides("fill" = guide_colorbar(title = guide_lab, 
                                    title.position = "top", 
@@ -772,7 +849,7 @@ plot_gom <- function(plot_month){
     geom_sf(data = gom_shape, fill = "transparent", size = .5, 
             color = gmri_cols("gmri blue")) +
     scale_x_continuous(breaks = seq(-180, 180, 5)) +
-    scale_fill_distiller(palette = "RdYlBu", na.value = "transparent", 
+    scale_fill_distiller(palette = "RdBu", na.value = "transparent", 
                          limit = temp_limits, oob = scales::squish) +
     guides("fill" = guide_colorbar(title = guide_lab, 
                                    title.position = "top", 
@@ -829,7 +906,9 @@ gom_maps$Jun
 ```
 
 
+## Disclaimers
  
+ All data views are temporary unless noted otherwise. Data for June 2021 is currently preliminary data, and may change as QA/QC procedures take place.
 
 `r insert_gmri_footer()`
 
