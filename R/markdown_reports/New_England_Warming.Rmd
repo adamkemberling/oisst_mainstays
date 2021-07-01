@@ -358,9 +358,29 @@ month_comps <- area_comp %>%
     n_hw_days = sum(mhw_event),
     deg_over = sum(sst_anom)) %>% 
   ungroup() %>% 
-  mutate(color_flag = case_when(
-    Year == 2012 ~ "2012",
-    Year == 2021 ~ "2021", 
+  mutate(Year = as.character(Year))
+
+# Get the overall averages to place mean in context:
+month_overalls <- area_comp %>% 
+  filter(Month %in% month.abb[1:6]) %>% 
+  group_by(Month) %>% 
+  summarise(
+    avg_temp = mean(sst),
+    avg_anom = mean(sst_anom),
+    peak_anom = max(sst_anom),
+    smallest_anom = min(sst_anom),
+    n_hw_days = sum(mhw_event),
+    deg_over = sum(sst_anom)) %>% 
+  ungroup() %>% 
+  mutate(Year = "All Years")
+
+# re-join
+month_comps <- bind_rows(month_comps, month_overalls)%>% 
+  mutate(
+    color_flag = case_when(
+    Year == "2012" ~ "2012",
+    Year == "2021" ~ "2021", 
+    Year == "All Years" ~ "Overall Avg.",
     TRUE ~ "Remaining Years"))
 ```
  
@@ -374,16 +394,18 @@ The average monthly temperature is fairly straightforward, and is useful for gro
 # color scheme
 color_key <- c("2012" = as.character(gmri_cols("orange")),
                "2021" = as.character(gmri_cols("gmri blue")),
+               "Overall Avg." = "gray30",
                "Remaining Years" = "gray70")
 
 # Plot temperature
 ggplot(filter(month_comps, color_flag == "Remaining Years"), 
        aes(y = fct_rev(Month), x = avg_temp, color = color_flag)) +
   geom_jitter(width = 0, height = 0.1) +
-  geom_jitter(data = filter(month_comps, color_flag == "2012"), 
-              width = 0, height = 0.1, size = 2) +
-  geom_jitter(data = filter(month_comps, color_flag == "2021"), 
-              width = 0, height = 0.1, size = 2) +
+  geom_point(data = filter(month_comps, color_flag == "2012"), 
+              size = 2) +
+  geom_point(data = filter(month_comps, color_flag == "2021"), 
+              size = 2) +
+  geom_point(data = filter(month_comps, color_flag == "Overall Avg."), size = 2) +
   scale_color_manual(values = color_key) +
   labs(x = expression("Average Regional Temperature"~~degree~C),
        y = "Month",
@@ -402,14 +424,17 @@ The average daily anomaly sets the benchmark for how far from the climate averag
 ggplot(filter(month_comps, color_flag == "Remaining Years"), 
        aes(y = fct_rev(Month), x = avg_anom, color = color_flag)) +
   geom_jitter(width = 0, height = 0.1) +
-  geom_jitter(data = filter(month_comps, color_flag == "2012"), width = 0, height = 0.1, size = 2) +
-  geom_jitter(data = filter(month_comps, color_flag == "2021"), width = 0, height = 0.1, size = 2) +
+  geom_point(data = filter(month_comps, color_flag == "2012"), 
+             size = 2) +
+  geom_point(data = filter(month_comps, color_flag == "2021"), 
+             size = 2) +
+  geom_point(data = filter(month_comps, color_flag == "Overall Avg."), size = 2) +
   scale_color_manual(values = color_key) +
   labs(x = expression("Average Temperature Anomaly"~~degree~C),
        y = "Month",
        color = "Data Source",
        title = "Gulf of Maine",
-       subtitle = "Anomaly Magnitude")
+       subtitle = "Average Monthly Anomaly")
 ```
 
 ### Anomaly Strength
@@ -421,8 +446,10 @@ Peak daily anomalies are indicative of acute thermal stress and may put species 
 ggplot(filter(month_comps, color_flag == "Remaining Years"), 
        aes(y = fct_rev(Month), x = peak_anom, color = color_flag)) +
   geom_jitter(width = 0, height = 0.1) +
-  geom_jitter(data = filter(month_comps, color_flag == "2012"), width = 0, height = 0.1, size = 2) +
-  geom_jitter(data = filter(month_comps, color_flag == "2021"), width = 0, height = 0.1, size = 2) +
+  geom_point(data = filter(month_comps, color_flag == "2012"), 
+             size = 2) +
+  geom_point(data = filter(month_comps, color_flag == "2021"), 
+             size = 2) +
   scale_color_manual(values = color_key) +
   labs(x = expression("Highest Daily Anomaly "~~degree~C),
        y = "Month",
@@ -440,8 +467,10 @@ The smallest or lowest anomaly temperature is a useful indication of temperature
 ggplot(filter(month_comps, color_flag == "Remaining Years"), 
        aes(y = fct_rev(Month), x = smallest_anom, color = color_flag)) +
   geom_jitter(width = 0, height = 0.1) +
-  geom_jitter(data = filter(month_comps, color_flag == "2012"), width = 0, height = 0.1, size = 2) +
-  geom_jitter(data = filter(month_comps, color_flag == "2021"), width = 0, height = 0.1, size = 2) +
+  geom_point(data = filter(month_comps, color_flag == "2012"), 
+             size = 2) +
+  geom_point(data = filter(month_comps, color_flag == "2021"), 
+             size = 2) +
   scale_color_manual(values = color_key) +
   labs(x = expression("Lowest Daily Anomaly "~~degree~C),
        y = "Month",
@@ -459,8 +488,10 @@ The additive total of daily anomalies is a proxy that tracks the excess amount o
 ggplot(filter(month_comps, color_flag == "Remaining Years"), 
        aes(y = fct_rev(Month), x = deg_over, color = color_flag)) +
   geom_jitter(width = 0, height = 0.1) +
-  geom_jitter(data = filter(month_comps, color_flag == "2012"), width = 0, height = 0.1, size = 2) +
-  geom_jitter(data = filter(month_comps, color_flag == "2021"), width = 0, height = 0.1, size = 2) +
+  geom_point(data = filter(month_comps, color_flag == "2012"), 
+             size = 2) +
+  geom_point(data = filter(month_comps, color_flag == "2021"), 
+             size = 2) +
   scale_color_manual(values = color_key) +
   labs(x = expression("Cumulative Degree-Distance from Climate "~~degree~C),
        y = "Month",
