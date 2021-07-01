@@ -84,7 +84,13 @@ showtext::showtext_auto()
 
 This report seeks to showcase how different areas in New England are warming in the larger context of the rest of the world. The two main focal areas are the Gulf of Maine and the Northeastern United States' Continental Shelf.
 
-## Regional Timeseries Patterns {.tabset .tabset-pills}
+**What is an "Anomaly"?**
+
+Anomalies are another way of stating the difference between an observation and the expectation based on some reference climate. In terms of sea surface temperature, the reference period used here is daily temperature from 1982-2011, and the average daily temperature is referred to as a climatology. Anomalies are then how much hotter/hotter a given day is when compared to the average temperature across that 30-year period on that given calendar day.
+
+## Regional Temperature Timeseries {.tabset .tabset-pills}
+
+For the following tables and graphs global satellite data has been used to generate daily sea surface temperatures for the Gulf of Maine, the Northeastern United States' continental shelf, and the global oceans. These timeseries have been made ahead of time for another project but are loaded with the following code.
 
 **Loading Timeseries**
 
@@ -255,10 +261,10 @@ plot_mhw <- function(timeseries_data){
     "Sea Surface Temperature" = "royalblue",
     "Heatwave Event"          = "darkred",
     "Cold Spell Event"        = "lightblue",
-    "MHW Threshold"           = "coral3",
-    #"MHW Threshold"           = "gray30",
-    "MCS Threshold"           = "skyblue",
-    #"MCS Threshold"           = "gray30",
+    #"MHW Threshold"           = "coral3",
+    "MHW Threshold"           = "gray30",
+    #"MCS Threshold"           = "skyblue",
+    "MCS Threshold"           = "gray30",
     "Daily Climatology"        = "gray30")
   
   
@@ -319,20 +325,26 @@ area_hw$`Gulf of Maine` %>%
   plot_mhw()
 ```
 
-## How Hot is 2021?
+## Gulf of Maine 2021 Highlights {.tabset}
+
+2021, particularly mid-May was an exceptionally hot time for the Gulf of Maine. Here is how the average temperature and anomaly strength compares across other years in the record. 
+
+**Why flag 2012?**
+In many ways 2012 was an exceptionally hot year, maintaining temperatures above marine heatwave threshold for nearly the entire year. For comparison purposes 2012 has also been flagged as it is the hottest year on recent record.
 
 This section seeks to place the monthly temperatures in the context of previous years for the purpose of answering:
 
- - Is this the hottest May on record?   
+ - Is this the hottest month on record?   
  - If not, when was it hotter?   
  - If so, when was the runner up?   
- - Top 5?   
+ - Top 5?  
+ 
  
  **Summary Prep**
  
 ```{r}
 # Pick Area
-area_comp <- area_hw$`Global Oceans` 
+area_comp <- area_hw$`Gulf of Maine`
 
 # Get monthly metric, across years
 month_comps <- area_comp %>% 
@@ -352,9 +364,11 @@ month_comps <- area_comp %>%
     TRUE ~ "Remaining Years"))
 ```
  
-### Gulf of Maine in May
 
-May of 2021, particularly mid-May was an exceptionally hot time for the Gulf of Maine. Here is how the average temperature and anomaly strength compares across other years in the record. For comparison 2012 has also been flagged as it is the hottest year on recent record.
+
+### Average Temperature
+
+The average monthly temperature is fairly straightforward, and is useful for grounding these metrics in physical units rather than "anomalies".
 
 ```{r}
 # color scheme
@@ -373,8 +387,16 @@ ggplot(filter(month_comps, color_flag == "Remaining Years"),
   scale_color_manual(values = color_key) +
   labs(x = expression("Average Regional Temperature"~~degree~C),
        y = "Month",
-       color = "Data Source")
+       color = "Data Source",
+       title = "Gulf of Maine",
+       subtitle = "Sea Surface Temperature")
+```
 
+### Average Anomaly
+
+The average daily anomaly sets the benchmark for how far from the climate average a particular month is.
+
+```{r}
 
 # Plot Anomaly Strength
 ggplot(filter(month_comps, color_flag == "Remaining Years"), 
@@ -383,10 +405,56 @@ ggplot(filter(month_comps, color_flag == "Remaining Years"),
   geom_jitter(data = filter(month_comps, color_flag == "2012"), width = 0, height = 0.1, size = 2) +
   geom_jitter(data = filter(month_comps, color_flag == "2021"), width = 0, height = 0.1, size = 2) +
   scale_color_manual(values = color_key) +
-  labs(x = expression("Area Temperature Anomaly"~~degree~C),
+  labs(x = expression("Average Temperature Anomaly"~~degree~C),
        y = "Month",
-       color = "Data Source")
+       color = "Data Source",
+       title = "Gulf of Maine",
+       subtitle = "Anomaly Magnitude")
+```
 
+### Anomaly Strength
+
+Peak daily anomalies are indicative of acute thermal stress and may put species over their thermal stress limits if they are unable move/adapt to avoid/cope with them.
+
+```{r}
+# Plot Anomaly Strength
+ggplot(filter(month_comps, color_flag == "Remaining Years"), 
+       aes(y = fct_rev(Month), x = peak_anom, color = color_flag)) +
+  geom_jitter(width = 0, height = 0.1) +
+  geom_jitter(data = filter(month_comps, color_flag == "2012"), width = 0, height = 0.1, size = 2) +
+  geom_jitter(data = filter(month_comps, color_flag == "2021"), width = 0, height = 0.1, size = 2) +
+  scale_color_manual(values = color_key) +
+  labs(x = expression("Highest Daily Anomaly "~~degree~C),
+       y = "Month",
+       color = "Data Source",
+       title = "Gulf of Maine",
+       subtitle = "Peak Anomaly Intensity")
+```
+
+### Smallest Anomaly
+
+The smallest or lowest anomaly temperature is a useful indication of temperature relief, or a break from thermal stress. A high minimum anomaly value is indicative that even "troughs" in temperature may still be stressful.
+
+```{r}
+# Plot Anomaly Strength
+ggplot(filter(month_comps, color_flag == "Remaining Years"), 
+       aes(y = fct_rev(Month), x = smallest_anom, color = color_flag)) +
+  geom_jitter(width = 0, height = 0.1) +
+  geom_jitter(data = filter(month_comps, color_flag == "2012"), width = 0, height = 0.1, size = 2) +
+  geom_jitter(data = filter(month_comps, color_flag == "2021"), width = 0, height = 0.1, size = 2) +
+  scale_color_manual(values = color_key) +
+  labs(x = expression("Lowest Daily Anomaly "~~degree~C),
+       y = "Month",
+       color = "Data Source",
+       title = "Gulf of Maine",
+       subtitle = "Minimum Temperature Stress")
+```
+
+### Sum Temperature Distance
+
+The additive total of daily anomalies is a proxy that tracks the excess amount of temperature in the system. 
+
+```{r}
 # Plot Anomaly Strength
 ggplot(filter(month_comps, color_flag == "Remaining Years"), 
        aes(y = fct_rev(Month), x = deg_over, color = color_flag)) +
@@ -394,11 +462,12 @@ ggplot(filter(month_comps, color_flag == "Remaining Years"),
   geom_jitter(data = filter(month_comps, color_flag == "2012"), width = 0, height = 0.1, size = 2) +
   geom_jitter(data = filter(month_comps, color_flag == "2021"), width = 0, height = 0.1, size = 2) +
   scale_color_manual(values = color_key) +
-  labs(x = expression("Temperature Distance from Climate\n(Sum of Daily Anomalies)"),
+  labs(x = expression("Cumulative Degree-Distance from Climate "~~degree~C),
        y = "Month",
-       color = "Data Source")
+       color = "Data Source",
+       title = "Gulf of Maine",
+       subtitle = "Degrees * Days Away from Average")
 ```
-
 
 ## Regional Maps 
 
@@ -730,4 +799,6 @@ gom_maps$Jun
 
 
  
+
+`r insert_gmri_footer()`
 

@@ -75,18 +75,6 @@ ggplot() +
        y = expression("Sea Surface Temperature"~degree~C)) 
 
 
-# Monthly Summary
-month_summs <- gom_21 %>% 
-  group_by(year, month) %>% 
-  summarise(
-    avg_temp = mean(sst),
-    avg_anom = mean(sst_anom),
-    peak_anom = max(sst_anom),
-    smallest_anom = min(sst_anom),
-    n_hw_days = sum(mhw_event),
-    deg_over = sum(sst_anom)
-  )
-
 
 
 # Degrees above normal
@@ -158,6 +146,25 @@ excess_temp <- gom_21 %>%
 
 # # stack and plot
 # hw_days / excess_temp
+
+
+####  Monthly Comparisons  ####
+
+# Monthly Summary
+month_summs <- gom_21 %>% 
+  group_by(year, month) %>% 
+  summarise(
+    avg_temp = mean(sst),
+    avg_anom = mean(sst_anom),
+    peak_anom = max(sst_anom),
+    smallest_anom = min(sst_anom),
+    n_hw_days = sum(mhw_event),
+    deg_over = sum(sst_anom)) %>% 
+  ungroup() %>% 
+  mutate(month = factor(month.abb[month], levels = month.abb))
+
+ggplot(month_summs) +
+  geom_point(aes(y = month, x = avg_anom, color = year))
 
 
 ####  Percentages  ####
