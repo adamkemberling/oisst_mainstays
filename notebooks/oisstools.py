@@ -415,20 +415,30 @@ def build_annual_from_cache(last_month, this_month, workspace = "local", verbose
     
     
     ####  Add Attributes Back  ####
-    # Hard code the standard attributes, could also take from previous file, 
-    # but this will ensure all ours are consistent
-    oisst_attributes = {
-      'Conventions'  : 'CF-1.5',
-      'title'        : 'NOAA/NCEI 1/4 Degree Daily Optimum Interpolation Sea Surface Temperature (OISST) Analysis, Version 2.1',
-      'institution'  : 'NOAA/National Centers for Environmental Information',
-      'source'       : 'NOAA/NCEI https://www.ncei.noaa.gov/data/sea-surface-temperature-optimum-interpolation/v2.1/access/avhrr/',
-      'References'   : 'https://www.psl.noaa.gov/data/gridded/data.noaa.oisst.v2.highres.html',
-      'dataset_title': 'NOAA Daily Optimum Interpolation Sea Surface Temperature',
-      'version'      : 'Version 2.1',
-      'comment'      : 'Reynolds, et al.(2007) Daily High-Resolution-Blended Analyses for Sea Surface Temperature (available at https://doi.org/10.1175/2007JCLI1824.1). Banzon, et al.(2016) A long-term record of blended satellite and in situ sea-surface temperature for climate monitoring, modeling and environmental studies (available at https://doi.org/10.5194/essd-8-165-2016). Huang et al. (2020) Improvements of the Daily Optimum Interpolation Sea Surface Temperature (DOISST) Version v02r01, submitted.Climatology is based on 1971-2000 OI.v2 SST. Satellite data: Pathfinder AVHRR SST and Navy AVHRR SST. Ice data: NCEP Ice and GSFC Ice. Data less than 15 days old may be subject to revision.'}
     
-    # Add the attributes to the combined dataset
-    oisst_combined.attrs = oisst_attributes
+    # # NOTE: added to oisstools.py as a function
+    # # Hard code the standard attributes, could also take from previous file,
+    # # but this will ensure all ours are consistent
+    # oisst_attributes = {
+    #   'Conventions'  : 'CF-1.5',
+    #   'title'        : 'NOAA/NCEI 1/4 Degree Daily Optimum Interpolation Sea Surface Temperature (OISST) Analysis, Version 2.1',
+    #   'institution'  : 'NOAA/National Centers for Environmental Information',
+    #   'source'       : 'NOAA/NCEI https://www.ncei.noaa.gov/data/sea-surface-temperature-optimum-interpolation/v2.1/access/avhrr/',
+    #   'References'   : 'https://www.psl.noaa.gov/data/gridded/data.noaa.oisst.v2.highres.html',
+    #   'dataset_title': 'NOAA Daily Optimum Interpolation Sea Surface Temperature',
+    #   'version'      : 'Version 2.1',
+    #   'comment'      : 'Reynolds, et al.(2007) Daily High-Resolution-Blended Analyses for Sea Surface Temperature (available at https://doi.org/10.1175/2007JCLI1824.1). Banzon, et al.(2016) A long-term record of blended satellite and in situ sea-surface temperature for climate monitoring, modeling and environmental studies (available at https://doi.org/10.5194/essd-8-165-2016). Huang et al. (2020) Improvements of the Daily Optimum Interpolation Sea Surface Temperature (DOISST) Version v02r01, submitted.Climatology is based on 1971-2000 OI.v2 SST. Satellite data: Pathfinder AVHRR SST and Navy AVHRR SST. Ice data: NCEP Ice and GSFC Ice. Data less than 15 days old may be subject to revision.'}
+    # 
+    # # Add the attributes to the combined dataset
+    # oisst_combined.attrs = oisst_attributes
+    # 
+    # # jk just do time encoding and get out
+    # oisst_combined.time.encoding = {"units" : "days since '1800-01-01'"}
+    
+    # # Add the attributes to the combined dataset
+    oisst_combined = apply_oisst_attributes(oisst_combined, anomalies = False)
+    
+    
     
     # Load the full year into memory
     oisst_combined = oisst_combined.load()
@@ -454,6 +464,8 @@ def export_annual_update(cache_root, update_yr, oisst_update):
   naming_structure = f"sst.day.mean.{update_yr}.v2.nc"
   out_path         = f"{out_folder}{naming_structure}"
   
+  # Set the Time encodings
+  oisst_update.time.encoding = {"units" : "days since '1800-01-01'"}
   
   # Save File to Output Path
   oisst_update.to_netcdf(path = out_path)
