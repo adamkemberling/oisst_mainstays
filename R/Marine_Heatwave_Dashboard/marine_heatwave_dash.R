@@ -98,8 +98,7 @@ sf_to_rect <- function(sf_obj) {
 region_groups <- c("A. Allyn: NELME Regions" = "nelme_regions",
                    "GMRI: SST Focal Areas"   = "gmri_sst_focal_areas", 
                    "NMFS Trawl Regions"      = "nmfs_trawl_regions",
-                   "Large Marine Ecosystems" = "lme"
-                   )
+                   "Large Marine Ecosystems" = "lme")
 
 
 
@@ -232,11 +231,10 @@ server <- function(input, output, session) {
     mask_path <- reactive({
         
         # Paths to the timeseries and the shapes
-        region_paths <- get_timeseries_paths(region_group = input$Region_Family,
-                                             region_list  = region_list[[input$Region_Family]])
+        region_paths <- get_timeseries_paths(region_group = input$Region_Family)
         
         # Path to Shapefile
-        shape_path <- region_paths[[input$Region_Choice]][["shape_path"]]
+        shape_path <- region_paths[[input$Region_Choice]]["shape_path"]
         
         
 

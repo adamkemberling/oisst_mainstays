@@ -38,10 +38,10 @@ library(janitor)
 library(knitr)
 library(patchwork)
 library(tidyverse)
-library(kableExtra)
 library(heatwaveR)
 library(plotly)
 library(ggpmisc)
+library(gt)
 
 # Support Functions
 source(here("R/oisst_support_funs.R"))
@@ -148,30 +148,10 @@ ggplot() +
 ```
 
 
-
-## OISSTv2 Resources on Box
-
-For many of the area we look at frequently here at GMRI, regional climatologies and anomalies have been processed for quick access to aid in other research endeavors. 
-
-
-These resources were processed using a handful of jupyter notebook work flows to take advantage of {[xarray](http://xarray.pydata.org/en/stable/index.html)}. These can be found online at [this repository](github.com/adamkemberling/oisst_mainstays)
-
-
-Pre-processed timelines are stored on the cloud and can be accessed by GMRI employees using the [{gmRi} R package](github.com/gulfofmaine/gmri).
-
-
-The root folder for the following OISST products is `~/Box/RES_Data/OISST/oisst_mainstays`. Resources can be accessed manually through the box folder or more directly using the gmRi R package.
-
-
 ##  Regional Timeseries
 
 Area-specific time series are the most basic building block for relaying temporal trends. For any desired area (represented by a spatial polygon) we can generate a time series table of the mean sea surface temperature within that area for each day. Additionally, we can compare how observed temperatures correspond with the expected conditions based on a climatology using a specified  reference period. 
 
-**Accessing the Data**
-
-Pre-processed tables have been placed on box for quick access from within the `RES_Data` folder: `RES_Data/OISST/oisst_mainstays/regional_timeseries`. 
-
-A function to quickly access these time-lines has been added to the {[gmRi](https://github.com/gulfofmaine/gmri)} package as `oisst_access_timeseries()`. Additional functions exist to look up what timeseries are available`gmRi::get_region_names()`. And an additional function was made to return both the path to the timeseries data and the path to the shapefile used to generate the timeseries using: `gmRi::get_timeseries_paths()`.
 
 ```{r}
 
@@ -184,10 +164,23 @@ region_timeseries <- region_timeseries %>%
   mutate(time = as.Date(time))
 
 # Display Table of first 6 entries
-head(region_timeseries) %>% 
+tail(region_timeseries) %>% 
   mutate(across(where(is.numeric), round, 2)) %>% 
-  kable() %>% 
-  kable_styling()
+  rename(
+    Date = time,
+    `Sea Surface Temperature` = sst,
+    `Day of Year` = modified_ordinal_day,
+    `Climate Avg.` = sst_clim,
+    `Climate SD` = clim_sd,
+    `Temperature Anomaly` = sst_anom
+  ) %>% gt() %>% 
+    tab_header(
+    title = md(paste0("**", tidy_name, " - Regional Sea Surface Temperature", "**")), 
+    subtitle = paste("Temperature Unit: Celsius")) %>%
+  tab_source_note(
+    source_note = md("*Data Source: NOAA OISSTv2 Daily Sea Surface Temperature Data.*") ) %>% 
+  tab_source_note(md("*Climatology Reference Period: 1982-2011.*"))
+
 
 # march 1st sst
 mar1 <- region_timeseries %>% 
@@ -202,12 +195,12 @@ Each of our Climatologies are currently set up to calculate daily averages on a 
 This preserves comparisons across calendar dates such-as: "The average temperature on march 1st is `r mar1`` for the reference period 1982 to 2011"
 
 
-In these tables `sst` is the mean temperature observed for that date averaged across all cells within the area. `sst_clim` & `clim_sd` are the climate means and standard deviations for a 1982-2011 climatology. `sst_anom` is the daily observed minus the climate mean.
+In these tables `Sea Surface Temperature` is the mean temperature observed for that date averaged across all cells within the area. `Climate Avg.` & `Climate SD` are the climate means and standard deviations for a 1982-2011 climatology. `Temperature Anomaly` is the daily observed sea surface temperature minus the climate mean.
 
 
 ### Warming Rates {.tabset .tabset-pills}
 
-Regional warming trends below were calculated using all the available data for complete years beginning with 1982 through the end of 2020.
+Regional warming trends below were calculated using all the available data for complete years beginning with 1982 through the end of 2020. The overlaid trend lines then track how warming has increased with time. A dotted line has been included to show how the global average temperature has changed during the same period.
 
 
 #### Annual
@@ -380,11 +373,9 @@ quarter_summary %>%
 
 ### Marine Heatwaves {.tabset .tabset-pills}
 
-For the figures below heatwave events were determined using the methods of Hobday et al. 2016 and implemented using the R package [{heatwaveR}](https://robwschlegel.github.io/heatwaveR/). The {heatwaveR} package provides a relatively quick way of working with tabular data to calculate a seasonal climate mean, as well as track heatwave and coldspell events that pass a desired threshold.
+For the figures below heatwave events were determined using the methods of Hobday et al. 2016 and implemented using the R package [{heatwaveR}](https://robwschlegel.github.io/heatwaveR/).
 
-These functions were used to track heatwave and cold spell events, counting their frequencies, and tracking their durations. Heatwave events follow the definition of [Hobday et al. 2016](http://www.marineheatwaves.org/all-about-mhws.html): 
-
-A marine heatwave is defined a when seawater temperatures exceed a seasonally-varying threshold (usually the 90th percentile) for at least 5 consecutive days. Successive heatwaves with gaps of 2 days or less are considered part of the same event.The heatwave threshold used below was 90%. The heatwave history for `r tidy_name` is displayed below:
+A marine heatwave is defined as a situation when seawater temperatures exceeds a seasonally-varying threshold (usually the 90th percentile) for at least 5 consecutive days. Successive heatwaves with gaps of 2 days or less are considered part of the same event. The heatwave threshold used below was 90%. The heatwave history for `r tidy_name` is displayed below:
 
 ```{r}
 
@@ -396,10 +387,7 @@ region_heatwaves <- pull_heatwave_events(region_timeseries, threshold = 90)
 
 #### Interactive SST Timeline
 
-
-For anything we wish to host on the web there is an option to display tables and graphs that are interactive. The {plotly} package is one-such tool for producing plots that allow users to pan, zoom, and highlight discrete observations.
-
-
+For anything we wish to host on the web there is an option to display tables and graphs that are interactive. Interactivity allows users to pan, zoom, and highlight discrete observations.
 
 ```{r}
 # Grab data from the most recent year through present day to plot
@@ -540,7 +528,7 @@ heatwave_heatmap
 
 #### Heatwave Trends
 
-Looking more closely at how patterns in heatwave events are progressing:
+
 
 ```{r, fig.width=8}
 #### Annual Heatwave Summary Details
@@ -607,7 +595,7 @@ hw_counts | hw_lengths | hw_temps | hw_peaks
 
 ## SST Anomaly Maps {.tabset .tabset-pills}
 
-The 2020 global sea surface temperature anomalies have been loaded and displayed below to visualize how different areas of the ocean experience swings in temperature.
+The 2021 global sea surface temperature anomalies have been loaded and displayed below to visualize how different areas of the ocean experience swings in temperature.
 
 ```{r}
 
@@ -620,8 +608,6 @@ anoms_2020 <- stack(anom_path)
 
 
 ```
-
-
 
 
 
@@ -886,7 +872,9 @@ walk(front_plots, print)
 
 ## Shifting Baselines
 
-In 2021 NOAA is transitioning standard climatologies from the 30-year period of 1982-2011 to a new period spanning 1992-2020. When looking specifically at `r tidy_name` here is how the expected temperature for each day of the year has shifted:
+In 2021 NOAA is transitioning standard climatologies from the 30-year period of 1982-2011 to a new period spanning 1992-2020. Changes in climate regimes often does not reult in a uniform upward or downward change that is consistent throughout the year. The plot below shows just how both the average temperature, as well as the annual highs and lows have shifted.
+
+When looking specifically at `r tidy_name` here is how the expected temperature for each day of the year has shifted:
 
 ```{r}
 

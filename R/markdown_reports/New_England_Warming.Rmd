@@ -131,7 +131,7 @@ extent(sst_daily) <- extent(matrix(data = c(0, -90, 360, 90), nrow = 2))
 extent(oisst_daily) <- extent(matrix(data = c(0, -90, 360, 90), nrow = 2))
 ```
 
-**Make it Monthly**
+**Converting from Daily Data to Monthly**
 
 ```{r}
 
@@ -171,7 +171,7 @@ monthly_stars_sst <- map(sst_monthly, ~ st_as_stars(rotate(.x)))
 monthly_stars <- map(oisst_monthly, ~ st_as_stars(rotate(.x)))
 ```
 
-**Map Settings**
+**Set Map Settings**
 
 ```{r}
 # Set Labels for all the Plots
@@ -272,9 +272,11 @@ area_means <- map_dfr(area_hw, function(x){
 
 
 
-## 2021 Anomalies & Heatwaves {.tabset .tabset-pills}
+## 2021 Anomalies & Heatwaves Highlights {.tabset .tabset-pills}
 
 The following tables are designed to highlight the relative magnitude of the local events of the Gulf of Maine or NE Shelf with the rest of the world's oceans.
+
+Below you will find details on how rapidly these regions have been warming relative to the global rate, as well as the number of heatwave days each has experienced throughout the year.
 
 **Format Data for Tables**
 
@@ -293,7 +295,19 @@ anom_avgs_f <- area_means %>%
   select(Region, Month, anom_f) %>% 
   pivot_wider(names_from = Month, values_from = anom_f)
 
-# heatwaves
+# rejoin to make side-by-side tables
+# haven't sorted this out
+# ref: https://stackoverflow.com/questions/65835639/arrange-gt-tables-side-by-side-or-in-a-grid-or-table-of-tables
+# anom_both <- bind_rows(list("Fahrenheit" = anom_avgs_f,
+#                             "Celsius"    = anom_avgs), 
+#                        .id = "Temperature Unit")
+```
+
+
+
+```{r}
+
+# heatwaves Days
 heat_avgs <- area_means %>% 
   filter(Year == 2021) %>% 
   select(Region, Month, n_hw_days) %>% 
@@ -488,7 +502,7 @@ gom_ranks %>%
 
 ```
 
-Over the period of 1982-2011, where we have data for complete years, the Gulf of Maine's average temperature has increased at a rate of `r ne_rate`${^{\circ}C/year$ or `r ne_rate_f`$^{\circ}F/year$. Increasing (`r change_c`, `r change_f`) $^{\circ}C/^{\circ}F$ over the same period.
+Over the period of 1982-2011, where we have data for complete years, the Gulf of Maine's average temperature has increased at a rate of `r ne_rate`$^{\circ}C/year$ or `r ne_rate_f`$^\circ}F/year$. Increasing (`r change_c`, `r change_f`) $^{\circ}C/^{\circ}F$ over the same period.
 
 ### Northeast Shelf
 
@@ -522,7 +536,7 @@ nelme_ranks %>%
   tab_source_note(md("*Warming Rates Reflect Annual Change in Degrees Celsius.*"))
 ```
 
-Over the period of 1982-2011, where we have data for complete years, the Northeast U.S. Shelf's average temperature has increased by `r ne_rate`${^{\circ}C/year$ or `r ne_rate_f`$^{\circ}F/year$. Increasing (`r change_c`, `r change_f`) $^{\circ}C/^{\circ}F$ over the same period.
+Over the period of 1982-2011, where we have data for complete years, the Northeast U.S. Shelf's average temperature has increased by `r ne_rate`$^{\circ}C/year$ or `r ne_rate_f`$^{\circ}F/year$. Increasing (`r change_c`, `r change_f`) $^{\circ}C/^{\circ}F$ over the same period.
 
 ## Heatwave Timelines {.tabset}
 
@@ -907,7 +921,7 @@ For the Gulf of Maine and the Northeast Shelf a specific polygon has been used t
 # Plot global map
 plot_world <- function(plot_month){
   
-  # text formatting for labels
+  # Text formatting for labels
   plot_lab_sst <-  str_c("Mean Temperature - ", plot_month, " - 2021")
   plot_lab <-  str_c("Monthly Temperature Anomalies - ", plot_month, " - 2021")
   guide_lab <- expression("Temperature Anomaly"~~degree~C)
@@ -948,9 +962,13 @@ plot_world <- function(plot_month){
   
   return((p1| p2))
 }
+```
 
-# build list
+
+```{r}
+# Build list of world maps
 world_maps <- map(plot_months, plot_world)
+
 
 ```
 
@@ -996,23 +1014,41 @@ world_maps$Jun
 ### Northeastern US Shelf {.tabset .tabset-pills}
 
 ```{r}
-# Map of Northeastern US Shelf
-
-plot_shelf <- function(plot_month){
+# Map of Northeastern US Shelf / GOM with toggle
+map_sst <- function(plot_month, poly_name){
   
   # text formatting for labels
-   # text formatting for labels
   plot_lab_sst <-  str_c("Mean Temperature - ", plot_month, " - 2021")
   plot_lab <-  str_c("Monthly Temperature Anomalies - ", plot_month, " - 2021")
   guide_lab <- expression("Temperature Anomaly"~~degree~C)
   sst_lab <- expression("Sea surface Temperature"~~degree~C)
  
+  # # make contours - deeeefinitely crop first
+  # temp_contours <- st_contour(monthly_stars_sst[[plot_month]])
+  
+  # toggles for plot extent, region extents
+  xlim <- switch(poly_name,
+               "world"    = NULL,
+               "ne_shelf" = c(-76.5, -64),
+               "gom"      = c(-72.5, -64))
+
+  ylim <- switch(poly_name,
+                 "world"    = NULL,
+                 "ne_shelf" = c(35, 45.25),
+                 "gom"      = c(39, 45.25))
+  
+  extent_poly <- switch (poly_name,
+    "ne_shelf" = nelme_shape,
+    "gom"      = gom_shape
+  )
+  
   p1 <- ggplot() +
     geom_stars(data = monthly_stars_sst[[plot_month]]) + 
+    # geom_sf(data = temp_contours, color = "gray50", size = 0.75, fill = "transparent") +
     geom_sf(data = new_england, fill = "gray90", size = .25) +
     geom_sf(data = canada, fill = "gray90", size = .25) +
     geom_sf(data = greenland, fill = "gray90", size = .25) +
-    geom_sf(data = nelme_shape, fill = "transparent", size = .5, 
+    geom_sf(data = extent_poly, fill = "transparent", size = .5,
             color = gmri_cols("gmri blue")) +
     scale_x_continuous(breaks = seq(-180, 180, 5)) +
     scale_fill_distiller(palette = "RdBu", na.value = "transparent") +
@@ -1023,7 +1059,7 @@ plot_shelf <- function(plot_month){
                                    frame.colour = "black", 
                                    ticks.colour = "black")) +  
     map_theme +
-    coord_sf(xlim = c(-76.5, -64), ylim = c(35, 45.25))  +
+    coord_sf(xlim = xlim, ylim = ylim)  +
     labs(subtitle = plot_lab_sst)
   
   
@@ -1033,7 +1069,7 @@ plot_shelf <- function(plot_month){
     geom_sf(data = new_england, fill = "gray90", size = .25) +
     geom_sf(data = canada, fill = "gray90", size = .25) +
     geom_sf(data = greenland, fill = "gray90", size = .25) +
-    geom_sf(data = nelme_shape, fill = "transparent", size = .5, 
+    geom_sf(data = extent_poly, fill = "transparent", size = .5,
             color = gmri_cols("gmri blue")) +
     scale_x_continuous(breaks = seq(-180, 180, 5)) +
     scale_fill_distiller(palette = "RdBu", na.value = "transparent", 
@@ -1045,7 +1081,7 @@ plot_shelf <- function(plot_month){
                                    frame.colour = "black", 
                                    ticks.colour = "black")) +  
     map_theme +
-    coord_sf(xlim = c(-76.5, -64), ylim = c(35, 45.25))  +
+    coord_sf(xlim = xlim, ylim = ylim)  +
     labs(subtitle = plot_lab)
 
 
@@ -1053,8 +1089,12 @@ plot_shelf <- function(plot_month){
 }
 
 
-# build list
-shelf_maps <- map(plot_months, plot_shelf)
+```
+
+
+```{r}
+# Build list for maps of NE Shelf
+shelf_maps <- map(plot_months, map_sst, "ne_shelf")
 ```
 
 #### Jan
@@ -1097,59 +1137,8 @@ shelf_maps$Jun
 ### Gulf of Maine {.tabset .tabset-pills}
 
 ```{r}
-# Map of Gulf of Maine
-plot_gom <- function(plot_month){
-
-  # text formatting for labels
-  plot_lab_sst <-  str_c("Mean Temperature - ", plot_month, " - 2021")
-  plot_lab <-  str_c("Monthly Temperature Anomalies - ", plot_month, " - 2021")
-  guide_lab <- expression("Temperature Anomaly"~~degree~C)
-  sst_lab <- expression("Sea surface Temperature"~~degree~C)
- 
-  p1 <- ggplot() +
-    geom_stars(data = monthly_stars_sst[[plot_month]]) + 
-    geom_sf(data = new_england, fill = "gray90", size = .25) +
-    geom_sf(data = canada, fill = "gray90", size = .25) +
-    geom_sf(data = greenland, fill = "gray90", size = .25) +
-    geom_sf(data = gom_shape, fill = "transparent", size = .5, 
-            color = gmri_cols("gmri blue")) +
-    scale_x_continuous(breaks = seq(-180, 180, 5)) +
-    scale_fill_distiller(palette = "RdBu", na.value = "transparent") +
-    guides("fill" = guide_colorbar(title = sst_lab, 
-                                   title.position = "top", 
-                                   title.hjust = 0.5,
-                                   barwidth = unit(3, "inches"), 
-                                   frame.colour = "black", 
-                                   ticks.colour = "black")) +  
-    map_theme +
-    coord_sf(xlim = c(-72.5, -64), ylim = c(39, 45.25))  +
-    labs(subtitle = plot_lab_sst)
-  
-  p2 <- ggplot() +
-    geom_stars(data = monthly_stars[[plot_month]]) + 
-    geom_sf(data = new_england, fill = "gray90", size = .25) +
-    geom_sf(data = canada, fill = "gray90", size = .25) +
-    geom_sf(data = greenland, fill = "gray90", size = .25) +
-    geom_sf(data = gom_shape, fill = "transparent", size = .5, 
-            color = gmri_cols("gmri blue")) +
-    scale_x_continuous(breaks = seq(-180, 180, 5)) +
-    scale_fill_distiller(palette = "RdBu", na.value = "transparent", 
-                         limit = temp_limits, oob = scales::squish) +
-    guides("fill" = guide_colorbar(title = guide_lab, 
-                                   title.position = "top", 
-                                   title.hjust = 0.5,
-                                   barwidth = unit(3, "inches"), 
-                                   frame.colour = "black", 
-                                   ticks.colour = "black")) +  
-    map_theme +
-    coord_sf(xlim = c(-72.5, -64), ylim = c(39, 45.25))  +
-    labs(subtitle = plot_lab)
-
-  return((p1| p2))
-
-}
-# build list
-gom_maps <- map(plot_months, plot_gom)
+# Build list for maps of Gulf of Maine
+gom_maps <- map(plot_months, map_sst, "gom")
 ```
 
 #### Jan
