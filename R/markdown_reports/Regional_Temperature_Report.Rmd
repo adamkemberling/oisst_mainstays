@@ -867,6 +867,121 @@ walk(front_plots, print)
 
 ```
 
+## Warming Rate Ranking
+
+If we look at the rates of change for each grid cell, rather than the observed temperature, its possible to rank how hot each location on earth is warming relative to others.
+
+If we take the average ranking within the Gulf of Maine we can obtain the average warming rank for the area compared to the rest of the globe.
+
+```{r}
+# 1. Warming Rates and Rankings
+rates_path <- paste0(oisst_path, "warming_rates/annual_warming_rates")
+rates_stack_all <- stack(str_c(rates_path, "1982to2020.nc"), 
+                         varname = "annual_warming_rate")
+ranks_stack_all <- stack(str_c(rates_path, "1982to2020.nc"), 
+                         varname = "rate_percentile")
+
+# Clip and average the warming rates for each area
+mask_ranks <- function(mask_shape){
+  
+  # Get stats from ranks
+  m1 <- mask(rotate(ranks_stack_all), mask_shape)
+  m1 <- crop(m1, mask_shape)
+  rank_mean <- cellStats(m1, mean)
+  rank_min <- cellStats(m1, min)
+  rank_max <- cellStats(m1, max)
+  
+  # Get stats from rates
+  m2 <- mask(rotate(rates_stack_all), mask_shape)
+  m2 <- crop(m2, mask_shape)
+  rate_mean <- cellStats(m2, mean)
+  rate_min <- cellStats(m2, min)
+  rate_max <- cellStats(m2, max)
+  
+  # put in table
+  table_out <- tibble("Mean Rank" = rank_mean,
+                "Min Rank"  = rank_min,
+                "Max Rank"  = rank_max,
+                "Mean Rate" = rate_mean,
+                "Min Rate"  = rate_min,
+                "Max Rate"  = rate_max) %>% 
+    mutate_all(round, 3)
+  
+  # spit them out
+  return(table_out)
+}
+
+
+# Get the rank information that go with each area
+region_ranks <- mask_ranks(region_extent)
+
+# Prep it for text input.
+avg_rank <- region_ranks$`Mean Rank` *100
+avg_rate <- region_ranks$`Mean Rate`
+low_rank <- region_ranks$`Min Rank` *100
+low_rate <- region_ranks$`Min Rate`
+top_rank <- region_ranks$`Max Rank` *100
+top_rank <- ifelse(top_rank == 100, "greater than or equal to 99.5", top_rank)
+top_rate <- region_ranks$`Max Rate`
+
+```
+
+Based on data from 1982-2020, the warming rates of `r tidy_name` have been some of the highest in the world. The area as a whole has been increasing at a rate of `r avg_rate`$^{\circ}C/year$ which is faster than `r avg_rank`% of the world's oceans. 
+
+Over that same period locations within the `r tidy_name` have been warming at rates as low as `r low_rate`$^{\circ}C/year$ and as rapidly as `r top_rate`$^{\circ}C/year$, corresponding to ranks as low as `r low_rank`% and as high as `r top_rank`%.
+
+Mapped below are the corresponding warming rates and their global rankings.
+
+```{r}
+# Full plot
+rates_map <- ggplot() +
+  geom_stars(data = st_as_stars(rotate(rates_stack_all))) +
+  geom_sf(data = new_england, fill = "gray90", size = .25) +
+  geom_sf(data = canada, fill = "gray90", size = .25) +
+  geom_sf(data = greenland, fill = "gray90", size = .25) +
+  geom_sf(data = region_extent, 
+          color = gmri_cols("gmri blue"), 
+          fill = "transparent", linetype = 2, size = 0.5) +
+  scale_fill_viridis_c() +
+  map_theme +
+  coord_sf(xlim = crop_x, 
+           ylim = crop_y, expand = T) +
+  guides("fill" = guide_colorbar(
+    title = expression("Annual Temperature Change"~~degree~C~"/year"),
+    title.position = "top", 
+    title.hjust = 0.5,
+    barwidth = unit(2.5, "in"),
+    frame.colour = "black",
+    ticks.colour = "black"))
+
+# ranks map
+ranks_map <- ggplot() +
+  geom_stars(data = st_as_stars(rotate(ranks_stack_all))) +
+  geom_sf(data = new_england, fill = "gray90", size = .25) +
+  geom_sf(data = canada, fill = "gray90", size = .25) +
+  geom_sf(data = greenland, fill = "gray90", size = .25) +
+  geom_sf(data = region_extent, 
+          color = gmri_cols("gmri blue"), 
+          fill = "transparent", linetype = 2, size = 0.5) +
+  scale_fill_viridis_c(option = "plasma",
+                       limit = c(0.8, 1), oob = scales::oob_squish) +
+  map_theme +
+  coord_sf(xlim = crop_x, 
+           ylim = crop_y, expand = T) +
+  guides("fill" = guide_colorbar(
+    title = expression("Global Percentile of Warming Rates"),
+    title.position = "top", 
+    title.hjust = 0.5,
+    barwidth = unit(2.5, "in"),
+    frame.colour = "black",
+    ticks.colour = "black")) +
+  labs(caption = "Ranking color scale truncated to display ranges of 0.8-1. Lower values will display as 0.8.")
+
+# plot both
+rates_map | ranks_map
+```
+
+
 
 
 
