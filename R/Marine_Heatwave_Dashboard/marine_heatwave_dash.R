@@ -62,10 +62,10 @@ world_map <- ggplot() +
 # create lme bounding box tool
 sf_to_rect <- function(sf_obj) {
     bbox_obj <- st_bbox(sf_obj)
-    xmin = as.numeric(bbox_obj[1]) - 5
-    ymin = as.numeric(bbox_obj[2]) - 5
-    xmax = as.numeric(bbox_obj[3]) + 5
-    ymax = as.numeric(bbox_obj[4]) + 5
+    xmin <- as.numeric(bbox_obj[1]) - 5
+    ymin <- as.numeric(bbox_obj[2]) - 5
+    xmax <- as.numeric(bbox_obj[3]) + 5
+    ymax <- as.numeric(bbox_obj[4]) + 5
     
     bbox_df <- tribble(
         ~"lon", ~"lat",
@@ -84,12 +84,12 @@ sf_to_rect <- function(sf_obj) {
         st_polygon()
     
     #And then make the sf object  from the polygons
-    sfdf <- st_sf(area = sf_obj$name[1], st_sfc(area_polygon), crs = 4326)
+    sfdf <- st_sf(st_sfc(area_polygon), crs = 4326)
     return(sfdf)
 }
 
 ####________________________####
-####____ Loading Content____####
+####   Pre-Load Data  ####
 
 
 
@@ -107,12 +107,61 @@ region_list <- map(region_groups, function(region_group){
     region_choices <- gmRi::get_region_names(region_group)
     region_choice_names <- str_replace_all(region_choices, "_", " ")
     region_choice_names <- str_to_title(region_choice_names)
-    return(region_choices)
+    return(region_choice_names)
 }) %>% setNames(region_groups)
 
 
-
-
+# # Get the paths for each group
+# region_paths_l <- map(region_groups, function(shape_fam){
+#   paths <- get_timeseries_paths(shape_fam)
+#   return(paths)
+# })
+# 
+# # get the polygons
+# region_shapes_l <- map(region_paths_l, function(shape_paths){
+#   shapes <- map(shape_paths, ~read_sf(.x[["shape_path"]]))
+#   return(shapes)
+# })
+# 
+# # get the timeseries data
+# region_timeseries_l <- map(region_paths_l, function(shape_paths){
+#   ts_data <- map(shape_paths, ~read_csv(.x[["timeseries_path"]]))
+#   return(ts_data)
+# })
+# 
+# # make a bunch of maps
+# region_maps <- map(region_shapes_l, function(group_fam){
+#   
+#   # repeat for each polygon in the group
+#   imap(group_fam, function(shape_poly, region_name){
+#     
+#     # title formatting
+#     area_title <- str_replace_all(region_name, "_", " ")
+#     area_title <- str_to_title(area_title)
+#     
+#     # Build Map of Extent
+#     lme_bb <- sf_to_rect(shape_poly)
+#     
+#     # Build Plot
+#     extent_map <- world_map + 
+#       geom_sf(data = shape_poly, 
+#               fill = gmri_cols("gmri blue"), 
+#               color = gmri_cols("gmri_blue")) +
+#       geom_sf(data = lme_bb, 
+#               color = gmri_cols("orange"), 
+#               fill = "transparent", 
+#               size = 1) +
+#       labs(title = area_title) +
+#       theme(plot.title = element_text(hjust = 0.5, size = 16, color = "gray10"))
+#     
+#     
+#     p <- extent_map
+#     return(p)
+#     
+#     
+#   })
+#   
+# })
 
 
 ####________________________####
@@ -143,7 +192,8 @@ ui <- material_page(
         
         material_dropdown(input = "Region_Family", 
                           label = "Select a Collection of Regions", 
-                          choices = region_groups, selected = "GMRI: SST Focal Areas"),
+                          choices = region_groups, 
+                          selected = "GMRI: SST Focal Areas"),
         
         
         #Reactive ui
@@ -188,6 +238,15 @@ ui <- material_page(
 
 
 ####________________________####
+
+
+####____  Input Testing  ____####
+# input <- list("Region_Family" = "gmri_sst_focal_areas",
+#               "Region_Choice" = "apershing_gulf_of_maine")
+# 
+# get_timeseries_paths(region_group = input$Region_Family)
+
+####________________________####
 ####_____Server____####
 server <- function(input, output, session) {
     
@@ -198,24 +257,37 @@ server <- function(input, output, session) {
     
     ####  Reactive UI elements  ####
     
-    
-    #Region Choices Reactive - Generate Choices Here
-    region_names_reactive <- reactive({
-        
-        region_choices      <- region_list[[input$Region_Family]]
-        region_names_pretty <- str_replace_all(region_choices, "_", " ")
-        region_names_pretty <- str_to_title(region_names_pretty)
-        region_choices      <- setNames(region_choices, region_names_pretty)
-        
-        
+    # reactive value storage the region choices
+    reactive_sub_regions <- reactiveValues(subregion_choices = NULL)
+  
+  
+    # observe the region family, assign the subregion choices
+    observeEvent(input$Region_Family, {
+      region_choices      <- region_list[[input$Region_Family]]
+      region_names_pretty <- str_replace_all(region_choices, "_", " ")
+      region_names_pretty <- str_to_title(region_names_pretty)
+      region_choices      <- setNames(region_choices, region_names_pretty)
+      reactive_sub_regions$subregion_choices <- region_choices
     })
+    
+    # #Region Choices Reactive - Generate Choices Here
+    # region_names_reactive <- reactive({
+    #     
+    #     region_choices      <- region_list[[input$Region_Family]]
+    #     region_names_pretty <- str_replace_all(region_choices, "_", " ")
+    #     region_names_pretty <- str_to_title(region_names_pretty)
+    #     region_choices      <- setNames(region_choices, region_names_pretty)
+    #     
+    #     
+    # })
     
     
     # Generate the Reactive UI Here
     output$region_choice_reactive <- renderUI({
         render_material_from_server(
             material_dropdown(input_id = "Region_Choice",
-                              choices = region_names_reactive(),
+                              # choices = region_names_reactive(), #broken
+                              choices = reactive_sub_regions$subregion_choices,
                               label = "Target Area:")
         )
         
@@ -234,9 +306,10 @@ server <- function(input, output, session) {
         region_paths <- get_timeseries_paths(region_group = input$Region_Family)
         
         # Path to Shapefile
-        shape_path <- region_paths[[input$Region_Choice]]["shape_path"]
+        shape_path <- region_paths[[input$Region_Choice]][["shape_path"]]
         
-        
+        #return path
+        #return(shape_path)
 
         
     })
@@ -273,8 +346,8 @@ server <- function(input, output, session) {
             theme(plot.title = element_text(hjust = 0.5, size = 16, color = "gray10"))
         
       
-        p <- extent_map()
-        p
+        p <- extent_map
+        return(p)
         
     })
     
@@ -283,7 +356,7 @@ server <- function(input, output, session) {
     output$plotly_anomaly_timeline <- renderPlotly({
         
         # Plotly Timelines
-        plotly_mhw_plots[[input$lme_choice]]
+        plotly_mhw_plots[[input$Region_Choice]]
     })
     
     

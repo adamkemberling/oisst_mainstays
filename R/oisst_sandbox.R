@@ -265,3 +265,8 @@ p4 <- nelme_true_temp %>%
 
 # Side by side
 (p1 / p2) | (p3 / p4)
+
+
+
+
+

@@ -251,6 +251,49 @@ plotly_mhw_plots <- function(data){
 
 
 
+####  Make Fahrenheit
+# Get Fahrenheit from Celsius
+as_farenheit <- function(x){x * (9/5) + 32}
 
-
-
+# Plotting Function
+plot_mhw <- function(timeseries_data){
+  
+  
+  # Set colors by name
+  color_vals <- c(
+    "Sea Surface Temperature" = "royalblue",
+    "Heatwave Event"          = "darkred",
+    "Cold Spell Event"        = "lightblue",
+    "MHW Threshold"           = "gray30",
+    "MCS Threshold"           = "gray30",
+    "Daily Climatology"       = "gray30")
+  
+  
+  # Set the label with degree symbol
+  ylab <- expression("Sea Surface Temperature"~degree~C)
+  
+  
+  
+  # Plot the last 365 days
+  p1 <- ggplot(timeseries_data, aes(x = time)) +
+    geom_segment(aes(x = time, xend = time, y = seas, yend = sst), 
+                 color = "royalblue", alpha = 0.25) +
+    geom_segment(aes(x = time, xend = time, y = mhw_thresh, yend = hwe), 
+                 color = "darkred", alpha = 0.25) +
+    geom_line(aes(y = sst, color = "Sea Surface Temperature")) +
+    geom_line(aes(y = hwe, color = "Heatwave Event")) +
+    geom_line(aes(y = cse, color = "Cold Spell Event")) +
+    geom_line(aes(y = mhw_thresh, color = "MHW Threshold"), lty = 3, size = .5) +
+    geom_line(aes(y = mcs_thresh, color = "MCS Threshold"), lty = 3, size = .5) +
+    geom_line(aes(y = seas, color = "Daily Climatology"), lty = 2, size = 1) +
+    scale_color_manual(values = color_vals) +
+    scale_x_date(date_labels = "%b", date_breaks = "1 month") +
+    theme(legend.title = element_blank(),
+          legend.position = "top") +
+    labs(x = "", 
+         y = ylab, 
+         caption = paste0("Climate reference period :  1982-2011"))
+  
+  
+  return(p1)
+}

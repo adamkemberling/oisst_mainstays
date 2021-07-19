@@ -875,23 +875,27 @@ def get_region_names(region_group):
   loading and saving text.
   
   Args:
-    region_group (str): Choice of "gmri_sst_focal_areas", "lme", "nmfs_trawl_regions", "nelme_regions"
+    region_group (str): Choice of "gmri_sst_focal_areas", "lme", "nmfs_trawl_regions", "nelme_regions",
+      "gom_physio_regions"
   
   """
   
-  # GMRI sst focal areas
-  gmri_focal_areas = ["apershing_gulf_of_maine", "cpr_gulf_of_maine", "aak_northwest_atlantic"]
+  # GROUP 1: GMRI sst focal areas
+  gmri_focal_areas = ["apershing_gulf_of_maine", "cpr_gulf_of_maine", 
+                      "aak_northwest_atlantic", "long_island_sound"]
   
-  # NMFS Regions
+  
+  # GROUP 2: NMFS Regions
   nmfs_regions = ["georges_bank",         "gulf_of_maine", 
                   "southern_new_england", "mid_atlantic_bight",
                   "inuse_strata",         "regions_collection"]
                   
                   
-  # NELME Regions
+  # GROUP 3: NELME Regions
   nelme_regions = ["GoM", "NELME", "SNEandMAB"]
+         
                   
-  # Large Marine Ecosystems
+  # GROUP 4: Large Marine Ecosystems
   lme_regions =  ["agulhas_current",                        "aleutian_islands",                      
                   "antarctica",                             "arabian_sea",                           
                   "baltic_sea",                             "barents_sea",                           
@@ -925,13 +929,23 @@ def get_region_names(region_group):
                   "southeast_australian_shelf",             "southeast_us_continental_shelf",        
                   "sulu_celebes_sea",                       "west_bering_sea",                       
                   "west_central_australian_shelf",          "yellow_sea"]     
+   
+                  
+  # GROUP 5: Gulf of Maine Physio Regions
+  gom_physio_regions = [
+     "bay_of_fundy",           "bear_seamount",          "browns_bank",            "central_gulf_of_maine", 
+     "continental_slope",      "eastern_coastal_shelf",  "georges_bank",           "georges_basin",         
+     "jordan_basin",           "kelvin_seamount",        "manning_seamount",       "northern_coastal_shelf",
+     "scotian_coastal_shelf",  "scotian_shelf",          "southern_coastal_shelf", "wikinson_basin"   
+  ]
 
 
   # Dictionary Lookup
   region_catalog = {"gmri_sst_focal_areas" : gmri_focal_areas, 
                     "lme"                  : lme_regions, 
                     "nmfs_trawl_regions"   : nmfs_regions,
-                    "nelme_regions"        : nelme_regions}
+                    "nelme_regions"        : nelme_regions,
+                    "gom_physio_regions"   : gom_physio_regions}
                     
   # Return Selected List
   region_selections = region_catalog[region_group]
@@ -973,19 +987,23 @@ def get_timeseries_paths(box_root, region_list, region_group, polygons = False):
   poly_end = {"gmri_sst_focal_areas" : ".geojson",
               "lme"                  : "_exterior.geojson",
               "nmfs_trawl_regions"   : ".geojson",
-              "nelme_regions"        : "_sf.shp"}
+              "nelme_regions"        : "_sf.shp",
+              "gom_physio_regions"   : ".geojson"}
   
   # Path to different groups
   poly_extensions = {"gmri_sst_focal_areas" : f"{box_root}{poly_root}gmri_sst_focal_areas/{poly_start}",
                      "lme"                  : f"{box_root}{poly_root}large_marine_ecosystems/{poly_start}",
                      "nmfs_trawl_regions"   : f"{box_root}{poly_root}nmfs_trawl_regions/{poly_start}",
-                     "nelme_regions"        : f"{box_root}{poly_root}NELME_regions/{poly_start}"}
+                     "nelme_regions"        : f"{box_root}{poly_root}NELME_regions/{poly_start}",
+                     "gom_physio_regions"   : f"{box_root}{poly_root}GulfOfMainePhysioRegions/single_regions/{poly_start}"}
                      
   
   
   
   
-  # 2. Set file structure for timeseries lookup                   
+  # 2. Set file structure for timeseries lookup   
+  
+  # Root to the regional timeseries folder
   ts_root = "RES_Data/OISST/oisst_mainstays/regional_timeseries/"
   
   # How all masked timeseries file names start
@@ -998,11 +1016,14 @@ def get_timeseries_paths(box_root, region_list, region_group, polygons = False):
   timeseries_extensions = {"gmri_sst_focal_areas" : f"{box_root}{ts_root}gmri_sst_focal_areas/{ts_start}",
                            "lme"                  : f"{box_root}{ts_root}large_marine_ecosystems/{ts_start}",
                            "nmfs_trawl_regions"   : f"{box_root}{ts_root}nmfs_trawl_regions/{ts_start}",
-                           "nelme_regions"        : f"{box_root}{ts_root}NELME_regions/{ts_start}"}
+                           "nelme_regions"        : f"{box_root}{ts_root}NELME_regions/{ts_start}",
+                           "gom_physio_regions"   : f"{box_root}{ts_root}GulfOfMainePhysioRegions/{ts_start}"}
 
 
 
   # 3. Toggle File Start and Endings for Shapefiles or for timeseries
+  
+  # here is where specific file starts/endings get applied to different groups
   if polygons == True:
     leading_path = poly_extensions[region_group]
     file_ending  = poly_end[region_group]

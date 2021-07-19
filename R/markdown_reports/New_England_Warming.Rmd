@@ -1,42 +1,42 @@
 ---
-title: "New England Warming"
+title: "SST Statistics for David Abel"
 author: "Adam A. Kemberling"
-date: "Updated on: `r Sys.Date()`"
-output: 
+date: 'Updated on: `r Sys.Date()`'
+output:
   html_document:
-    toc: TRUE
+    toc: yes
     toc_float:
-        collapsed: FALSE
-    code_folding: hide
-editor_options: 
+      collapsed: no
+  editor_options:
   chunk_output_type: console
 ---
 
+
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE, 
+knitr::opts_chunk$set(echo = FALSE, 
                       message = F, 
                       warning = F, 
                       comment = "", 
-                      fig.align = "center")
+                      fig.align = "center",
+                      retina = 3)
 
 # Packages
 library(lubridate)
 library(patchwork)
 library(ggpmisc)
 library(gt)
-library(ncdf4)
 library(raster)
-library(heatwaveR)
 library(stars)
 library(rnaturalearth)
 library(here)
 library(sf)
 library(tidyverse)
+library(ggforce)
 library(gmRi)
+library(heatwaveR)
 
 # Support Functions
 source(here("R/oisst_support_funs.R"))
-# source(here("R/temp_report_support.R"))
 
 #box paths
 box_paths <- research_access_paths()
@@ -64,169 +64,143 @@ map_theme <- list(
     legend.position    = "bottom", 
     legend.title.align = 0.5))
 
-
-```
-
-
-**Polygons for Mapping**
-
-```{r}
-
 # Polygons for mapping
 new_england <- ne_states("united states of america", returnclass = "sf") 
 canada      <- ne_states("canada", returnclass = "sf") 
 world       <- ne_countries(returnclass = "sf") 
 greenland   <- ne_states(country = "greenland", returnclass = "sf") 
 
-# Load the crop areas
-gom_shape <- get_timeseries_paths("gmri_sst_focal_areas")[["apershing_gulf_of_maine"]]["shape_path"]
-gom_shape <- read_sf(gom_shape)
-nelme_shape <- get_timeseries_paths("nelme_regions")$NELME$shape_path
-nelme_shape <- read_sf(nelme_shape)
-```
 
+# Make a default basemap
+map_base <- ggplot() +
+  geom_sf(data = new_england, fill = "gray90", size = .25) +
+  geom_sf(data = canada, fill = "gray90", size = .25) +
+  geom_sf(data = greenland, fill = "gray90", size = .25) +
+  scale_x_continuous(breaks = seq(-180, 180, 5)) +
+  map_theme
 
-
-**Load Satellite Data**
-
-```{r}
-
-
-# 1. Warming Rates and Rankings
-# Load Warming rates/ranks
-rates_path <- paste0(oisst_path, "warming_rates/annual_warming_rates")
-rates_stack_all <- stack(str_c(rates_path, "1982to2020.nc"), 
-                         varname = "annual_warming_rate")
-ranks_stack_all <- stack(str_c(rates_path, "1982to2020.nc"), 
-                         varname = "rate_percentile")
-
-
-####  oisst_window_load data  ####
-
-# What data we want to load
-data_window <- data.frame(lon = c(-720, 720),
-                          lat = c(-90, 90),
-                          time = as.Date(c("2021-01-01", "2021-06-30")))
-
-# why isn't 2021 loading?
-t2021 <- nc_open(filename = paste0(oisst_path, "annual_observations/sst.day.mean.2021.v2.nc"))
-
-# 2. Global SST
-# Load Global Temperatures
-sst_daily <- oisst_window_load(oisst_path = oisst_path, 
-                               data_window = data_window, 
-                               anomalies = FALSE)
-sst_daily <- raster::stack(sst_daily)
-
-
-# 4. Global Anomalies
-# Load Global Anomalies
-oisst_daily <- oisst_window_load(oisst_path = oisst_path, 
-                                 data_window = data_window, 
-                                 anomalies = TRUE)
-oisst_daily <- raster::stack(oisst_daily)
-
-# fix the extents that are jank for no reason
-extent(sst_daily) <- extent(matrix(data = c(0, -90, 360, 90), nrow = 2))
-extent(oisst_daily) <- extent(matrix(data = c(0, -90, 360, 90), nrow = 2))
-```
-
-**Converting from Daily Data to Monthly**
-
-```{r}
-
-# Make it monthly
-make_monthly <- function(daily_ras){
-  # Months to subset with
-  month_key <- str_pad(c(1:12), 2, "left", 0) %>% setNames(month.abb)
-
-  # names to match index to
-  layer_index <- names(daily_ras)
-  month_index <- str_sub(layer_index, 7, 8)
-  
-  # Pull distinct months
-  months_present <- unique(month_index)
-  month_key <- month_key[which(month_key %in% months_present)]
-  
-  # Pull the indices that match, take means
-  map(month_key, function(x){
-    
-    # Pull days in month
-    days_in_month <- which(month_index == x)
-    
-    # Take mean of those days
-    month_avg <- mean(daily_ras[[days_in_month]])
-  }) %>% 
-    setNames(names(month_key))
-  
-  }
-
-
-# Make them monthly
-sst_monthly <- make_monthly(sst_daily)
-oisst_monthly <- make_monthly(oisst_daily)
-
-# Make stars object to map
-monthly_stars_sst <- map(sst_monthly, ~ st_as_stars(rotate(.x)))
-monthly_stars <- map(oisst_monthly, ~ st_as_stars(rotate(.x)))
-```
-
-**Set Map Settings**
-
-```{r}
-# Set Labels for all the Plots
-# plot_month <- "May"           # For testing single months
-plot_months <- month.abb[1:6] # For Animating through each
-plot_months <- setNames(plot_months, plot_months)
-
-
-# Color limit
-temp_limits <- c(-5, 5)
-#temp_limits <- max(abs(values(oisst_monthly[[plot_month]])), na.rm = T) * c(-1,1) # Dynamic Limits
-
-# Avg Anomaly for midpoint
-color_midpoint <- 0
-# color_midpoint <- mean(values(oisst_monthly[[plot_month]]), na.rm = T) # Dynamic midpoint
-
-
-```
-
-`r gmRi::use_gmri_style_rmd(css = "gmri_rmarkdown.css")`
-
-```{r}
 # Turn on the gmri font for plots
 showtext::showtext_auto()
 ```
 
-#  Ocean warming Patterns of New England
+`r use_gmri_style_rmd(css_file = "gmri_rmarkdown.css")`
 
-This report seeks to showcase how different areas in New England are warming in the larger context of the rest of the world. The two main focal areas are the Gulf of Maine and the Northeastern United States' Continental Shelf.
 
-**What is an "Anomaly"?**
 
-Anomalies are another way of stating the difference between an observation and the expectation based on some reference climate. In terms of sea surface temperature, the reference period used here is daily temperature from 1982-2011, and the average daily temperature is referred to as a climatology. Anomalies are then how much hotter/hotter a given day is when compared to the average temperature across that 30-year period on that given calendar day.
 
-## Regional Temperature Timeseries {.tabset .tabset-pills}
+#  SST Patterns of New England
 
-For the following tables and graphs global satellite data has been used to generate daily sea surface temperatures for the Gulf of Maine, the Northeastern United States' continental shelf, and the global oceans. These timeseries have been made ahead of time for another project but are loaded with the following code.
+This report seeks to showcase how different areas in New England are warming in the larger context of the rest of the world and specific features of 2021. 
 
-**Loading Timeseries**
+The main focal areas are the Northeastern United States' Continental Shelf, the Gulf of Maine, the Scotian Shelf, and the Bay of Fundy.
 
-```{r timeseries data}
+These are then compared to the warming rates of the world's large marine ecosystems to place their trends among areas across the globe.
 
-# OISST Data
-gom_ts <- oisst_access_timeseries(oisst_path = box_paths$oisst_mainstays, 
-                                  region_family = "gmri focus areas", 
-                                  poly_name = "apershing gulf of maine")
-shelf_ts <- read_csv(get_timeseries_paths("nelme_regions")$NELME$timeseries_path)
+
+
+###  Northeastern US Focal Regions
+
+Each of the focal regions have been added to the {gmRi} package and can have their shapefile locations and temperature histories looked up with `gmRi::get_timeseries_paths()`
+
+```{r, echo = F}
+
+# Load the focal Areas using GMRI Package:
+
+# Get timeseries paths loads a list based on the group
+sst_areas <- get_timeseries_paths("gmri_sst_focal_areas")
+gom_shape <- sst_areas[["apershing_gulf_of_maine"]]["shape_path"]
+gom_shape <- read_sf(gom_shape)
+
+lis_shape <- sst_areas[["long_island_sound"]][["shape_path"]]
+lis_shape <- read_sf(lis_shape)
+
+nelme_shape <- get_timeseries_paths("lme")$northeast_us_continental_shelf$shape_path
+nelme_shape <- read_sf(nelme_shape)
+
+ss_shape <- get_timeseries_paths("lme")$scotian_shelf$shape_path
+ss_shape <- read_sf(ss_shape)
+
+bf_shape <- get_timeseries_paths("gom physio regions")$bay_of_fundy$shape_path
+bf_shape <- read_sf(bf_shape)
+
+# sj_shape <- get_timeseries_paths("lme")$sea_of_japan$shape_path
+# sj_shape <- read_sf(sj_shape)
+
+```
+
+
+
+###  Focal Region Map
+
+For a visual, these are the areas we'll be looking at:
+
+```{r, fig.width=8}
+
+
+
+# Map with ggplot
+us_map <- map_base + 
+  geom_sf(data = gom_shape, alpha = 0.2, size = .5, 
+          aes(fill = "Gulf of Maine", color = "Gulf of Maine")) + 
+  geom_sf(data = nelme_shape, alpha = 0.2, size = .5,
+          aes(fill = "NE Shelf", color = "NE Shelf")) +
+  geom_sf(data = ss_shape, alpha = 0.2, size = .5,
+          aes(fill = "Scotian Shelf", color = "Scotian Shelf")) +
+  geom_sf(data = bf_shape, alpha = 0.2, size = .5,
+          aes(fill = "Bay of Fundy", color = "Bay of Fundy")) +
+  geom_sf(data = lis_shape, alpha = 0.2, size = .5, 
+          aes(fill = "Long Island Sound", color = "Long Island Sound")) +
+  coord_sf(xlim = c(-76.5, -56.9), ylim = c(35, 51)) +
+  scale_fill_gmri() +
+  scale_color_gmri() +
+  labs(color = "", fill = "")
+
+
+# # Japan gets its own
+# jap_map <- ggplot() + 
+#   geom_sf(data = world, fill = "gray90", size = .25) +
+#   geom_sf(data = sj_shape, alpha = 0.2, size = .5, 
+#           aes(fill = "Sea of Japan", color = "Sea of Japan")) +
+#   scale_fill_gmri() +
+#   scale_color_gmri() +
+#   coord_sf(xlim = c(105, 160), ylim = c(24, 64)) +
+#   labs(color = "", fill = "") +
+#   scale_x_continuous(breaks = seq(-180, 180, 10)) +
+#   map_theme
+ 
+
+us_map #| jap_map
+```
+
+
+
+### Loading Timeseries
+
+```{r, echo = FALSE}
+# Load Regional Temperatures
 world_ts <- read_csv(str_c(oisst_path, "/global_timeseries/global_temps_oisst.csv"))
+nelme_ts <- oisst_access_timeseries(oisst_path, "lme", "northeast us continental shelf")
+gom_ts   <- oisst_access_timeseries(oisst_path, region_family = "gmri focus areas", "apershing gulf of maine")
+ss_ts    <- oisst_access_timeseries(oisst_path, region_family = "lme", "scotian shelf")
+bf_ts    <- oisst_access_timeseries(oisst_path, region_family = "gom physio regions", "bay of fundy")
+lis_ts   <- oisst_access_timeseries(oisst_path, "gmri focus areas", "long island sound")
+#sj_ts    <- oisst_access_timeseries(oisst_path, "lme", "sea of japan")
+
+
 
 
 # Put them in a list 
 area_list <- list(
-  "Global Oceans" = world_ts,
-  "Northeastern U.S. Shelf" = shelf_ts,
-  "Gulf of Maine" = gom_ts)
+  "Global Oceans"           = world_ts,
+  "Northeastern U.S. Shelf" = nelme_ts,
+  "Long Island Sound"       = lis_ts,
+  "Gulf of Maine"           = gom_ts,
+  "Scotian Shelf"           = ss_ts,
+  "Bay of Fundy"            = bf_ts#,
+  #"Kuroshio Current"        = kc_ts,
+  #"Sea of Japan" = sj_ts
+  )
+
 
 # Make time a date
 area_list <- map(area_list, ~ mutate(.x, time = as.Date(time)))
@@ -235,10 +209,8 @@ area_list <- map(area_list, ~ mutate(.x, time = as.Date(time)))
 # Get Anomalies and heatwave info
 area_hw <- map(area_list, pull_heatwave_events)
 
-# Get Fahrenheit
-as_farenheit <- function(x){x * (9/5) + 32}
 
-# format columns
+# Format columns
 area_hw <- map(area_hw, function(.x){
   .x %>% mutate(
     Month = month(time, label = T, abbr = T), 
@@ -248,124 +220,54 @@ area_hw <- map(area_hw, function(.x){
     anom_f = sst_f - seas_f)
 })
 
+```
 
+
+
+
+```{r, eval = FALSE}
+
+# # Prep yearly data to export
+# report_data <- area_hw %>%
+#   map(function(ugly_dat){
+# 
+#     ugly_dat %>%
+#       filter(time < as.Date("2021-06-30")) %>% 
+#       group_by(Year) %>%
+#       summarise(
+#         avg_temp_c = mean(sst, na.rm = T),
+#         avg_temp_f = as_fahrenheit(avg_temp_c),
+#         climate_mean_c = mean(seas, na.rm = T),
+#         climate_mean_f = as_fahrenheit(climate_mean_c),
+#         temp_anom_c = mean(sst_anom, na.rm = T),
+#         temp_anom_f = avg_temp_f - climate_mean_f,
+#         total_hw_days = sum(mhw_event, na.rm = T),
+#         .groups = "drop"
+#       )
+# 
+#   })
+
+
+# # Save the data to zip up later
+# report_data %>% iwalk(function(out_data, region_name){
+# 
+#   clean_name <- str_replace_all(region_name, " ", "_")
+#   clean_name <- tolower(clean_name)
+#   clean_name <- paste0(clean_name,"_oisst.csv")
+#   save_location <- paste0(here("docs/data_products"), "/", clean_name)
+#   write_csv(out_data, save_location)
+#   #print(save_location)
+# 
+# })
 
 ```
 
-**Summarizing Data**
+
+
+
+# Warming Rates {.tabset}
 
 ```{r}
-
-# 3. Get monthly averages
-area_means <- map_dfr(area_hw, function(x){
-  x %>%
-    group_by(Year, Month) %>% 
-    summarise(avg_temp  = round(mean(sst, na.rm = T), 2),
-              avg_temp_f = round(mean(sst_f, na.rm = T), 2),
-              avg_anom  = round(mean(sst_anom, na.rm = T), 2),
-              anom_f    = round(mean(anom_f, na.rm = T), 2),
-              n_hw_days = round(sum(mhw_event, na.rm = T), 2),
-              .groups = "drop") 
-  
-  }, .id = "Region")
-```
-
-
-
-## 2021 Anomalies & Heatwaves Highlights {.tabset .tabset-pills}
-
-The following tables are designed to highlight the relative magnitude of the local events of the Gulf of Maine or NE Shelf with the rest of the world's oceans.
-
-Below you will find details on how rapidly these regions have been warming relative to the global rate, as well as the number of heatwave days each has experienced throughout the year.
-
-**Format Data for Tables**
-
-```{r}
-# Pivot data for horizontal Table Displays
-
-# anomalies
-anom_avgs <- area_means %>% 
-  filter(Year == 2021) %>% 
-  select(Region, Month, avg_anom) %>% 
-  pivot_wider(names_from = Month, values_from = avg_anom)
-
-# Same but fahreneheit
-anom_avgs_f <- area_means %>% 
-  filter(Year == 2021) %>% 
-  select(Region, Month, anom_f) %>% 
-  pivot_wider(names_from = Month, values_from = anom_f)
-
-# rejoin to make side-by-side tables
-# haven't sorted this out
-# ref: https://stackoverflow.com/questions/65835639/arrange-gt-tables-side-by-side-or-in-a-grid-or-table-of-tables
-# anom_both <- bind_rows(list("Fahrenheit" = anom_avgs_f,
-#                             "Celsius"    = anom_avgs), 
-#                        .id = "Temperature Unit")
-```
-
-
-
-```{r}
-
-# heatwaves Days
-heat_avgs <- area_means %>% 
-  filter(Year == 2021) %>% 
-  select(Region, Month, n_hw_days) %>% 
-  pivot_wider(names_from = Month, values_from = n_hw_days)
-```
-
-### Monthly Anomalies
-
-
-```{r}
-# 1. Anomalies
-anom_avgs %>% 
-  gt(rowname_col = "Region") %>% 
-  tab_stubhead(label = "Region") %>% 
-  tab_header(
-    title = md("**Average Temperature Anomalies - 2021**"), 
-    subtitle = paste("Degrees Celsius Above Normal")) %>%
-  tab_source_note(
-    source_note = md("*Data Source: NOAA OISSTv2 Daily Sea Surface Temperature Data.*") ) %>% 
-  tab_source_note(md("*Reference Climatolgy Period: 1982-2011.*"))
-
-
-```
-
-```{r}
-# 1. Anomalies Farenheit
-anom_avgs_f %>% 
-  gt(rowname_col = "Region") %>% 
-  tab_stubhead(label = "Region") %>% 
-  tab_header(
-    title = md("**Average Temperature Anomalies - 2021**"), 
-    subtitle = paste("Degrees Fahrenheit Above Normal")) %>%
-  tab_source_note(
-    source_note = md("*Data Source: NOAA OISSTv2 Daily Sea Surface Temperature Data.*") ) %>% 
-  tab_source_note(md("*Reference Climatolgy Period: 1982-2011.*"))
-
-
-```
-
-
-### Heatwaves Days
-
-```{r}
-# 2. HW Days
-heat_avgs %>% 
-  gt(rowname_col = "Region") %>% 
-  tab_stubhead(label = "Region") %>% 
-  tab_header(
-    title = md("**Number of Heatwave Days - 2021**")) %>%
-  tab_source_note(md("*Data Source: NOAA OISSTv2 Daily Sea Surface Temperature Data.*") ) %>% 
-  tab_source_note(md("*Reference Climatolgy Period: 1982-2011.*"))
-```
-
-### Warming Rates
-
-
-
-```{r warming rates}
 
 # 4. Get warming rates for sst
 area_rates <- map(area_hw, function(x){
@@ -391,15 +293,17 @@ rate_table <- imap_dfr(area_rates, function(mod, area){
   tibble("Region"        = rep(area, 2),
          "Unit"          = c("Celsius", "Fahrenheit"),
          #"Intercept"     = c(coef(mod$temp)[[1]], coef(mod$anom)[[1]]),
-         "Annual Change" = c(coef(mod$temp)[[2]], coef(mod$temp_f)[[2]])) %>% 
-    mutate(`Annual Change` = round(`Annual Change`, 3))
+         "Annual Change in Temperature" = c(coef(mod$temp)[[2]], coef(mod$temp_f)[[2]])) %>% 
+    mutate(`Annual Change in Temperature` = round(`Annual Change in Temperature`, 3))
 })
-
 ```
 
 
-```{r}
 
+## Celsius
+
+
+```{r}
 # Celsius
 rate_table %>% 
   filter(Unit == "Celsius") %>% 
@@ -411,7 +315,12 @@ rate_table %>%
     subtitle = "Data from Years 1982-2020, Units: Celsius") %>%
   tab_source_note(md("*Data Source: NOAA OISSTv2 Daily Sea Surface Temperature Data.*") ) %>% 
   tab_source_note(md("*Reference Climatolgy Period: 1982-2011.*"))
+```
 
+
+## Fahrenheit
+
+```{r}
 
 # Fahrenheit
 rate_table %>% 
@@ -424,200 +333,330 @@ rate_table %>%
     subtitle = "Data from Years 1982-2020, Units: Fahrenheit") %>%
   tab_source_note(md("*Data Source: NOAA OISSTv2 Daily Sea Surface Temperature Data.*") ) %>% 
   tab_source_note(md("*Reference Climatolgy Period: 1982-2011.*"))
-```
-
-## Warming Rates Comparison {.tabset}
-
-For each area the annual increase in temperature has been calculated for the period of 1982-2020 to account for all complete years of data available with OISSTv2.
-
-Using this data we can compare warming rates with those of other areas around the globe.
-
-```{r}
-# Clip and average the warming rates for each area
-mask_ranks <- function(mask_shape){
-  
-  # Get stats from ranks
-  m1 <- mask(rotate(ranks_stack_all), mask_shape)
-  m1 <- crop(m1, mask_shape)
-  rank_mean <- cellStats(m1, mean)
-  rank_min <- cellStats(m1, min)
-  rank_max <- cellStats(m1, max)
-  
-  # Get stats from rates
-  m2 <- mask(rotate(rates_stack_all), mask_shape)
-  m2 <- crop(m2, mask_shape)
-  rate_mean <- cellStats(m2, mean)
-  rate_min <- cellStats(m2, min)
-  rate_max <- cellStats(m2, max)
-  
-  # put in table
-  table_out <- tibble("Mean Rank" = rank_mean,
-                "Min Rank"  = rank_min,
-                "Max Rank"  = rank_max,
-                "Mean Rate" = rate_mean,
-                "Min Rate"  = rate_min,
-                "Max Rate"  = rate_max) %>% 
-    mutate_all(round, 3)
-  
-  # spit them out
-  return(table_out)
-}
-
-
-# get the ranks that go with each area
-gom_ranks <- mask_ranks(gom_shape)
-nelme_ranks <- mask_ranks(nelme_shape)
-
 
 ```
 
-### Gulf of Maine
+# Monthly Anomalies {.tabset}
 
 ```{r}
 
-# Avg temp in 20__
+# 3. Get monthly averages
+area_means <- map_dfr(area_hw, function(x){
+  x %>%
+    group_by(Year, Month) %>% 
+    summarise(avg_temp  = round(mean(sst, na.rm = T), 2),
+              avg_temp_f = round(mean(sst_f, na.rm = T), 2),
+              avg_anom  = round(mean(sst_anom, na.rm = T), 2),
+              anom_f    = round(mean(anom_f, na.rm = T), 2),
+              n_hw_days = round(sum(mhw_event, na.rm = T), 2),
+              .groups = "drop") 
+  }, .id = "Region")
 
-# Rate
-ne_rate   <- round(coef(area_rates$`Gulf of Maine`$temp)["Year"], 3)
-ne_rate_f <- round(coef(area_rates$`Gulf of Maine`$temp_f)["Year"], 3)
+```
 
-# Change in Temp
-change_preds_c <- predict(area_rates$`Gulf of Maine`$temp,
-                          data.frame("Year" = c(1982, 2020)))
-change_c <- round(change_preds_c[2] - change_preds_c[1], 2)
-change_preds_f <- predict(area_rates$`Gulf of Maine`$temp_f,
-                          data.frame("Year" = c(1982, 2020)))
-change_f <- round(change_preds_f[2] - change_preds_f[1], 2)
+## Celsius
 
-# Table
-gom_ranks %>% 
-  mutate(Region = "Gulf of Maine") %>% 
+```{r}
+# anomalies in celsius
+anom_avgs <- area_means %>% 
+  filter(Year == 2021,
+         Month %in% month.abb[1:6]) %>% 
+  select(Region, Month, avg_anom) %>% 
+  pivot_wider(names_from = Month, values_from = avg_anom)
+
+
+# Celsius table
+anom_avgs %>% 
   gt(rowname_col = "Region") %>% 
   tab_stubhead(label = "Region") %>% 
   tab_header(
-    title = md("**Rate of Warming - Global Rankings**"),
-    subtitle = "Data from Years 1982-2020, Units: Celsius") %>%
-  tab_source_note(md("*Data Source: NOAA OISSTv2 Daily Sea Surface Temperature Data.*") ) %>% 
-  tab_source_note(md("*Warming Rates Reflect Annual Change in Degrees Celsius.*"))
-
+    title = md("**Average Temperature Anomalies - 2021**"), 
+    subtitle = paste("Degrees Celsius Above Normal")) %>%
+  tab_source_note(
+    source_note = md("*Data Source: NOAA OISSTv2 Daily Sea Surface Temperature Data.*") ) %>% 
+  tab_source_note(md("*Reference Climatolgy Period: 1982-2011.*"))
 ```
 
-Over the period of 1982-2011, where we have data for complete years, the Gulf of Maine's average temperature has increased at a rate of `r ne_rate`$^{\circ}C/year$ or `r ne_rate_f`$^\circ}F/year$. Increasing (`r change_c`, `r change_f`) $^{\circ}C/^{\circ}F$ over the same period.
-
-### Northeast Shelf
+## Fahrenheit
 
 ```{r}
+# Same but fahreneheit
+anom_avgs_f <- area_means %>% 
+  filter(Year == 2021,
+         Month %in% month.abb[1:6]) %>% 
+  select(Region, Month, anom_f) %>% 
+  pivot_wider(names_from = Month, values_from = anom_f)
 
-# Avg temp in 20__
-
-# Rate
-ne_rate   <- round(coef(area_rates$`Northeastern U.S. Shelf`$temp)["Year"], 3)
-ne_rate_f <- round(coef(area_rates$`Northeastern U.S. Shelf`$temp_f)["Year"], 3)
-
-# Change in Temp
-change_preds_c <- predict(area_rates$`Northeastern U.S. Shelf`$temp,
-                          data.frame("Year" = c(1982, 2020)))
-change_c <- round(change_preds_c[2] - change_preds_c[1], 2)
-change_preds_f <- predict(area_rates$`Northeastern U.S. Shelf`$temp_f,
-                          data.frame("Year" = c(1982, 2020)))
-change_f <- round(change_preds_f[2] - change_preds_f[1], 2)
-
-
-
-# Table
-nelme_ranks %>% 
-  mutate(Region = "Northeast U.S. Continental Shelf") %>% 
+# Build gt table
+anom_avgs_f %>% 
   gt(rowname_col = "Region") %>% 
   tab_stubhead(label = "Region") %>% 
   tab_header(
-    title = md("**Rate of Warming - Global Rankings**"),
-    subtitle = "Data from Years 1982-2020, Units: Celsius") %>%
-  tab_source_note(md("*Data Source: NOAA OISSTv2 Daily Sea Surface Temperature Data.*") ) %>% 
-  tab_source_note(md("*Warming Rates Reflect Annual Change in Degrees Celsius.*"))
+    title = md("**Average Temperature Anomalies - 2021**"), 
+    subtitle = paste("Degrees Fahrenheit Above Normal")) %>%
+  tab_source_note(
+    source_note = md("*Data Source: NOAA OISSTv2 Daily Sea Surface Temperature Data.*") ) %>% 
+  tab_source_note(md("*Reference Climatolgy Period: 1982-2011.*"))
 ```
 
-Over the period of 1982-2011, where we have data for complete years, the Northeast U.S. Shelf's average temperature has increased by `r ne_rate`$^{\circ}C/year$ or `r ne_rate_f`$^{\circ}F/year$. Increasing (`r change_c`, `r change_f`) $^{\circ}C/^{\circ}F$ over the same period.
+# Recorded Temperature Increases {.tabset}
 
-## Heatwave Timelines {.tabset}
+```{r}
+# Get Yearly Means, Pull Important Data
+area_changes <- map_dfr(area_hw, function(x){
+  yr_avgs <- x %>%
+    group_by(Year) %>% 
+    summarise(avg_temp  = round(mean(sst, na.rm = T), 2),
+              avg_temp_f = round(mean(sst_f, na.rm = T), 2),
+              avg_anom  = round(mean(sst_anom, na.rm = T), 2),
+              anom_f    = round(mean(anom_f, na.rm = T), 2),
+              n_hw_days = round(sum(mhw_event, na.rm = T), 2),
+              .groups = "drop") 
+  
+  # Starting Temps
+  temp_82_c <- yr_avgs %>% filter(Year == 1982) %>% pull(avg_temp)
+  temp_82_f <- yr_avgs %>% filter(Year == 1982) %>% pull(avg_temp_f)
+  
+  # Ending Temps
+  temp_20_c <- yr_avgs %>% filter(Year == 2020) %>% pull(avg_temp)
+  temp_20_f <- yr_avgs %>% filter(Year == 2020) %>% pull(avg_temp_f)
+  
+  # Temp change
+  temp_change <- temp_20_c - temp_82_c
+  temp_change_f <- temp_20_f - temp_82_f
+  
+  # Celsius
+  c_change <- tibble("1982 Temp" = temp_82_c,
+                      "2020 Temp" = temp_20_c,
+                      "Temp Change" = temp_change,
+                      "Units" = "Celsius")
+  
+  # F
+  f_change <- tibble("1982 Temp" = temp_82_f,
+                      "2020 Temp" = temp_20_f,
+                      "Temp Change" = temp_change_f,
+                      "Units" = "Fahrenheit")
+  
+  bind_rows(list(c_change, f_change))
+  
+  }, .id = "Region")
+```
+
+## Celsius
+
+```{r}
+area_changes %>% 
+  filter(Units == "Celsius") %>% 
+  gt(rowname_col = "Region") %>% 
+  tab_stubhead(label = "Region") %>% 
+  tab_header(
+    title = md("**Change in Annual Temperature**"), 
+    subtitle = paste("1982 to 2021")) %>%
+  tab_source_note(
+    source_note = md("*Data Source: NOAA OISSTv2 Daily Sea Surface Temperature Data.*") )
+```
+
+
+## Fahrenheit
+
+```{r}
+area_changes %>% 
+  filter(Units == "Fahrenheit") %>% 
+  gt(rowname_col = "Region") %>% 
+  tab_stubhead(label = "Region") %>% 
+  tab_header(
+    title = md("**Change in Annual Temperature**"), 
+    subtitle = paste("1982 to 2021")) %>%
+  tab_source_note(
+    source_note = md("*Data Source: NOAA OISSTv2 Daily Sea Surface Temperature Data.*") )
+```
+
+
+# Warming Rankings
+
+
+```{r}
+
+# Load the LME timeseries
+lme_names <- get_region_names("lme") # names
+lme_paths <- get_timeseries_paths("lme") # paths
+
+# data
+lme_oisst <- map(lme_names, ~ read_csv(lme_paths[[.x]][["timeseries_path"]], col_types = cols())) 
+lme_oisst <- setNames(lme_oisst, lme_names)
+
+# Add Gulf of Maine/BoF/LIS to LME list
+lme_oisst[["gulf_of_maine"]] <- gom_ts
+lme_oisst[["bay_of_fundy"]] <- bf_ts
+lme_oisst[["long_island_sound"]] <- lis_ts
+
+# Make sure dates are formatted
+lme_oisst <- map(lme_oisst, ~ mutate(.x, time = as.Date(time)))
+
+
+####  Warming Rates  ####
+lme_8220 <- map(lme_oisst, ~ mutate(.x, year = year(time)) %>% filter(year %in% c(1982:2020)))
+
+# Get warming rates
+lme_rates <- map_dfr(lme_8220, function(lme_data){
+  lme_yearly <- group_by(lme_data, year) %>% summarise(sst = mean(sst, na.rm = T))
+  yrly_warming <- lm(sst ~ year, data = lme_yearly)
+  mod_details <- broom::tidy(yrly_warming)
+  yrly_rate <- mod_details[2,"estimate"]
+  names(yrly_rate) <- "annual_warming_rate_C"
+  yrly_rate
+}, .id = "Region") %>% 
+  arrange(desc(annual_warming_rate_C))
+
+
+# Pull out the top 13
+rates_ordered <- lme_rates %>% 
+  mutate(`Warming Rank` = row_number(),
+         `Warming Rate F` = as_fahrenheit(annual_warming_rate_C, data_type = "anomalies"),
+         Region = str_replace_all(Region, "_", " "),
+         Region = str_to_title(Region)) %>% 
+  select(Region, `Warming Rank`, `Warming Rate C` = annual_warming_rate_C, `Warming Rate F`) 
+
+# Make table of top 10*
+rates_ordered %>% 
+  slice(1:13) %>% 
+  mutate_if(is_numeric, round, 3) %>% 
+  gt(rowname_col = "Region") %>% 
+  tab_stubhead(label = "Region") %>% 
+  tab_header(
+    title = md("**Ranking Warming Across Large Marine Ecosystems**")) %>%
+  tab_source_note(source_note = md("*Data Source: NOAA OISSTv2 Daily Sea Surface Temperature Data.*") ) %>%
+  tab_source_note(source_note = md("*Gulf of Maine, Long Island Sound, and Bay of fundy not true LME's*") )
+```
+
+
+
+
+# 2020 in the Gulf of Maine
+
+August of 2020 the Gulf of Maine experienced its warmest temperatures on record. This section digs into when that was and how hot it was at that time.
+
+```{r, eval = FALSE}
+
+# Somewhere the number 21.028 emerged as the hottest daily temperature,
+# not sure what shapefile though
+
+# Andy's Gulf of Maine
+max(gom_ts$sst)
+gom_ts %>% filter(sst == max(gom_ts$sst))
+
+
+# NELME Region
+gom_ts_2 <- oisst_access_timeseries(oisst_path, region_family = "nelme regions", "gom")
+max(gom_ts_2$sst)
+
+# cpr gom
+gom_cpr <- oisst_access_timeseries(oisst_path, region_family = "gmri focus areas", "cpr gulf of maine")
+max(gom_cpr$sst)
+
+gom_physio <- oisst_access_timeseries(oisst_path, region_family = "gom physio regions", "central gulf of maine")
+max(gom_physio$sst)
+```
+
+
+
+
+```{r}
+# Hottest Temperature (cell based) in GOM Check
+
+# # Mask the gulf of maine to see hwere that max temp came from?
+# mask_shape <- function(mask_shape, ras_stack){
+#   
+#   # Get stats from ranks
+#   m1 <- mask(rotate(ras_stack), mask_shape)
+#   m1 <- crop(m1, mask_shape)
+#   return(m1)
+# }
+# 
+# # Mask the gulf of maine
+# gom_oisst <- mask_shape(gom_shape, sst_daily)
+# max(values(gom_oisst), na.rm = T)
+#27.66C or 81.788F
+
+# check for the hottest temp
+```
+
+
+
+
+# 2021 in the Gulf of Maine
 
 A marine heatwave is defined a when seawater temperatures exceed a seasonally-varying threshold (usually the 90th percentile) for at least 5 consecutive days. Successive heatwaves with gaps of 2 days or less are considered part of the same event.
 
 ```{r}
-# Plotting Function
-plot_mhw <- function(timeseries_data){
-  
-  
-  # Set colors by name
-  color_vals <- c(
-    "Sea Surface Temperature" = "royalblue",
-    "Heatwave Event"          = "darkred",
-    "Cold Spell Event"        = "lightblue",
-    "MHW Threshold"           = "gray30",
-    "MCS Threshold"           = "gray30",
-    "Daily Climatology"       = "gray30")
-  
-  
-  # Set the label with degree symbol
-  ylab <- expression("Sea Surface Temperature"~degree~C)
-  
-  
-  
-  # Plot the last 365 days
-  p1 <- ggplot(timeseries_data, aes(x = time)) +
-      geom_segment(aes(x = time, xend = time, y = seas, yend = sst), 
-                   color = "royalblue", alpha = 0.25) +
-      geom_segment(aes(x = time, xend = time, y = mhw_thresh, yend = hwe), 
-                   color = "darkred", alpha = 0.25) +
-      geom_line(aes(y = sst, color = "Sea Surface Temperature")) +
-      geom_line(aes(y = hwe, color = "Heatwave Event")) +
-      geom_line(aes(y = cse, color = "Cold Spell Event")) +
-      geom_line(aes(y = mhw_thresh, color = "MHW Threshold"), lty = 3, size = .5) +
-      geom_line(aes(y = mcs_thresh, color = "MCS Threshold"), lty = 3, size = .5) +
-      geom_line(aes(y = seas, color = "Daily Climatology"), lty = 2, size = 1) +
-      scale_color_manual(values = color_vals) +
-      scale_x_date(date_labels = "%b", date_breaks = "1 month") +
-      theme(legend.title = element_blank(),
-            legend.position = "top") +
-      labs(x = "", 
-           y = ylab, 
-           caption = paste0("Climate reference period :  1982-2011"))
-    
-  
-  return(p1)
-}
-
-```
-
-### World
-
-```{r, eval = TRUE}
-area_hw$`Global Oceans` %>% 
-  filter(year(time) == 2021) %>% 
-  plot_mhw()
-```
-
-
-### Northeastern US Shelf
-
-```{r}
-area_hw$`Northeastern U.S. Shelf` %>% 
-  filter(year(time) == 2021) %>% 
-  plot_mhw()
-```
-
-### Gulf of Maine
-
-
-```{r}
+# Plot Gulf of Maine
 area_hw$`Gulf of Maine` %>% 
   filter(year(time) == 2021) %>% 
   plot_mhw()
+```
 
-# when was there a cold spell
-# area_hw$`Gulf of Maine` %>% 
-#   filter(mcs_event == TRUE) %>% 
-#   ggplot(aes(time, sst)) +
-#   geom_line()
+# Gulf of Maine Heatwave Record
+
+```{r}
+# pick the region
+region_heatwaves <- area_hw$`Gulf of Maine`
+
+# Prep the legend title
+guide_lab <- expression("Sea Surface Temperature Anomaly"~degree~C)
+
+# Set new axis dimensions, y = year, x = day within year
+# use a flate_date so that they don't stair step
+base_date <- as.Date("2000-01-01")
+grid_data <- region_heatwaves %>% 
+  mutate(year = year(time),
+         yday = yday(time),
+         flat_date = as.Date(yday-1, origin = base_date))
+
+
+# Set palette limits to center it on 0 with scale_fill_distiller
+limit <- max(abs(grid_data$sst_anom)) *c(-1,1)
+
+
+# Assemble heatmap plot
+heatwave_heatmap <- ggplot(grid_data, aes(x = flat_date, y = year)) +
+  
+  # background box fill for missing dates
+  geom_rect(xmin = base_date, xmax = base_date + 365, 
+            ymin = min(grid_data$year) - .5, ymax = max(grid_data$year) + .5, 
+            fill = "gray75", color = "transparent") +
+  
+  # tile for sst colors
+  geom_tile(aes(fill = sst_anom)) +
+  
+  # points for heatwave events
+  geom_point(data = filter(grid_data, mhw_event == TRUE),
+             aes(x = flat_date, y = year), size = .25)  +
+  scale_x_date(date_labels = "%b", date_breaks = "1 month", expand = c(0,0)) +
+  scale_y_continuous(limits = c(1980.5, 2021.5), expand = c(0,0)) +
+  labs(x = "", 
+       y = "",
+       "\nClimate reference period : 1982-2011") +
+  
+  #scale_fill_gradient2(low = "blue", mid = "white", high = "red") +
+  scale_fill_distiller(palette = "RdYlBu", na.value = "transparent", 
+                       limit = limit) +
+  
+  #5 inches is default rmarkdown height for barheight
+  guides("fill" = guide_colorbar(title = guide_lab, 
+                                 title.position = "right", 
+                                 title.hjust = 0.5,
+                                 barheight = unit(4.8, "inches"), 
+                                 frame.colour = "black", 
+                                 ticks.colour = "black")) +  
+  theme_classic() +
+  theme(legend.title = element_text(angle = 90))
+
+
+
+
+
+# Assemble pieces
+heatwave_heatmap
 ```
 
 ## Heatwave Trends {.tabset}
@@ -708,7 +747,24 @@ hw_trend_plot(area_hw$`Northeastern U.S. Shelf`, "Northeastern U.S. Shelf")
 hw_trend_plot(area_hw$`Gulf of Maine`, "Gulf of Maine")
 ```
 
+### Bay of fundy
 
+```{r}
+hw_trend_plot(area_hw$`Bay of Fundy`, "Bay of Fundy")
+```
+
+### Scotian Shelf
+
+```{r}
+hw_trend_plot(area_hw$`Scotian Shelf`, "Scotian Shelf")
+```
+
+
+### Long Island Sound
+
+```{r}
+hw_trend_plot(area_hw$`Long Island Sound`, "Long Island Sound")
+```
 
 
 
@@ -908,13 +964,119 @@ ggplot(filter(month_comps, color_flag == "Remaining Years"),
        subtitle = "Degrees * Days Away from Average")
 ```
 
-## Regional Maps 
-
-For the Gulf of Maine and the Northeast Shelf a specific polygon has been used to both outline the area of interest and define what data to use for any of the area-specific calculations. These have been overlayed on the maps in blue to signify what areas are which.
 
 
+# 2021 in New England
 
-### World {.tabset .tabset-pills}
+```{r}
+hw_2021 <- map_dfr(area_hw, ~filter(.x, time >= as.Date("2021-01-01")), .id = "Region") %>% 
+  mutate(month = month(time, label = T, abbr = T),
+         Region = factor(Region, levels = names(area_hw))) %>% 
+  group_by(Region, month) %>% 
+  summarise(avg_temp = mean(sst),
+            avg_anom = mean(sst_anom), 
+            .groups = "drop")
+
+ggplot(hw_2021, aes(month, avg_anom, fill = Region)) +
+  geom_col(position = "dodge") +
+  facet_wrap(~month, scales = "free_x") +
+  scale_fill_gmri() +
+  labs(x = "", y = expression("Average SST Anomaly"~~degree~C)) +
+  theme(legend.position = c(0.75, 0.15))
+```
+
+
+# Maps
+
+```{r monthly convers, echo = F, eval = TRUE}
+
+# Data to map
+data_window <- data.frame(lon = c(-720, 720),
+                          lat = c(-90, 90),
+                          time = as.Date(c("2021-01-01", "2021-06-30")))
+
+
+# 2. Global SST
+# Load Global Temperatures
+sst_daily <- oisst_window_load(oisst_path = oisst_path, 
+                               data_window = data_window, 
+                               anomalies = FALSE)
+sst_daily <- raster::stack(sst_daily)
+
+
+# 4. Global Anomalies
+# Load Global Anomalies
+oisst_daily <- oisst_window_load(oisst_path = oisst_path, 
+                                 data_window = data_window, 
+                                 anomalies = TRUE)
+oisst_daily <- raster::stack(oisst_daily)
+
+# fix the extents that are jank for no reason
+extent(sst_daily) <- extent(matrix(data = c(0, -90, 360, 90), nrow = 2))
+extent(oisst_daily) <- extent(matrix(data = c(0, -90, 360, 90), nrow = 2))
+
+
+
+####  Monthly Conversion  ####
+make_monthly <- function(daily_ras){
+  # Months to subset with
+  month_key <- str_pad(c(1:12), 2, "left", 0) %>% setNames(month.abb)
+
+  # names to match index to
+  layer_index <- names(daily_ras)
+  month_index <- str_sub(layer_index, 7, 8)
+  
+  # Pull distinct months
+  months_present <- unique(month_index)
+  month_key <- month_key[which(month_key %in% months_present)]
+  
+  # Pull the indices that match, take means
+  map(month_key, function(x){
+    
+    # Pull days in month
+    days_in_month <- which(month_index == x)
+    
+    # Take mean of those days
+    month_avg <- mean(daily_ras[[days_in_month]])
+  }) %>% 
+    setNames(names(month_key))
+  
+  }
+
+
+# Make them monthly
+sst_monthly <- make_monthly(sst_daily)
+oisst_monthly <- make_monthly(oisst_daily)
+
+# Make stars object to map
+monthly_stars_sst <- map(sst_monthly, ~ st_as_stars(raster::rotate(.x)))
+monthly_stars <- map(oisst_monthly, ~ st_as_stars(rotate(.x)))
+```
+
+
+
+
+```{r}
+####  Color Limits for Anomaly Maps  ####
+
+
+# Set Labels for all the Plots
+plot_months <- month.abb[1:6] # For Animating through each
+plot_months <- setNames(plot_months, plot_months)
+
+# Color limit
+temp_limits <- c(-5, 5)
+#temp_limits <- max(abs(values(oisst_monthly[[plot_month]])), na.rm = T) * c(-1,1) # Dynamic Limits
+
+# Avg Anomaly for midpoint
+color_midpoint <- 0
+# color_midpoint <- mean(values(oisst_monthly[[plot_month]]), na.rm = T) # Dynamic midpoint
+
+
+
+```
+
+## World {.tabset .tabset-pills}
 
 
 ```{r}
@@ -973,45 +1135,45 @@ world_maps <- map(plot_months, plot_world)
 ```
 
 
-#### Jan
+### Jan
 
 ```{r}
 world_maps$Jan
 ```
 
 
-#### Feb
+### Feb
 
 ```{r}
 world_maps$Feb
 ```
 
-#### Mar
+### Mar
 
 ```{r}
 world_maps$Mar
 ```
 
-#### Apr
+### Apr
 
 ```{r}
 world_maps$Apr
 ```
 
-#### May
+### May
 
 ```{r}
 world_maps$May
 ```
 
-#### Jun
+### Jun
 
 ```{r}
 world_maps$Jun
 ```
 
 
-### Northeastern US Shelf {.tabset .tabset-pills}
+## Northeastern US Shelf {.tabset .tabset-pills}
 
 ```{r}
 # Map of Northeastern US Shelf / GOM with toggle
@@ -1027,21 +1189,30 @@ map_sst <- function(plot_month, poly_name){
   # temp_contours <- st_contour(monthly_stars_sst[[plot_month]])
   
   # toggles for plot extent, region extents
+  #xlim = c(-76.5, -56.9), ylim = c(35, 51)
   xlim <- switch(poly_name,
-               "world"    = NULL,
-               "ne_shelf" = c(-76.5, -64),
-               "gom"      = c(-72.5, -64))
+               "world"         = NULL,
+               "ne_shelf"      = c(-76.5, -64),
+               "gom"           = c(-72.5, -64),
+               "scotian_shelf" = c(-68, -56.5),
+               "bay_of_fundy"  = c(-67.5, -61.5))
 
   ylim <- switch(poly_name,
-                 "world"    = NULL,
-                 "ne_shelf" = c(35, 45.25),
-                 "gom"      = c(39, 45.25))
+                 "world"         = NULL,
+                 "ne_shelf"      = c(35, 45.25),
+                 "gom"           = c(39, 45.25),
+                 "scotian_shelf" = c(39, 51),
+                 "bay_of_fundy"  = c(43, 46))
   
   extent_poly <- switch (poly_name,
-    "ne_shelf" = nelme_shape,
-    "gom"      = gom_shape
+    "ne_shelf"      = nelme_shape,
+    "gom"           = gom_shape,
+    "scotian_shelf" = ss_shape,
+    "bay_of_fundy"  = bf_shape
   )
   
+  
+  # Plot for sst
   p1 <- ggplot() +
     geom_stars(data = monthly_stars_sst[[plot_month]]) + 
     # geom_sf(data = temp_contours, color = "gray50", size = 0.75, fill = "transparent") +
@@ -1063,7 +1234,7 @@ map_sst <- function(plot_month, poly_name){
     labs(subtitle = plot_lab_sst)
   
   
-
+  # Plot for Anomalies
   p2 <- ggplot() +
     geom_stars(data = monthly_stars[[plot_month]]) + 
     geom_sf(data = new_england, fill = "gray90", size = .25) +
@@ -1097,86 +1268,175 @@ map_sst <- function(plot_month, poly_name){
 shelf_maps <- map(plot_months, map_sst, "ne_shelf")
 ```
 
-#### Jan
+### Jan
 
 ```{r}
 shelf_maps$Jan
 ```
 
 
-#### Feb
+### Feb
 
 ```{r}
 shelf_maps$Feb
 ```
 
-#### Mar
+### Mar
 
 ```{r}
 shelf_maps$Mar
 ```
 
-#### Apr
+### Apr
 
 ```{r}
 shelf_maps$Apr
 ```
 
-#### May
+### May
 
 ```{r}
 shelf_maps$May
 ```
 
-#### Jun
+### Jun
 
 ```{r}
 shelf_maps$Jun
 ```
 
-### Gulf of Maine {.tabset .tabset-pills}
+## Gulf of Maine {.tabset .tabset-pills}
 
 ```{r}
 # Build list for maps of Gulf of Maine
 gom_maps <- map(plot_months, map_sst, "gom")
 ```
 
-#### Jan
+### Jan
 
 ```{r}
 gom_maps$Jan
 ```
 
 
-#### Feb
+### Feb
 
 ```{r}
 gom_maps$Feb
 ```
 
-#### Mar
+### Mar
 
 ```{r}
 gom_maps$Mar
 ```
 
-#### Apr
+### Apr
 
 ```{r}
 gom_maps$Apr
 ```
 
-#### May
+### May
 
 ```{r}
 gom_maps$May
 ```
 
-#### Jun
+### Jun
 
 ```{r}
 gom_maps$Jun
 ```
+
+## Scotian Shelf {.tabset .tabset-pills}
+
+```{r}
+# Build list for maps of Gulf of Maine
+ss_maps <- map(plot_months, map_sst, "scotian_shelf")
+```
+
+### Jan
+
+```{r}
+ss_maps$Jan
+```
+
+
+### Feb
+
+```{r}
+ss_maps$Feb
+```
+
+### Mar
+
+```{r}
+ss_maps$Mar
+```
+
+### Apr
+
+```{r}
+ss_maps$Apr
+```
+
+### May
+
+```{r}
+ss_maps$May
+```
+
+### Jun
+
+```{r}
+ss_maps$Jun
+```
+
+## Bay of Fundy {.tabset .tabset-pills}
+
+```{r}
+# Build list for maps of Gulf of Maine
+bf_maps <- map(plot_months, map_sst, "bay_of_fundy")
+```
+
+### Jan
+
+```{r}
+bf_maps$Jan
+```
+
+
+### Feb
+
+```{r}
+bf_maps$Feb
+```
+
+### Mar
+
+```{r}
+bf_maps$Mar
+```
+
+### Apr
+
+```{r}
+bf_maps$Apr
+```
+
+### May
+
+```{r}
+bf_maps$May
+```
+
+### Jun
+```{r}
+bf_maps$Jun
+```
+
+
 
 
 ## Disclaimers
@@ -1184,4 +1444,3 @@ gom_maps$Jun
  All data views are temporary unless noted otherwise. Data for June 2021 is currently preliminary data, and may change as QA/QC procedures take place.
 
 `r insert_gmri_footer()`
-

@@ -942,7 +942,7 @@ rates_map <- ggplot() +
   geom_sf(data = region_extent, 
           color = gmri_cols("gmri blue"), 
           fill = "transparent", linetype = 2, size = 0.5) +
-  scale_fill_viridis_c() +
+  scale_fill_viridis_c(option = "plasma") +
   map_theme +
   coord_sf(xlim = crop_x, 
            ylim = crop_y, expand = T) +
@@ -964,7 +964,7 @@ ranks_map <- ggplot() +
           color = gmri_cols("gmri blue"), 
           fill = "transparent", linetype = 2, size = 0.5) +
   scale_fill_viridis_c(option = "plasma",
-                       limit = c(0.8, 1), oob = scales::oob_squish) +
+                       limit = c(0.9, 1), oob = scales::oob_squish) +
   map_theme +
   coord_sf(xlim = crop_x, 
            ylim = crop_y, expand = T) +
@@ -975,7 +975,7 @@ ranks_map <- ggplot() +
     barwidth = unit(2.5, "in"),
     frame.colour = "black",
     ticks.colour = "black")) +
-  labs(caption = "Ranking color scale truncated to display ranges of 0.8-1. Lower values will display as 0.8.")
+  labs(caption = "Ranking color scale truncated to display ranges of 0.9-1. Lower values will display as 0.9 or 90%")
 
 # plot both
 rates_map | ranks_map

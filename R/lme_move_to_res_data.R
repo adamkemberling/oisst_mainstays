@@ -14,8 +14,8 @@ library(gmRi)
 library(patchwork)
 
 # file paths
-lme_path     <- shared.path("unix", "nsf okn", "large_marine_ecosystems")
-lme_res_path <- shared.path("unix", "RES_Data", "Shapefiles/large_marine_ecosystems")
+lme_path     <- shared.path("nsf okn", "large_marine_ecosystems")
+lme_res_path <- shared.path("RES_Data", "Shapefiles/large_marine_ecosystems")
 
 ####  Data  ####
 
