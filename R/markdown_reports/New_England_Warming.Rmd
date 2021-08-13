@@ -136,8 +136,6 @@ For a visual, these are the areas we'll be looking at:
 
 ```{r, fig.width=8}
 
-
-
 # Map with ggplot
 us_map <- map_base + 
   geom_sf(data = gom_shape, alpha = 0.2, size = .5, 
@@ -156,20 +154,7 @@ us_map <- map_base +
   labs(color = "", fill = "")
 
 
-# # Japan gets its own
-# jap_map <- ggplot() + 
-#   geom_sf(data = world, fill = "gray90", size = .25) +
-#   geom_sf(data = sj_shape, alpha = 0.2, size = .5, 
-#           aes(fill = "Sea of Japan", color = "Sea of Japan")) +
-#   scale_fill_gmri() +
-#   scale_color_gmri() +
-#   coord_sf(xlim = c(105, 160), ylim = c(24, 64)) +
-#   labs(color = "", fill = "") +
-#   scale_x_continuous(breaks = seq(-180, 180, 10)) +
-#   map_theme
- 
-
-us_map #| jap_map
+us_map
 ```
 
 
@@ -178,13 +163,12 @@ us_map #| jap_map
 
 ```{r, echo = FALSE}
 # Load Regional Temperatures
-world_ts <- read_csv(str_c(oisst_path, "/global_timeseries/global_temps_oisst.csv"))
-nelme_ts <- oisst_access_timeseries(oisst_path, "lme", "northeast us continental shelf")
-gom_ts   <- oisst_access_timeseries(oisst_path, region_family = "gmri focus areas", "apershing gulf of maine")
-ss_ts    <- oisst_access_timeseries(oisst_path, region_family = "lme", "scotian shelf")
-bf_ts    <- oisst_access_timeseries(oisst_path, region_family = "gom physio regions", "bay of fundy")
-lis_ts   <- oisst_access_timeseries(oisst_path, "gmri focus areas", "long island sound")
-#sj_ts    <- oisst_access_timeseries(oisst_path, "lme", "sea of japan")
+world_ts <- read_csv(str_c(oisst_path, "/global_timeseries/global_temps_oisst.csv"), guess_max = 1e6)
+nelme_ts <- oisst_access_timeseries("lme", "northeast us continental shelf")
+gom_ts   <- oisst_access_timeseries(region_family = "gmri focus areas", "apershing gulf of maine")
+ss_ts    <- oisst_access_timeseries(region_family = "lme", "scotian shelf")
+bf_ts    <- oisst_access_timeseries(region_family = "gom physio regions", "bay of fundy")
+lis_ts   <- oisst_access_timeseries("gmri focus areas", "long island sound")
 
 
 
@@ -196,9 +180,7 @@ area_list <- list(
   "Long Island Sound"       = lis_ts,
   "Gulf of Maine"           = gom_ts,
   "Scotian Shelf"           = ss_ts,
-  "Bay of Fundy"            = bf_ts#,
-  #"Kuroshio Current"        = kc_ts,
-  #"Sea of Japan" = sj_ts
+  "Bay of Fundy"            = bf_ts
   )
 
 
@@ -225,40 +207,93 @@ area_hw <- map(area_hw, function(.x){
 
 
 
-```{r, eval = FALSE}
+```{r export data, eval = FALSE}
 
-# # Prep yearly data to export
-# report_data <- area_hw %>%
-#   map(function(ugly_dat){
-# 
-#     ugly_dat %>%
-#       filter(time < as.Date("2021-06-30")) %>% 
-#       group_by(Year) %>%
-#       summarise(
-#         avg_temp_c = mean(sst, na.rm = T),
-#         avg_temp_f = as_fahrenheit(avg_temp_c),
-#         climate_mean_c = mean(seas, na.rm = T),
-#         climate_mean_f = as_fahrenheit(climate_mean_c),
-#         temp_anom_c = mean(sst_anom, na.rm = T),
-#         temp_anom_f = avg_temp_f - climate_mean_f,
-#         total_hw_days = sum(mhw_event, na.rm = T),
-#         .groups = "drop"
-#       )
-# 
-#   })
+####  1. Yearly Averages Data
+
+# Prep yearly data to export
+report_data <- area_hw %>%
+  imap(function(ugly_dat, region){
+
+    ugly_dat %>%
+      filter(time > as.Date("1982-01-01"),
+             time < as.Date("2020-12-31")) %>%
+      mutate(mask_region = region,
+             above_20 = ifelse(sst > 20, T, F)) %>%
+      group_by(mask_region, Year) %>%
+      summarise(
+        avg_temp_c = mean(sst, na.rm = T),
+        avg_temp_f = as_fahrenheit(avg_temp_c),
+        climate_mean_c = mean(seas, na.rm = T),
+        climate_mean_f = as_fahrenheit(climate_mean_c),
+        temp_anom_c = mean(sst_anom, na.rm = T),
+        temp_anom_f = avg_temp_f - climate_mean_f,
+        total_hw_days = sum(mhw_event, na.rm = T),
+        days_over_20C = sum(above_20, na.rm = T),
+        .groups = "drop"
+      )%>%
+    mutate_if(is_numeric, round, 4)
+
+  })
 
 
-# # Save the data to zip up later
-# report_data %>% iwalk(function(out_data, region_name){
-# 
-#   clean_name <- str_replace_all(region_name, " ", "_")
-#   clean_name <- tolower(clean_name)
-#   clean_name <- paste0(clean_name,"_oisst.csv")
-#   save_location <- paste0(here("docs/data_products"), "/", clean_name)
-#   write_csv(out_data, save_location)
-#   #print(save_location)
-# 
-# })
+# Save the data to zip up later
+report_data %>% iwalk(function(out_data, region_name){
+  clean_name <- str_replace_all(region_name, " ", "_")
+  clean_name <- tolower(clean_name)
+  clean_name <- paste0(clean_name,"_oisst.csv")
+  save_location <- paste0(here("docs/data_products/yearly_data"), "/", clean_name)
+  write_csv(out_data, save_location)
+  #print(save_location)
+
+})
+
+# Plot check
+ggplot(report_data$`Long Island Sound`, aes(Year, days_over_20C)) +
+  geom_col()
+
+#### Prep daily files  ####
+
+# # Pull out areas we want daily data for
+daily_exports <- area_hw[c("Long Island Sound", "Gulf of Maine", "Scotian Shelf", "Bay of Fundy")]
+
+
+# Clean up the data
+daily_exports <- imap(daily_exports, function(daily_data, region){
+  daily_data %>%
+    # filter(time > as.Date("1982-01-01"),
+    #        time < as.Date("2021-06-30")) %>%
+    transmute(
+      mask_region = region,
+      date = time,
+      temp_c = sst,
+      climate_mean_c = seas,
+      temp_anom_c = sst_anom,
+      hw_thresh_c = mhw_thresh,
+      temp_f = sst_f,
+      climate_mean_f = seas_f,
+      temp_anom_f = anom_f,
+      hw_thresh_f = as_fahrenheit(hw_thresh_c),
+      is_hw_day = mhw_event,
+      above_20c = ifelse(temp_c > 20, TRUE, FALSE)) %>%
+    mutate_if(is_numeric, round, 4)
+})
+
+# # Plot check
+# daily_exports$`Long Island Sound` %>%
+#   ggplot(aes(date, temp_c, color = above_20c)) +
+#   geom_path(group = 1)
+
+# Save the data to zip up later
+daily_exports %>% iwalk(function(out_data, region_name){
+  clean_name <- str_replace_all(region_name, " ", "_")
+  clean_name <- tolower(clean_name)
+  clean_name <- paste0(clean_name,"_daily_oisst.csv")
+  save_location <- paste0(here("docs/data_products/daily_data"), "/", clean_name)
+  write_csv(out_data, save_location)
+  #print(save_location)
+
+})
 
 ```
 
@@ -482,7 +517,7 @@ lme_names <- get_region_names("lme") # names
 lme_paths <- get_timeseries_paths("lme") # paths
 
 # data
-lme_oisst <- map(lme_names, ~ read_csv(lme_paths[[.x]][["timeseries_path"]], col_types = cols())) 
+lme_oisst <- map(lme_names, ~ read_csv(lme_paths[[.x]][["timeseries_path"]], col_types = cols(), guess_max = 1e6)) 
 lme_oisst <- setNames(lme_oisst, lme_names)
 
 # Add Gulf of Maine/BoF/LIS to LME list
@@ -791,7 +826,7 @@ area_comp <- area_hw$`Gulf of Maine`
 
 # Get monthly metric, across years
 month_comps <- area_comp %>% 
-  filter(Month %in% month.abb[1:6]) %>% 
+  filter(Month %in% month.abb[1:7]) %>% 
   group_by(Year, Month) %>% 
   summarise(
     avg_temp = mean(sst),
@@ -993,21 +1028,19 @@ ggplot(hw_2021, aes(month, avg_anom, fill = Region)) +
 # Data to map
 data_window <- data.frame(lon = c(-720, 720),
                           lat = c(-90, 90),
-                          time = as.Date(c("2021-01-01", "2021-06-30")))
+                          time = as.Date(c("2021-01-01", "2021-07-31")))
 
 
 # 2. Global SST
 # Load Global Temperatures
-sst_daily <- oisst_window_load(oisst_path = oisst_path, 
-                               data_window = data_window, 
+sst_daily <- oisst_window_load(data_window = data_window, 
                                anomalies = FALSE)
 sst_daily <- raster::stack(sst_daily)
 
 
 # 4. Global Anomalies
 # Load Global Anomalies
-oisst_daily <- oisst_window_load(oisst_path = oisst_path, 
-                                 data_window = data_window, 
+oisst_daily <- oisst_window_load(data_window = data_window, 
                                  anomalies = TRUE)
 oisst_daily <- raster::stack(oisst_daily)
 
@@ -1061,7 +1094,7 @@ monthly_stars <- map(oisst_monthly, ~ st_as_stars(rotate(.x)))
 
 
 # Set Labels for all the Plots
-plot_months <- month.abb[1:6] # For Animating through each
+plot_months <- month.abb[1:7] # For Animating through each
 plot_months <- setNames(plot_months, plot_months)
 
 # Color limit
@@ -1172,6 +1205,11 @@ world_maps$May
 world_maps$Jun
 ```
 
+### Jul
+
+```{r}
+world_maps$Jul
+```
 
 ## Northeastern US Shelf {.tabset .tabset-pills}
 
@@ -1305,6 +1343,12 @@ shelf_maps$May
 shelf_maps$Jun
 ```
 
+### Jul
+
+```{r}
+shelf_maps$Jul
+```
+
 ## Gulf of Maine {.tabset .tabset-pills}
 
 ```{r}
@@ -1347,6 +1391,12 @@ gom_maps$May
 
 ```{r}
 gom_maps$Jun
+```
+
+### Jul
+
+```{r}
+gom_maps$Jul
 ```
 
 ## Scotian Shelf {.tabset .tabset-pills}
@@ -1393,6 +1443,12 @@ ss_maps$May
 ss_maps$Jun
 ```
 
+### Jul
+
+```{r}
+ss_maps$Jul
+```
+
 ## Bay of Fundy {.tabset .tabset-pills}
 
 ```{r}
@@ -1437,7 +1493,10 @@ bf_maps$Jun
 ```
 
 
-
+### Jul
+```{r}
+bf_maps$Jul
+```
 
 ## Disclaimers
  

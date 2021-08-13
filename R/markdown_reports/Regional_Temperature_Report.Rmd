@@ -157,7 +157,7 @@ Area-specific time series are the most basic building block for relaying tempora
 
 # Use {gmRi} instead to load timeseries to tye up loose ends
 timeseries_path <- region_paths[[params$region]][["timeseries_path"]]
-region_timeseries <- read_csv(timeseries_path, col_types = cols())
+region_timeseries <- read_csv(timeseries_path, col_types = cols(), guess_max = 1e6)
 
 # format dates
 region_timeseries <- region_timeseries %>% 
@@ -352,7 +352,7 @@ quarter_summary %>%
   geom_point() +
   geom_smooth(method = "lm", 
               aes(color = "Regional Trend"),
-              formula = y ~ x, se = F, linetype = 2) +
+              formula = y ~ x, se = F, linetype = 1) +
   stat_poly_eq(formula = y ~ x,
                color = gmri_cols("gmri blue"),
                aes(label = paste(..eq.label.., ..rr.label.., sep = "~~~")),
@@ -646,8 +646,7 @@ data_window <- data.frame(
 
 
 # Pull data off box
-hw_stack <- oisst_window_load(oisst_path = oisst_path, 
-                              data_window = data_window, 
+hw_stack <- oisst_window_load(data_window = data_window, 
                               anomalies = T)
 
 
@@ -1025,6 +1024,8 @@ heatwaves_91 %>%
   scale_color_gmri() +
   scale_x_date(date_labels = "%b", date_breaks = "1 month", expand = c(0,0))
 ```
+
+
 
 
 

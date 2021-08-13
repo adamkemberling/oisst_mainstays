@@ -9,6 +9,7 @@ import datetime
 import regionmask
 import numpy as np
 import pandas as pd
+import geopandas as gpd
 
 
 
@@ -258,20 +259,6 @@ def cache_oisst(cache_month, update_yr, workspace = "local", verbose = True):
             
     
     
-    # # Code from stackoverflow to check for repeated values:
-    # # Program to check for repeated list contents
-    # # This code was contributed by Sandeep_anand , origins unknown
-    # def Repeat(x): 
-    #     _size = len(x) 
-    #     repeated = [] 
-    #     for i in range(_size): 
-    #         k = i + 1
-    #         for j in range(k, _size): 
-    #             if x[i] == x[j] and x[i] not in repeated: 
-    #                 repeated.append(x[i]) 
-    #     return repeated 
-    
-    
     ####  Check among the cache for files that were preliminary but have been finalized
     
     # list of finalized dates, dates where we can ignore the preliminary data
@@ -417,23 +404,6 @@ def build_annual_from_cache(last_month, this_month, workspace = "local", verbose
     ####  Add Attributes Back  ####
     
     # # NOTE: added to oisstools.py as a function
-    # # Hard code the standard attributes, could also take from previous file,
-    # # but this will ensure all ours are consistent
-    # oisst_attributes = {
-    #   'Conventions'  : 'CF-1.5',
-    #   'title'        : 'NOAA/NCEI 1/4 Degree Daily Optimum Interpolation Sea Surface Temperature (OISST) Analysis, Version 2.1',
-    #   'institution'  : 'NOAA/National Centers for Environmental Information',
-    #   'source'       : 'NOAA/NCEI https://www.ncei.noaa.gov/data/sea-surface-temperature-optimum-interpolation/v2.1/access/avhrr/',
-    #   'References'   : 'https://www.psl.noaa.gov/data/gridded/data.noaa.oisst.v2.highres.html',
-    #   'dataset_title': 'NOAA Daily Optimum Interpolation Sea Surface Temperature',
-    #   'version'      : 'Version 2.1',
-    #   'comment'      : 'Reynolds, et al.(2007) Daily High-Resolution-Blended Analyses for Sea Surface Temperature (available at https://doi.org/10.1175/2007JCLI1824.1). Banzon, et al.(2016) A long-term record of blended satellite and in situ sea-surface temperature for climate monitoring, modeling and environmental studies (available at https://doi.org/10.5194/essd-8-165-2016). Huang et al. (2020) Improvements of the Daily Optimum Interpolation Sea Surface Temperature (DOISST) Version v02r01, submitted.Climatology is based on 1971-2000 OI.v2 SST. Satellite data: Pathfinder AVHRR SST and Navy AVHRR SST. Ice data: NCEP Ice and GSFC Ice. Data less than 15 days old may be subject to revision.'}
-    # 
-    # # Add the attributes to the combined dataset
-    # oisst_combined.attrs = oisst_attributes
-    # 
-    # # jk just do time encoding and get out
-    # oisst_combined.time.encoding = {"units" : "days since '1800-01-01'"}
     
     # # Add the attributes to the combined dataset
     oisst_combined = apply_oisst_attributes(oisst_combined, anomalies = False)
@@ -446,7 +416,8 @@ def build_annual_from_cache(last_month, this_month, workspace = "local", verbose
     # Return the combined data
     return oisst_combined
   
-  
+
+    
 #-----------------------------------------------------
 #
 # Save Updated OISST Annual File
@@ -472,14 +443,14 @@ def export_annual_update(cache_root, update_yr, oisst_update):
   print(f"File Saved to {out_path}")
   
   
-  
+
 ########################################################
 #########  Begin Anomaly Processing Section  ###########
 ########################################################
   
   
   
-  
+
 #-----------------------------------------------------
 #
 # Load OISST from Box
@@ -608,7 +579,7 @@ def calc_anom(daily_sst, daily_clims):
   
   
   
-  
+
 #------------------------------------------------------
 #
 # Apply OISST Attributes
@@ -698,10 +669,57 @@ def calc_ll(row, var_name, clim_mu, clim_sd):
 
 
 
-
-
-
-
+    
+#---------------------------------------------------
+#
+# Get Area Weighted Mean
+#
+#----------------------------------------------------
+def area_weighted_means(grid_obj, var_name = "sst", sd = False):
+    """
+    Run an area-weighted average using an xarray dataset, the cell weights, and the variable of interest.
+    
+    Area of the cells is based on latitude and assumes a rectangular grid in lat/lon converting to km
+    
+    Args:
+        grid_obj     : xr.Dataset to calculate average of
+        var_name     : data variable
+        sd           : perform standard deviations?
+    
+    
+    
+    """
+    
+    # Pull an array of the variable of interest
+    array_var = getattr(grid_obj, var_name)
+    
+    
+    #  # From Julius Busecke
+    #  delta_lon = np.cos(array_var.lat * np.pi / 180) * 111e3
+    #  delta_lat = xr.ones_like(array_var.lon) * 111e3
+    #  cell_areas = delta_lon * delta_lat
+    
+    # From Source: xarray docs
+    # http://xarray.pydata.org/en/stable/examples/area_weighted_temperature.html
+    cell_areas = np.cos(np.deg2rad(array_var.lat))
+    cell_areas.name = "weights"
+    
+    # weight the array with the areas
+    grid_weighted = array_var.weighted(cell_areas)
+    
+    # Get the mean
+    if sd == False:
+        # print("Processing Area-Weighted Means")
+        weighted_vals = grid_weighted.mean(("lat", "lon"))
+        weighted_vals = weighted_vals.to_dataset(name = f"area_wtd_{var_name}")
+    
+#     # Standard deviation not a method available to weighted dataset
+#     elif sd == True:
+#         # print("Processing Area-Weighted Standard Deviations")
+#         weighted_vals = grid_weighted.std(("lat", "lon"))
+#         weighted_vals = weighted_vals.to_dataset(name = f"{var_name}_sd")
+    
+    return weighted_vals
 
 
 
@@ -742,11 +760,27 @@ def calc_ts_mask(grid_obj, shp_obj, shp_name, var_name = "sst", climatology = Fa
 
   # Get the timeseries mean of the desired variable
   if climatology == False:
-    masked_ts = getattr(masked_ds, var_name).mean(dim = ("lat", "lon"))
+        
+    # area-weighted
+    masked_ts = area_weighted_means(masked_ds, var_name, sd = False)
+    
+    # Not area-weighted
+    masked_ts[var_name] = getattr(masked_ds, var_name).mean(dim = ("lat", "lon"))
+    
+   
     
   elif climatology == True:
-    masked_ts = getattr(masked_ds, var_name).mean(dim = ("lat", "lon"))
+    
+    # area-weighted?
+    masked_ts = area_weighted_means(masked_ds, var_name, sd = False)
+    # masked_ts["clim_sd"] = area_weighted_means(masked_ds, var_name, sd = True)
+    
+    # Not area-weighted
+    masked_ts[var_name] = getattr(masked_ds, var_name).mean(dim = ("lat", "lon"))
     masked_ts["clim_sd"] = getattr(masked_ds, var_name).std(dim = ("lat", "lon"))
+    
+    
+    
 
   
   #### 5. Change time index rownames to a column 
@@ -756,12 +790,12 @@ def calc_ts_mask(grid_obj, shp_obj, shp_name, var_name = "sst", climatology = Fa
 
   # Reset the index, rename variables
   if climatology == False:
-    masked_ts_df = masked_ts_df.reset_index()[["time", var_name]]
+    masked_ts_df = masked_ts_df.reset_index()[["time", f"area_wtd_{var_name}", var_name]]
     
   elif climatology == True:
-    clim_name = clim_name = f"{var_name}_clim"
-    masked_ts_df = masked_ts_df.reset_index()[["modified_ordinal_day", var_name, "clim_sd"]]
-    masked_ts_df = masked_ts_df.rename(columns = {f"{var_name}" : f"{clim_name}"})
+    clim_name = f"{var_name}_clim"
+    masked_ts_df = masked_ts_df.reset_index()[["modified_ordinal_day", f"area_wtd_{var_name}", var_name, "clim_sd"]]
+    masked_ts_df = masked_ts_df.rename(columns = {f"{var_name}" : f"{clim_name}", f"area_wtd_{var_name}" : "area_wtd_clim"})
   
   # Return the table as output
   return masked_ts_df
@@ -773,17 +807,19 @@ def calc_ts_mask(grid_obj, shp_obj, shp_name, var_name = "sst", climatology = Fa
 # Append Timeseries Updates to Existing Masked Timeseries w/ Climatology
 #
 #-----------------------------------------------------
-def append_sst_ts(old_ts, update_ts):
+def append_sst_ts(old_ts, update_ts, var_name = "sst"):
    """
    Append update period to OISST masked timeseries to create complete timeline
    
    Args:
      old_ts    : Timeseries of existing data, needs time and sst column, rest are dropped
      update_ts : Timeseries of update period
+     var_name  : String indicating the variable name that has been used to identify the variable
    
    """
    # Remove dates from old timeseries overlap from the update timeseries
-   old_sst = old_ts[["time", "sst"]]
+   # old_sst = old_ts[["time", f"{var_name}"]]
+   old_sst = old_ts[["time", f"{var_name}", f"area_wtd_{var_name}"]]
    not_overlapped = ~old_sst.time.isin(update_ts.time)
    old_sst  = old_sst[not_overlapped]
 
@@ -824,24 +860,28 @@ def add_mod_to_ts(new_ts):
     new_ts["modified_ordinal_day"] = mod
     return new_ts
 
+
+
+
+
+
 #-----------------------------------------------------
 #
 # Rejoin Regional Climatology, re-calculate regional anomalies
 #
 #-----------------------------------------------------
-def rejoin_climatology(old_ts, new_ts):
+def rejoin_climatology(old_ts, new_ts, var_name = "sst"):
     """
     Merge Climatology and climate standard deviation from one dataframe 
     into a second by merging on modified ordinal days, the units of the climatology.
     
     Args:
-        old_ts : Dataframe with "modified_ordinal_day", "sst_clim", "clim_sd" used to build climatology key for merge
-        new_ts : Second dataframe that only has time and sst, but matches the region mask used to prepare old_ts
-    
-    
+        old_ts   : Dataframe with "modified_ordinal_day", "sst_clim", "clim_sd" used to build climatology key for merge
+        new_ts   : Second dataframe that only has time and sst, but matches the region mask used to prepare old_ts
+        var_name : String indicating the variable name that has been used to identify the variable
     """
     # pull unique climatology values from existing timeline
-    clim = old_ts[["modified_ordinal_day", "sst_clim", "clim_sd"]]
+    clim = old_ts[["modified_ordinal_day", f"{var_name}_clim", "area_wtd_clim", "clim_sd"]]
     clim = clim.drop_duplicates()
     
     # Add MOD to new timeseries
@@ -852,8 +892,10 @@ def rejoin_climatology(old_ts, new_ts):
 
 
     # Subtract climate mean to get anomalies
-    anom_timeline["sst_anom"] = anom_timeline["sst"] - anom_timeline["sst_clim"]
+    anom_timeline[f"{var_name}_anom"] = anom_timeline[f"{var_name}"] - anom_timeline[f"{var_name}_clim"]
+    anom_timeline["area_wtd_anom"] = anom_timeline[f"area_wtd_{var_name}"] - anom_timeline["area_wtd_clim"]
 
+    # Return the formatted data
     return anom_timeline
 
 
@@ -861,7 +903,7 @@ def rejoin_climatology(old_ts, new_ts):
 
 #-----------------------------------------------------
 #
-# Timeseries Region Catalog
+# Timeseries Region Cataloging
 #
 #-----------------------------------------------------
 def get_region_names(region_group):
@@ -1043,3 +1085,278 @@ def get_timeseries_paths(box_root, region_list, region_group, polygons = False):
   return region_paths
     
     
+
+
+
+
+#-----------------------------------------------------
+#
+# Update Global Anomalies
+#
+#-----------------------------------------------------
+def update_global_anomalies(yr_min, yr_max, box_root, var_name = "sst", reference_period = "1982-2011"):
+  """
+  Update SST anomalies worldwide for a given period bookended by a start and end year
+    
+    Args:
+        start_yr  : String indicating the starting year to include in the update
+        end_yr   : String indicating the last year to include in the update
+        box_root : Root to oisst_mainstays
+        var_name : String indicating the variable being processed
+        reference_period : String composed of two years connected with a dash indicating start and end period for reference climatology
+  
+  """
+
+  # Load OISST for Update Period
+  oisst = load_box_oisst(box_root, 
+                         yr_min, 
+                         yr_max, 
+                         anomalies = False, 
+                         do_parallel = True)
+
+  # Add modified ordinal day, for day-to-day calculation and leapyear adjustment
+  oisst = add_mod(oisst, 'time')
+
+  # Load Climatology
+  oisst_clim = load_oisst_climatology(box_root = box_root, 
+                                      reference_period = reference_period)
+
+  # Calculate Anomalies
+  daily_anoms = oisst.groupby('time').map(lambda x: calc_anom(x, oisst_clim))
+
+  # Add attributes
+  daily_anoms = apply_oisst_attributes(oisst_grid = daily_anoms, 
+                                       anomalies = True, 
+                                       reference_period = reference_period)
+
+  # Save Them
+  # format reference period as climate period folder
+  climate_period = reference_period.replace("-", "to")  
+  climate_period = f"{climate_period}_climatology"
+
+  #Export as annual netcdf files
+  for year, group in daily_anoms.groupby('time.year'):
+      out_path = f'{box_root}RES_Data/OISST/oisst_mainstays/annual_anomalies/{climate_period}/daily_anoms_{year}.nc'
+      # print(f"Out path set to: {out_path}")
+      group.to_netcdf(out_path)
+      print(f"Saving anomaly year: {year}")
+
+
+
+#-----------------------------------------------------
+#
+# Update Global timeseries
+#
+#-----------------------------------------------------
+def update_global_timeseries(yr_min, yr_max, box_root, var_name = "sst", reference_period = "1982-2011"):
+  """
+    Update the timeseries for global temperatures/climate/anomalies and their area-weighted counterparts.
+    
+    Args:
+        start_yr  : String indicating the starting year to include in the update
+        end_yr   : String indicating the last year to include in the update
+        box_root : Root to oisst_mainstays
+        var_name : String indicating the variable being processed
+        reference_period : String composed of two years connected with a dash indicating start and end period for reference climatology
+  
+  """
+
+
+  # Load all years of oisst and anomalies
+  oisst = load_box_oisst(box_root, 
+                         yr_min, 
+                         yr_max, 
+                         anomalies = False, 
+                         do_parallel = True)
+  oisst = add_mod(oisst, 'time')
+
+  # Anomalies
+  daily_anoms = load_box_oisst(box_root, 
+                               yr_min, 
+                               yr_max, 
+                               anomalies = True, 
+                               do_parallel = True)
+
+  # Climatology
+  oisst_clim = load_oisst_climatology(box_root = box_root, 
+                                      reference_period = reference_period)
+
+  # 1. Mean Temp
+  mean_sst = oisst.mean(["lat", "lon"])
+  weighted_sst = area_weighted_means(oisst, var_name = "sst", sd = False)
+
+  # Convert to dataframes
+  sst_df     = mean_sst.to_dataframe().reset_index()
+  sst_wt_df  = weighted_sst.to_dataframe().reset_index()
+
+
+  # Merge standard and area weighted values
+  sst_join  = sst_df.merge(sst_wt_df, how = "left", on = ["time", "MOD"])
+  sst_join = sst_join.drop(columns=['modified_ordinal_day'])
+  sst_join = sst_join[['time', 'MOD', 'sst', 'area_wtd_sst']]
+
+
+  # 2. Mean Climatology
+  mean_clim = oisst_clim.mean(["lat", "lon"])
+  weighted_clim = area_weighted_means(oisst_clim, var_name = "sst", sd = False)
+
+  # Convert to dataframes
+  clim_df    = mean_clim.to_dataframe().reset_index()
+  clim_wt_df = weighted_clim.to_dataframe().reset_index()
+
+  # climatology
+  clim_join = clim_df.merge(clim_wt_df, on = "modified_ordinal_day")
+  clim_join = clim_join.rename(columns = {"sst" : "sst_clim", f"area_wtd_sst" : "area_wtd_clim", "modified_ordinal_day" : "MOD"})
+
+  # Join sst and climatology
+  sst_and_clim = sst_join.merge(clim_join, how = "left", on = "MOD")
+
+  # 3. Mean Anomalies
+  mean_anomalies = daily_anoms.mean(['lat', 'lon']) 
+  weighted_means = area_weighted_means(daily_anoms, var_name = "sst", sd = False)
+
+  # Convert to dataframes
+  anom_df    = mean_anomalies.to_dataframe().reset_index().drop(columns = ["modified_ordinal_day"])
+  anom_wt_df = weighted_means.to_dataframe().reset_index().drop(columns = ["modified_ordinal_day"])
+
+  # Join anomalies
+  anom_join = anom_df.merge(anom_wt_df, how = "left", on = ["time", "MOD"])
+  anom_join = anom_join.rename(columns = {"sst" : "sst_anom", f"area_wtd_sst" : "area_wtd_anom"})
+
+  # Join to the SST and Climatology dataframe to consolidate the update
+  update_ts = sst_and_clim.merge(anom_join, how = "left", on = ["time", "MOD"])
+
+
+  # 4. Append to Full Timeseries
+  # Open what we have already on Box
+  old_sst = pd.read_csv(f"{box_root}Res_Data/OISST/oisst_mainstays/global_timeseries/global_anoms_1982to2011.csv")
+
+  # Remove dates from old timeseries overlap from the update timeseries
+  not_overlapped = ~old_sst.time.isin(update_ts.time)
+  old_sst  = old_sst[not_overlapped]
+
+  # Concatenate onto the original
+  appended_ts = pd.concat([ old_sst, update_ts ])
+
+  # Format time as datetime
+  appended_ts["time"] = appended_ts["time"].astype("datetime64")
+
+  # Sort
+  appended_ts = appended_ts.sort_values(by = "time")
+
+  # Drop duplicates
+  appended_ts = appended_ts.drop_duplicates(subset=['time'])
+
+  # SAVING
+  print("Updating Global Timeseries")
+  appended_ts.to_csv(f"{box_root}Res_Data/OISST/oisst_mainstays/global_timeseries/global_anoms_1982to2011.csv", index = False)
+
+
+
+
+
+
+                                      
+
+
+
+
+
+#-----------------------------------------------------
+#
+# Update Regional Timeseries Collection
+#
+#-----------------------------------------------------
+def update_regional_timeseries_collection(start_yr, end_yr, region_collection, box_root, var_name = "sst"):
+  """
+  Merge Climatology and climate standard deviation from one dataframe 
+    into a second by merging on modified ordinal days, the units of the climatology.
+    
+    Args:
+        start_yr  : String indicating the starting year to include in the update
+        end_yr   : String indicating the last year to include in the update
+        region_collection : String indicating the the collection of shapefiles to process
+        box_root : Root to oisst_mainstays
+        var_name : String indicating the variable being processed
+  
+  """
+
+
+  # Status Report
+  print(f"Updating Timeseries for: {region_collection}")
+
+  # Get their names from lookup catalog
+  region_names = get_region_names(region_group = region_collection)
+  print("Updating Timeseries for:")
+  for region in region_names:
+      print(f" - {region}")
+
+  # Get paths to each shapefile
+  mask_paths = get_timeseries_paths(box_root = box_root, 
+                                    region_list = region_names, 
+                                    region_group = region_collection, 
+                                    polygons = True)
+
+
+
+  # Use paths to make list of loaded polygons
+  mask_list = []
+  for mask_path_i in mask_paths:
+      mask_shape = gpd.read_file(mask_path_i)
+      mask_list.append(mask_shape)
+
+  # Load OISST using ot.load_box_oisst()
+  oisst_grid = load_box_oisst(box_root, 
+                              start_yr, 
+                              end_yr, 
+                              anomalies = False, 
+                              do_parallel = True)
+  
+  # List to store the update period timeseries
+  new_ts = []
+  for mask_shp, mask_name in zip(mask_list, region_names):
+      
+      # Get masked timeseries
+      masked_ts = calc_ts_mask(grid_obj = oisst_grid, 
+                               shp_obj = mask_shp, 
+                               shp_name = mask_name,
+                               var_name = var_name)
+      
+      # Add to list
+      new_ts.append(masked_ts)
+
+
+  # Get paths to each existing timeseries
+  mask_ts_paths = get_timeseries_paths(box_root = box_root, 
+                                       region_list = region_names, 
+                                       region_group = region_collection, 
+                                       polygons = False)
+
+
+  # Open existing time series to update them
+  ts_list = []
+  for mask_ts_path in mask_ts_paths:
+      mask_ts = pd.read_csv(mask_ts_path)
+      ts_list.append(mask_ts)
+
+
+  # Step 4. match updates to existing timelines
+  complete_ts = []
+  for update_ts, old_ts in zip(new_ts, ts_list):
+      # Append without overlap
+      appended_ts = append_sst_ts(old_ts = old_ts, update_ts = update_ts)
+      complete_ts.append(appended_ts)
+
+  # Step 4. match updates to existing timelines
+  anomaly_timeseries = []
+  for clim_ts, update_ts in zip(ts_list, complete_ts):
+      # Append without overlap
+      anomaly_ts = rejoin_climatology(old_ts = clim_ts, new_ts = update_ts)
+      anomaly_timeseries.append(anomaly_ts)
+
+
+  # Use the file paths we looked up before to set the save destinations and save them
+  for updated_timeline_i, update_path_i in zip(anomaly_timeseries, mask_ts_paths):
+      updated_timeline_i.to_csv(update_path_i, index = False)
+
+  
