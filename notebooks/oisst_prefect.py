@@ -38,20 +38,24 @@ cache_current_month = task(ot.cache_oisst, name = "cache_current_month")
 cache_prev_month    = task(ot.cache_oisst, name = "cache_prev_month")
 
 # 6. Assemble Annual File(s)
-oisst_update = task(ot.build_annual_from_cache)
+oisst_update = task(ot.build_annual_from_cache, name = "build_annual_from_cache")
 
 # 8. Save Update
-oisst_save_update = task(ot.export_annual_update)
+oisst_save_update = task(ot.export_annual_update, name = "export_annual_update")
 
 
 ####  Flow 2 - Updating Global Anomalies
 
-# update_global_anoms = ot.
+# 1. Update Global Anomalies
+update_global_grid_anomalies = task(ot.update_global_anomalies, name = "update_global_anomalies")
 
+# 2. Update Global Timeseries
+update_global_timeseries = task(ot.update_global_timeseries, name = "update_global_timeseries")
 
 ####  Flow 3 - Regional Timeseries
 
-# These should be easier
+# 3. Update timeseries for a collection of regions
+update_regional_anomalies = task(ot.update_regional_timeseries_collection)
 
 
 
@@ -89,7 +93,23 @@ with Flow("OISST weekly download") as oisst_flow:
                                       oisst_update = oisst_annual_update)
   
   # Upcoming: Processing Anomalies
-
+  update_worldwide_anomalies = update_global_grid_anomalies(yr_min = this_yr, 
+                                                            yr_max = this_yr, 
+                                                            box_root = box_root, 
+                                                            var_name = "sst", 
+                                                            reference_period = "1982-2011")
+  update_global_timeseries = update_global_timeseries(yr_min = this_yr, 
+                                                      yr_max = this_yr, 
+                                                      box_root = box_root, 
+                                                      var_name = "sst", 
+                                                      reference_period = "1982-2011")
+  
+  # Processing Regional Timeseries Collections
+  update_focal_areas = update_regional_anomalies(start_yr = this_yr, end_yr = this_yr, region_collection = "gmri_sst_focal_areas", box_root = box_root)
+  update_nelme_regions = update_regional_anomalies(start_yr = this_yr, end_yr = this_yr, region_collection = "nelme_regions", box_root = box_root)
+  update_nmfs_trawl_regions = update_regional_anomalies(start_yr = this_yr, end_yr = this_yr, region_collection = "nmfs_trawl_regions", box_root = box_root)
+  update_gom_physio_regions = update_regional_anomalies(start_yr = this_yr, end_yr = this_yr, region_collection = "gom_physio_regions", box_root = box_root)
+  update_large_marine_ecosystems = update_regional_anomalies(start_yr = this_yr, end_yr = this_yr, region_collection = "lme", box_root = box_root)
 
 
 
@@ -149,11 +169,23 @@ with Flow("OISST weekly download", schedule = schedule) as oisst_flow:
                                       oisst_update = oisst_annual_update)
   
   # Upcoming: Processing Anomalies
+  update_worldwide_anomalies = update_global_grid_anomalies(yr_min = this_yr, 
+                                                            yr_max = this_yr, 
+                                                            box_root = box_root, 
+                                                            var_name = "sst", 
+                                                            reference_period = "1982-2011")
+  update_global_timeseries = update_global_timeseries(yr_min = this_yr, 
+                                                      yr_max = this_yr, 
+                                                      box_root = box_root, 
+                                                      var_name = "sst", 
+                                                      reference_period = "1982-2011")
   
-  
-  
-  # Upcoming: Regional Timelines
-
+  # Processing Regional Timeseries Collections
+  update_focal_areas = update_regional_anomalies(start_yr = this_yr, end_yr = this_yr, region_collection = "gmri_sst_focal_areas", box_root = box_root)
+  update_nelme_regions = update_regional_anomalies(start_yr = this_yr, end_yr = this_yr, region_collection = "nelme_regions", box_root = box_root)
+  update_nmfs_trawl_regions = update_regional_anomalies(start_yr = this_yr, end_yr = this_yr, region_collection = "nmfs_trawl_regions", box_root = box_root)
+  update_gom_physio_regions = update_regional_anomalies(start_yr = this_yr, end_yr = this_yr, region_collection = "gom_physio_regions", box_root = box_root)
+  update_large_marine_ecosystems = update_regional_anomalies(start_yr = this_yr, end_yr = this_yr, region_collection = "lme", box_root = box_root)
 
 
 
