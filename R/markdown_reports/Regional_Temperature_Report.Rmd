@@ -215,6 +215,7 @@ annual_summary <- region_timeseries %>%
   summarise(sst = mean(sst, na.rm = T),
             sst_anom = mean(sst_anom, na.rm = T), 
             area_wtd_sst = mean(area_wtd_sst),
+            area_wtd_anom = mean(area_wtd_anom),
             .groups = "keep") %>% 
   ungroup() %>% 
   mutate(yr_as_dtime = as.Date(paste0(year, "-07-02")))
@@ -232,6 +233,7 @@ global_summary <- global_anoms %>%
   summarise(sst = mean(sst, na.rm = T), 
             sst_anom = mean(sst_anom),
             area_wtd_sst = mean(area_wtd_sst),
+            area_wtd_anom = mean(area_wtd_anom),
             .groups = "keep") %>% 
   ungroup() %>% 
   mutate(yr_as_dtime = as.Date(paste0(year, "-07-02")))
@@ -281,11 +283,11 @@ eq_global <- paste0("y = ", lm_15['(Intercept)'], " + ", decade_global, " x")
 
 ```{r annual trend plot}
 ####  Annual Trend Plot  ####
-ggplot(data = annual_summary, aes(yr_as_dtime, sst_anom)) +
+ggplot(data = annual_summary, aes(yr_as_dtime, area_wtd_anom)) +
   
   # Add daily data
   geom_line(data = region_timeseries,
-            aes(time, sst_anom),
+            aes(time, area_wtd_anom),
             alpha = 0.5, color = "gray") +
   
   # Overlay yearly means
@@ -359,11 +361,13 @@ quarter_summary <- region_timeseries %>%
   group_by(year, season) %>% 
   summarise(sst = mean(sst, na.rm = T),
             sst_anom = mean(sst_anom, na.rm = T), 
+            area_wtd_sst = mean(area_wtd_sst, na.rm = T),
+            area_wtd_anom = mean(area_wtd_anom, na.rm = T),
             .groups = "keep") 
 
 # Plot
 quarter_summary %>% 
-  ggplot(aes(year, sst_anom)) +
+  ggplot(aes(year, area_wtd_anom)) +
   geom_line(group = 1, color = "gray20") +
   geom_point(size = 0.75) +
   geom_smooth(method = "lm", 
