@@ -258,7 +258,7 @@ lm_15  <- lm(area_wtd_sst ~ year,
   round(3)
 
 # 3. Global - Area-weighted
-lm_global <- lm(sst_anom ~ year, 
+lm_global <- lm(area_wtd_sst ~ year, 
                 data = filter(global_summary, year %in% c(1982:2020))) %>% 
   coef() %>% 
   round(3)
