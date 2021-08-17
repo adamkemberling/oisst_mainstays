@@ -38,10 +38,11 @@ library(janitor)
 library(knitr)
 library(patchwork)
 library(tidyverse)
-library(kableExtra)
+library(gt)
 library(heatwaveR)
 library(plotly)
 library(ggpmisc)
+library(ggalt)
 
 # Support Functions
 source(here("R/oisst_support_funs.R"))
@@ -151,27 +152,38 @@ Pre-processed timelines are stored on the cloud and can be accessed by GMRI empl
 
 Area-specific time series are the most basic building block for relaying temporal trends. For any desired area (represented by a spatial polygon) we can generate a time series table of the mean sea surface temperature within that area for each day. Additionally, we can compare how observed temperatures correspond with the expected conditions based on a climatology using a specified  reference period. 
 
-**Accessing the Data**
-
-Pre-processed tables have been placed on on the cloud for quick access. A function to quickly access these time-lines has been added to the {[gmRi](https://github.com/gulfofmaine/gmri)} package as `oisst_access_timeseries()`. 
-
-Additional functions exist to look up what timeseries are available`gmRi::get_region_names()`. And an additional function was made to return both the path to the timeseries data and the path to the shapefile used to generate the timeseries using: `gmRi::get_timeseries_paths()`.
 
 ```{r}
 
 # Use {gmRi} instead to load timeseries to tye up loose ends
 timeseries_path <- region_paths[[params$region]][["timeseries_path"]]
-region_timeseries <- read_csv(timeseries_path, col_types = cols())
+region_timeseries <- read_csv(timeseries_path, col_types = cols(), guess_max = 1e6)
 
 # format dates
 region_timeseries <- region_timeseries %>% 
   mutate(time = as.Date(time))
 
 # Display Table of first 6 entries
-head(region_timeseries) %>% 
+tail(region_timeseries) %>% 
   mutate(across(where(is.numeric), round, 2)) %>% 
-  kable() %>% 
-  kable_styling()
+  select(
+    Date = time,
+    `Sea Surface Temperature` = sst,
+    #`Area-Weighted SST` = area_wtd_sst,
+    `Day of Year` = modified_ordinal_day,
+    `Climate Avg.` = sst_clim,
+    #`Area-weighted Climate` = area_wtd_clim,
+    `Temperature Anomaly` = sst_anom#,
+    #`Area-Weighted Anomaly` = area_wtd_anom
+    
+  ) %>% gt() %>% 
+    tab_header(
+    title = md(paste0("**", tidy_name, " - Regional Sea Surface Temperature", "**")), 
+    subtitle = paste("Temperature Unit: Celsius")) %>%
+  tab_source_note(
+    source_note = md("*Data Source: NOAA OISSTv2 Daily Sea Surface Temperature Data.*") ) %>% 
+  tab_source_note(md("*Climatology Reference Period: 1982-2011.*"))
+
 
 # march 1st sst
 mar1 <- region_timeseries %>% 
@@ -203,18 +215,27 @@ annual_summary <- region_timeseries %>%
   group_by(year) %>% 
   summarise(sst = mean(sst, na.rm = T),
             sst_anom = mean(sst_anom, na.rm = T), 
+            area_wtd_sst = mean(area_wtd_sst),
+            area_wtd_anom = mean(area_wtd_anom),
             .groups = "keep") %>% 
   ungroup() %>% 
   mutate(yr_as_dtime = as.Date(paste0(year, "-07-02")))
 
 
 # # Global Temperature Anomaly Rates
-global_anoms <- read_csv(paste0(oisst_path, "global_timeseries/global_anoms_1982to2011.csv"))
-global_anoms <- mutate(global_anoms, year = year(time))
+global_anoms <- read_csv(
+    paste0(oisst_path, "global_timeseries/global_anoms_1982to2011.csv"), 
+    guess_max = 1e6,
+    col_types = cols()) %>% 
+  mutate(year = year(time))
 
 global_summary <- global_anoms %>% 
   group_by(year) %>% 
-  summarise(sst_anom = mean(sst, na.rm = T), .groups = "keep") %>% 
+  summarise(sst = mean(sst, na.rm = T), 
+            sst_anom = mean(sst_anom),
+            area_wtd_sst = mean(area_wtd_sst),
+            area_wtd_anom = mean(area_wtd_anom),
+            .groups = "keep") %>% 
   ungroup() %>% 
   mutate(yr_as_dtime = as.Date(paste0(year, "-07-02")))
 ```
@@ -224,15 +245,21 @@ global_summary <- global_anoms %>%
 ```{r annual regressions}
 
 # Build Regression Equation Labels
-lm_all <- lm(sst_anom ~ year, 
+
+# 1. All years 
+lm_all <- lm(area_wtd_sst ~ year, 
              data = filter(annual_summary, year %in% c(1982:2020))) %>% 
   coef() %>% 
   round(3)
-lm_15  <- lm(sst_anom ~ year, 
+
+# 2. Last 15 years
+lm_15  <- lm(area_wtd_sst ~ year, 
              data = filter(annual_summary, year %in% c(2006:2020))) %>% 
   coef() %>% 
   round(3)
-lm_global <- lm(sst_anom ~ year, 
+
+# 3. Global - Area-weighted
+lm_global <- lm(area_wtd_sst ~ year, 
                 data = filter(global_summary, year %in% c(1982:2020))) %>% 
   coef() %>% 
   round(3)
@@ -257,28 +284,28 @@ eq_global <- paste0("y = ", lm_15['(Intercept)'], " + ", decade_global, " x")
 
 ```{r annual trend plot}
 ####  Annual Trend Plot  ####
-ggplot(data = annual_summary, aes(yr_as_dtime, sst_anom)) +
+ggplot(data = annual_summary, aes(yr_as_dtime, area_wtd_anom)) +
   
   # Add daily data
   geom_line(data = region_timeseries,
-            aes(time, sst_anom),
+            aes(time, area_wtd_anom),
             alpha = 0.5, color = "gray") +
   
   # Overlay yearly means
-  geom_line(alpha = 0.7) +
-  geom_point(alpha = 0.7) +
+  geom_line(alpha = 0.7, color = "gray20") +
+  geom_point(alpha = 0.7, size = 0.75) +
   
   # Add regression lines 
   geom_smooth(data = filter(global_summary, year <= 2020),
-            method = "lm", 
-            aes(color = "1982-2020 Global Trend"),
-            formula = y ~ x, se = F, 
-            linetype = 3) +
+              method = "lm", 
+              aes(color = "1982-2020 Global Trend"),
+              formula = y ~ x, se = F, 
+              linetype = 3) +
   geom_smooth(data = filter(annual_summary, year <= 2020),
               method = "lm",
               aes(color = "1982-2020 Regional Trend"),
               formula = y ~ x, se = F,
-              linetype = 2) +
+              linetype = 1) +
   geom_smooth(data = filter(annual_summary, year %in% c(2006:2020)),
               method = "lm", 
               aes(color = "2006-2020 Regional Trend"),
@@ -286,7 +313,7 @@ ggplot(data = annual_summary, aes(yr_as_dtime, sst_anom)) +
               linetype = 2) +
 
   
-  # Manually add equations so they show yearly not daily coefficients
+  # Manually add equations so they show yearly not daily coeff
   geom_text(data = data.frame(), 
             aes(label = eq_all, x = min(region_timeseries$time), y = Inf),
             hjust = 0, vjust = 2, color = gmri_cols("gmri blue")) +
@@ -308,12 +335,12 @@ ggplot(data = annual_summary, aes(yr_as_dtime, sst_anom)) +
        y = expression("Sea Surface Temperature Anomaly"~degree~C),
        caption = paste0("Regression coefficients reflect decadal change in sea surface temperature.
                          Anomalies calculated using 1982-2011 reference period.")) +
+  # theme
    theme(legend.title = element_blank(),
         legend.position = c(0.85, 0.1),
         legend.background = element_rect(fill = "transparent"),
         legend.key = element_rect(fill = "transparent", color = "transparent"),
         panel.grid = element_blank())
-
 
 ```
 
@@ -334,16 +361,18 @@ quarter_summary <- region_timeseries %>%
   group_by(year, season) %>% 
   summarise(sst = mean(sst, na.rm = T),
             sst_anom = mean(sst_anom, na.rm = T), 
+            area_wtd_sst = mean(area_wtd_sst, na.rm = T),
+            area_wtd_anom = mean(area_wtd_anom, na.rm = T),
             .groups = "keep") 
 
 # Plot
 quarter_summary %>% 
-  ggplot(aes(year, sst_anom)) +
-  geom_line(group = 1) +
-  geom_point() +
+  ggplot(aes(year, area_wtd_anom)) +
+  geom_line(group = 1, color = "gray20") +
+  geom_point(size = 0.75) +
   geom_smooth(method = "lm", 
               aes(color = "Regional Trend"),
-              formula = y ~ x, se = F, linetype = 2) +
+              formula = y ~ x, se = F, linetype = 1) +
   stat_poly_eq(formula = y ~ x,
                color = gmri_cols("gmri blue"),
                aes(label = paste(..eq.label.., ..rr.label.., sep = "~~~")),
@@ -359,8 +388,28 @@ quarter_summary %>%
   facet_wrap(~season)
 ```
 
+#### Overall Temperature Increase
 
+```{r, fig.height=2}
+dat_region <- annual_summary %>% 
+  filter(year %in% c(1982, 2020)) 
+dat_global <- global_summary %>% 
+  filter(year %in% c(1982, 2020)) 
+dat_list <- list(dat_region, dat_global) %>% setNames(c(tidy_name, "Global Oceans"))
+dat_combined <- bind_rows(dat_list, .id = "Area") %>% 
+  select(Area, area_wtd_sst, year) %>% 
+  pivot_wider(names_from = year, values_from = area_wtd_sst)
 
+ggplot(dat_combined, aes(x = `1982`, xend = `2020`, y = fct_rev(Area))) +
+  geom_dumbbell(colour = "lightblue", 
+                colour_xend = gmri_cols("gmri blue"), 
+                size = 3, 
+                dot_guide = TRUE, 
+                dot_guide_size = 0.5) +
+  labs(x = expression("Sea Surface Temperature"~~degree~C), 
+       subtitle = "Change in Sea Surface Temeprature - 1982-2020", 
+       y = "")
+```
 
 ### Marine Heatwaves {.tabset .tabset-pills}
 
@@ -643,8 +692,7 @@ data_window <- data.frame(
 
 
 # Pull data off box
-hw_stack <- oisst_window_load(oisst_path = oisst_path, 
-                              data_window = data_window, 
+hw_stack <- oisst_window_load(data_window = data_window, 
                               anomalies = T)
 
 
