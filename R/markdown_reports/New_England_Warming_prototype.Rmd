@@ -33,6 +33,7 @@ library(here)
 library(sf)
 library(tidyverse)
 library(gmRi)
+library(ggalt)
 
 # Support Functions
 source(here("R/oisst_support_funs.R"))
@@ -110,16 +111,14 @@ data_window <- data.frame(lon = c(-720, 720),
 
 # 2. Global SST
 # Load Global Temperatures
-sst_daily <- oisst_window_load(oisst_path = oisst_path, 
-                               data_window = data_window, 
+sst_daily <- oisst_window_load(data_window = data_window, 
                                anomalies = FALSE)
 sst_daily <- raster::stack(sst_daily)
 
 
 # 4. Global Anomalies
 # Load Global Anomalies
-oisst_daily <- oisst_window_load(oisst_path = oisst_path, 
-                                 data_window = data_window, 
+oisst_daily <- oisst_window_load(data_window = data_window, 
                                  anomalies = TRUE)
 oisst_daily <- raster::stack(oisst_daily)
 
@@ -437,6 +436,10 @@ rate_table %>%
   tab_source_note(md("*Data Source: NOAA OISSTv2 Daily Sea Surface Temperature Data.*") ) %>% 
   tab_source_note(md("*Reference Climatolgy Period: 1982-2011.*"))
 ```
+
+
+
+
 
 ## Warming Rates Comparison {.tabset}
 

@@ -34,6 +34,7 @@ library(tidyverse)
 library(ggforce)
 library(gmRi)
 library(heatwaveR)
+library(ggalt)
 
 # Support Functions
 source(here("R/oisst_support_funs.R"))
@@ -163,7 +164,10 @@ us_map
 
 ```{r, echo = FALSE}
 # Load Regional Temperatures
-world_ts <- read_csv(str_c(oisst_path, "/global_timeseries/global_temps_oisst.csv"), guess_max = 1e6)
+world_ts <- read_csv(paste0(oisst_path, "global_timeseries/global_anoms_1982to2011.csv"), 
+    guess_max = 1e6,
+    col_types = cols()) %>% 
+  mutate(year = year(time))
 nelme_ts <- oisst_access_timeseries("lme", "northeast us continental shelf")
 gom_ts   <- oisst_access_timeseries(region_family = "gmri focus areas", "apershing gulf of maine")
 ss_ts    <- oisst_access_timeseries(region_family = "lme", "scotian shelf")
@@ -243,14 +247,14 @@ report_data %>% iwalk(function(out_data, region_name){
   clean_name <- tolower(clean_name)
   clean_name <- paste0(clean_name,"_oisst.csv")
   save_location <- paste0(here("docs/data_products/yearly_data"), "/", clean_name)
-  write_csv(out_data, save_location)
+  # write_csv(out_data, save_location)
   #print(save_location)
 
 })
 
-# Plot check
-ggplot(report_data$`Long Island Sound`, aes(Year, days_over_20C)) +
-  geom_col()
+# # Plot check the days over 20C
+# ggplot(report_data$`Long Island Sound`, aes(Year, days_over_20C)) +
+#   geom_col()
 
 #### Prep daily files  ####
 
@@ -290,7 +294,7 @@ daily_exports %>% iwalk(function(out_data, region_name){
   clean_name <- tolower(clean_name)
   clean_name <- paste0(clean_name,"_daily_oisst.csv")
   save_location <- paste0(here("docs/data_products/daily_data"), "/", clean_name)
-  write_csv(out_data, save_location)
+  # write_csv(out_data, save_location)
   #print(save_location)
 
 })
@@ -507,7 +511,7 @@ area_changes %>%
 ```
 
 
-# Warming Rankings
+# Warming Rate Rankings
 
 
 ```{r}
@@ -516,7 +520,7 @@ area_changes %>%
 lme_names <- get_region_names("lme") # names
 lme_paths <- get_timeseries_paths("lme") # paths
 
-# data
+# Data
 lme_oisst <- map(lme_names, ~ read_csv(lme_paths[[.x]][["timeseries_path"]], col_types = cols(), guess_max = 1e6)) 
 lme_oisst <- setNames(lme_oisst, lme_names)
 
@@ -534,7 +538,8 @@ lme_8220 <- map(lme_oisst, ~ mutate(.x, year = year(time)) %>% filter(year %in% 
 
 # Get warming rates
 lme_rates <- map_dfr(lme_8220, function(lme_data){
-  lme_yearly <- group_by(lme_data, year) %>% summarise(sst = mean(sst, na.rm = T))
+  # Uses area weighted SST
+  lme_yearly <- group_by(lme_data, year) %>% summarise(sst = mean(area_wtd_sst, na.rm = T))
   yrly_warming <- lm(sst ~ year, data = lme_yearly)
   mod_details <- broom::tidy(yrly_warming)
   yrly_rate <- mod_details[2,"estimate"]
@@ -551,6 +556,12 @@ rates_ordered <- lme_rates %>%
          Region = str_replace_all(Region, "_", " "),
          Region = str_to_title(Region)) %>% 
   select(Region, `Warming Rank`, `Warming Rate C` = annual_warming_rate_C, `Warming Rate F`) 
+```
+
+
+**Table of Top Ten LME's**
+
+```{r}
 
 # Make table of top 10*
 rates_ordered %>% 
@@ -560,11 +571,50 @@ rates_ordered %>%
   tab_stubhead(label = "Region") %>% 
   tab_header(
     title = md("**Ranking Warming Across Large Marine Ecosystems**")) %>%
-  tab_source_note(source_note = md("*Data Source: NOAA OISSTv2 Daily Sea Surface Temperature Data.*") ) %>%
+  tab_source_note(source_note = md("*Data Source: NOAA OISSTv2 Daily Sea Surface Temperature Data. Temperatures adjusted for latitudinal distotion.*") ) %>%
   tab_source_note(source_note = md("*Gulf of Maine, Long Island Sound, and Bay of fundy not true LME's*") )
 ```
 
 
+**Plotting Absolute Changes 1982-2020**
+
+
+```{r, fig.height=8}
+
+# Get The changes from 1982-2011
+lme_absolute_change <- map_dfr(lme_8220, function(lme_data){
+  
+  # Uses area weighted SST to get yearly averages
+  lme_yearly <- lme_data %>% 
+    filter(year %in% c(1982, 2020)) %>% 
+    group_by(year) %>% 
+    summarise(area_wtd_sst = mean(area_wtd_sst, na.rm = T), 
+              .groups = "drop")  %>% 
+    pivot_wider(names_from = year, values_from = area_wtd_sst) 
+
+}, .id = "Region") %>% 
+  mutate(Region = str_replace_all(Region, "_", " "),
+         Region = str_to_title(Region),
+         Region = factor(Region),
+         absolute_change = `2020` - `1982`)
+
+# Resort factor levels
+# Pull out the top x and plot
+lme_absolute_change <- lme_absolute_change %>% 
+  mutate(Region = fct_reorder(Region, `1982`, .desc = T))
+
+
+# Pull out the top x and plot
+ggplot(lme_absolute_change, aes(x = `1982`, xend = `2020`, y = fct_rev(Region))) +
+  geom_dumbbell(colour = "lightblue", 
+                colour_xend = gmri_cols("gmri blue"), 
+                size = 2, 
+                dot_guide = TRUE, 
+                dot_guide_size = 0.25) +
+  labs(x = expression("Sea Surface Temperature"~~degree~C), 
+       subtitle = "Change in Sea Surface Temeprature - 1982-2020", 
+       y = "")
+```
 
 
 # 2020 in the Gulf of Maine
