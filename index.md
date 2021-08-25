@@ -18,3 +18,5 @@ This index page serves as a link directory to temperature reports. Use the follo
  5. [Impact of New Normal](https://adamkemberling.github.io/oisst_mainstays/R/markdown_reports/GOM_shifting_baselines.html)
 
  6. [Warming Patterns in New England 2021](https://gulfofmaine.github.io/oisst_mainstays/R/markdown_reports/New_England_Warming.html)
+ 
+ 7. [Gulf of Maine Seasonal Update](https://adamkemberling.github.io/oisst_mainstays/R/markdown_reports/GOM_Seasonal_Update.html)

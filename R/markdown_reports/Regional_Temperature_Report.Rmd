@@ -271,9 +271,9 @@ decade_global <- lm_global["year"] * 10
 
 
 # Equation to paste in
-eq_all    <- paste0("y = ", lm_all['(Intercept)'], " + ", decade_all, " x")
-eq_15     <- paste0("y = ", lm_15['(Intercept)'], " + ", decade_15, " x")
-eq_global <- paste0("y = ", lm_15['(Intercept)'], " + ", decade_global, " x")
+eq_all    <- paste0(decade_all,    "\u00b0", "C / Decade")
+eq_15     <- paste0(decade_15,     "\u00b0", "C / Decade")
+eq_global <- paste0(decade_global, "\u00b0", "C / Decade")
 
 ```
 
@@ -331,7 +331,7 @@ ggplot(data = annual_summary, aes(yr_as_dtime, area_wtd_anom)) +
   
   # labels + theme
   labs(x = "", 
-       y = expression("Sea Surface Temperature Anomaly"~degree~C),
+       y = expression("Sea Surface Temperature Anomaly"~degree*C),
        caption = paste0("Regression coefficients reflect decadal change in sea surface temperature.
                          Anomalies calculated using 1982-2011 reference period.")) +
   # theme
@@ -379,7 +379,7 @@ quarter_summary %>%
                parse = T) +
   scale_color_manual(values = c("Regional Trend" = as.character(gmri_cols("orange")))) +
   labs(x = "", 
-       y = expression("Sea Surface Temperature Anomaly"~degree~C),
+       y = expression("Sea Surface Temperature Anomaly"~degree*C),
        caption = "Regression coefficients reflect annual change in sea surface temperature.") +
   theme(legend.title = element_blank(),
         legend.position = c(0.875, 0.05),
@@ -406,7 +406,7 @@ ggplot(dat_combined, aes(x = `1982`, xend = `2020`, y = fct_rev(Area))) +
                 size = 3, 
                 dot_guide = TRUE, 
                 dot_guide_size = 0.5) +
-  labs(x = expression("Sea Surface Temperature"~~degree~C), 
+  labs(x = expression("Sea Surface Temperature"~~degree*C), 
        subtitle = "Change in Sea Surface Temeprature - 1982-2020", 
        y = "")
 ```
@@ -478,7 +478,7 @@ color_vals <- c(
 
 
 # Set the label with degree symbol
-ylab <- expression("Sea Surface Temperature"~degree~C)
+ylab <- expression("Sea Surface Temperature"~degree*C)
 
 
 
@@ -511,7 +511,7 @@ ggplot(last_yr_heatwaves, aes(x = time)) +
 ```{r}
 
 # Prep the legend title
-guide_lab <- expression("Sea Surface Temperature Anomaly"~degree~C)
+guide_lab <- expression("Sea Surface Temperature Anomaly"~degree*C)
 
 # Set new axis dimensions, y = year, x = day within year
 # use a flate_date so that they don't stair step
@@ -748,7 +748,7 @@ day_plots <- imap(day_count, function(date_index, date_label) {
              ylim = crop_y, 
              expand = T) +
     guides("fill" = guide_colorbar(
-      title = expression("Sea Surface Temperature Anomaly"~degree~C),
+      title = expression("Sea Surface Temperature Anomaly"~degree*C),
       title.position = "top",
       title.hjust = 0.5,
       barwidth = unit(3, "in"),
@@ -988,7 +988,7 @@ rates_map <- ggplot() +
   coord_sf(xlim = crop_x, 
            ylim = crop_y, expand = T) +
   guides("fill" = guide_colorbar(
-    title = expression("Annual Temperature Change"~~degree~C~"/year"),
+    title = expression("Annual Temperature Change"~~degree*C~"/year"),
     title.position = "top", 
     title.hjust = 0.5,
     barwidth = unit(2.5, "in"),
@@ -1060,7 +1060,7 @@ heatwaves_91 %>%
   geom_line(aes(y = upper_shift, color = "MHW Threshold Change")) + 
   geom_line(aes(y = lower_shift, color = "MCS Threshold Change")) + 
   labs(x = "", 
-       y = expression("Shift in Expected Temperature"~degree~C),
+       y = expression("Shift in Expected Temperature"~degree*C),
        color = "") + 
   theme(legend.position = "bottom") +
   scale_color_gmri() +
