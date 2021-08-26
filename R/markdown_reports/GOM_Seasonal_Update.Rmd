@@ -33,7 +33,6 @@ library(sf)
 library(stars)
 library(gmRi)
 library(heatwaveR)
-library(plotly)
 library(gt)
 library(patchwork)
 library(tidyverse)
@@ -259,7 +258,7 @@ ggplot(seasonal_avgs, aes(yr, mean_temp)) +
               formula = y~x, method = "lm", color = gmri_cols("gmri blue"), se = FALSE) +
   labs(x = "Year",
        y = expression("Sea Surface Temperature"~~degree*C),
-       subtitle = str_c("Average", params$season, "Sea Surface Temperature"))
+       subtitle = str_c("Average ", params$season, " Sea Surface Temperature"))
 
 ```
 
@@ -269,7 +268,7 @@ Over the period of 1982-2020 the Gulf of Maine has warmed at a rate of `r decada
 ## `r params$season` Temperature Anomaly Record
 
 
-
+When looking at the temperature anomalies (departure from normal climate), we see the same pattern of rapid increase followed by a leveling off at temperatures $1-2~^oC$ above what they were previously.
 
 ```{r}
 # Figure
@@ -282,12 +281,13 @@ ggplot(seasonal_avgs, aes(yr, mean_anom)) +
               formula = y~x, method = "lm", color = gmri_cols("gmri blue"), se = FALSE) +
   labs(x = "Year",
        y = expression("Sea Surface Temperature Anomaly"~~degree*C),
-       subtitle = str_c("Average", params$season, "Sea Surface Temperature Anomaly"))
+       subtitle = str_c("Average ", params$season, " Sea Surface Temperature Anomaly"))
 ```
 
 
 ## Annual Trend
 
+If we look at the pattern for year-round temperature we can see that the Gulf of Maine has been warming at a rate higher than the global average of $0.15~^oC$ per decade. We can also see that that pause in summer temperature increase is less pronounced, an indication that other seasons are continuing to warm.
 
 ```{r yearly summaries}
 # Summarize by year to return mean annual anomalies and variance
@@ -449,7 +449,7 @@ num_hw_days <- sum(last_full_yr$mhw_event, na.rm = T)
 ```
 
 
-The temperatures observed this year, and how many heatwaves have occurred can be viewed below:
+Over the course of 2021 the Gulf of Maine has been in heatwave conditions for much of the year. Beginning with a marine heatwave event in January that persisted through until march. Another brief event happened mid-march, before a third event which ended in the end of April. The longest heatwave of the year began at the very end of April, lasting until the end of July, peaking at nearly $4^oC$ above what we would have considered "normal" for that time of year. Now back in August we again are in heatwave conditions in the $2-3~^oC$ range for temperature anomalies.
 
 
 ```{r}
@@ -489,7 +489,7 @@ ggplot(last_yr_heatwaves, aes(x = time)) +
          caption = paste0("Climate reference period :  1982-2011"))
 ```
 
-Changing the axis to anomalies rather than temperature looks like this:
+Changing the axis to anomalies rather than temperature the magnitude of the anomalies become more clear.
 
 
 ```{r}
@@ -562,24 +562,26 @@ heatwave_heatmap <- ggplot(grid_data, aes(x = flat_date, y = year)) +
   geom_point(data = filter(grid_data, mhw_event == TRUE),
              aes(x = flat_date, y = year), size = .25)  +
   scale_x_date(date_labels = "%b", date_breaks = "1 month", expand = c(0,0)) +
-  scale_y_continuous(limits = c(1980.5, 2021.5), expand = c(0,0)) +
-  labs(x = "", 
-       y = "",
+  scale_y_continuous(limits = c(1980.5, 2021.5), expand = c(0,0), breaks = seq(1980, 2020, by = 5)) +
+  labs(x = "Date Within the Year", 
+       y = "Year",
        "\nClimate reference period : 1982-2011") +
   
   #scale_fill_gradient2(low = "blue", mid = "white", high = "red") +
-  scale_fill_distiller(palette = "RdYlBu", na.value = "transparent", 
+  scale_fill_distiller(palette = "RdYlBu", 
+                       na.value = "transparent", 
                        limit = limit) +
   
   #5 inches is default rmarkdown height for barheight
   guides("fill" = guide_colorbar(title = guide_lab, 
                                  title.position = "right", 
                                  title.hjust = 0.5,
-                                 barheight = unit(4.8, "inches"), 
+                                 barheight = unit(4, "inches"), 
                                  frame.colour = "black", 
                                  ticks.colour = "black")) +  
-  theme_classic() +
-  theme(legend.title = element_text(angle = 90))
+  theme(legend.position = "right",
+        panel.border = element_rect(color = "black", fill = NA),
+        legend.title = element_text(angle = 90))
 
 
 
@@ -621,7 +623,7 @@ sfc <- st_as_sf(sfc)
 
 
 
-```{r warming rates functions}
+```{r warming rates}
 
 # Clip to the study area
 mask_ranks <- function(stars_obj, mask_shape){
@@ -679,6 +681,7 @@ low_rate <- region_ranks$`Min Rate`
 top_rank <- region_ranks$`Max Rank` *100
 top_rank <- ifelse(top_rank == 100, "greater than or equal to 99.5", top_rank)
 top_rate <- region_ranks$`Max Rate`
+
 ```
 
 Based on data from 1982-2020, the warming rates of Gulf of Maine have been some of the highest in the world. The area as a whole has been increasing at a rate of `r avg_rate`$^{\circ}C/year$ which is faster than `r avg_rank`% of the world's oceans. 
@@ -704,7 +707,7 @@ ranks_map <- ggplot() +
   geom_sf(data = region_extent, 
           color = "black", 
           fill = "transparent", linetype = 2, size = 0.5) +
-  scale_fill_viridis_c(limit = c(0.85, 1), 
+  scale_fill_viridis_c(limit = c(0.5, 1), 
                        oob = scales::oob_squish, 
                        na.value = "transparent") +
   map_theme +
@@ -718,10 +721,11 @@ ranks_map <- ggplot() +
     barwidth = unit(2.5, "in"),
     frame.colour = "black",
     ticks.colour = "black")) +
-  labs(caption = "Ranking color scale truncated to display ranges of 0.85-1 
-                  Lower values will display as 0.85 or 85%
-                  Contours every 2%")
+  labs(caption = "Ranking color scale truncated to display ranges of 0.5-1 
+                  Lower values will display as 0.5 or 50%
+                  Contours shown for every 2% change")
 
 # plot map
 ranks_map
+
 ```
