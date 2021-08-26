@@ -209,6 +209,7 @@ Regional warming trends below were calculated using all the available data for c
 # Summarize by year to return mean annual anomalies and variance
 annual_summary <- region_timeseries %>% 
   mutate(year = year(time)) %>% 
+  filter(year %in% c(1982:2020)) %>% 
   group_by(year) %>% 
   summarise(sst = mean(sst, na.rm = T),
             sst_anom = mean(sst_anom, na.rm = T), 

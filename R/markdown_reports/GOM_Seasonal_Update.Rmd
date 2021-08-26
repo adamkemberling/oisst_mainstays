@@ -84,6 +84,13 @@ timeseries_path <- region_paths[["apershing_gulf_of_maine"]][["timeseries_path"]
 poly_path     <- region_paths[["apershing_gulf_of_maine"]][["shape_path"]]
 ```
 
+`r gmRi::use_gmri_style_rmd(css = "gmri_rmarkdown.css")`
+
+```{r}
+# Turn on the gmri font for plots
+showtext::showtext_auto()
+```
+
 # Gulf of Maine Seasonal Sea Surface Temperature Report
 
 This report was created to track the seasonal patterns in sea surface temperature regimes for the Gulf of Maine as part of efforts by [the Gulf of Maine Research Institute](https://www.gmri.org).
@@ -812,3 +819,10 @@ ranks_map <- ggplot() +
 ranks_map
 
 ```
+
+
+
+
+
+
+`r insert_gmri_footer()`
