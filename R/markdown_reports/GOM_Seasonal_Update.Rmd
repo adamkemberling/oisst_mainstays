@@ -182,40 +182,57 @@ week_summaries <- season_data %>%
   left_join(week_data, by = "week") %>%
   group_by(`Week`) %>%
   summarise(
-    `Observed SST` = mean(area_wtd_sst),
-    `Climate Average` = mean(area_wtd_clim),
-    `Temperature Anomaly` = mean(area_wtd_anom),
+    temp_c = mean(area_wtd_sst),
+    clim_c = mean(area_wtd_clim),
+    anom_c = mean(area_wtd_anom),
     .groups = "drop") %>%
   mutate(
-    temp_f = as_fahrenheit(`Observed SST`),
-    clim_f = as_fahrenheit(`Climate Average`),
-    anom_f = as_fahrenheit(`Temperature Anomaly`, data_type = "anomalies")) %>% 
-  mutate(across(where(is.numeric), round, 2)) %>% 
+    temp_f = as_fahrenheit(temp_c),
+    clim_f = as_fahrenheit(clim_c),
+    anom_f = as_fahrenheit(anom_c, data_type = "anomalies")) %>% 
+  mutate(across(where(is.numeric), signif, 3)) %>% 
   mutate(
-    temp_both = str_c(`Observed SST`, " / ", temp_f),
-    clim_both = str_c(`Climate Average`, " / ", clim_f),
-    anom_both = str_c(`Temperature Anomaly`, " / ", anom_f)
-  )
+    temp_both = str_c(temp_f, "\u00b0 (", temp_f,"\u00b0)"),
+    clim_both = str_c(clim_f, "\u00b0 (", clim_f,"\u00b0)"),
+    anom_both = str_c(anom_f, "\u00b0 (", anom_f,"\u00b0)"))
 
 
 
 # Display Table for the weeks in this season
 week_summaries  %>% 
   select(
-    `Week`,
-    `Observed SST`,
-    `Climate Average`,
-    `Temperature Anomaly`) %>% 
-   gt() %>% 
+    Week,
+    temp_f,
+    temp_c,
+    clim_f,
+    clim_c,
+    anom_f,
+    anom_c) %>%
+   gt(rowname_col = "Week") %>% 
+   # gt() %>% 
     tab_header(
     title = md(paste0("**Weekly Sea Surface Temperatures - ", params$season, "**")), 
-    subtitle = paste("Temperature Unit: Celsius")) %>%
-  tab_source_note(
-    source_note = md("*Data Source: NOAA OISSTv2 Daily Sea Surface Temperature Data.*") ) %>% 
-  tab_source_note(md("*Climatology Reference Period: 1982-2011.*"))
+    subtitle = paste("Meteorological Summer (Jun-Aug)")) %>%
+    tab_stubhead(label = md("*One-Week Period*")) %>% 
+    tab_spanner(label = md("*Observed SST*"), 
+                columns = vars(`temp_f`, `temp_c`)) %>% 
+    tab_spanner(label = md("*Climate Average*"), 
+                columns = vars(`clim_f`, `clim_c`)) %>% 
+    tab_spanner(label = md("*Temperature Anomaly*"), 
+                columns = vars(`anom_f`, `anom_c`)) %>% 
+    cols_label(
+      # Week = md("**7-Day Period**"),
+      temp_f = "\u00b0F",
+      temp_c = "\u00b0C",
+      clim_f = "\u00b0F",
+      clim_c = "\u00b0C",
+      anom_f = "\u00b0F",
+      anom_c = "\u00b0C") %>% 
+    tab_source_note(source_note = md("*Data Source: NOAA OISSTv2 Daily Sea Surface Temperature Data.*") ) %>% 
+    tab_source_note(md("*Climatology Reference Period: 1982-2011.*"))
 
 
-```
+ ```
 
 
 
