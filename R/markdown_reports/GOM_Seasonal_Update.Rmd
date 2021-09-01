@@ -249,12 +249,15 @@ week_summaries  %>%
 # Get Seasonal Averages
 seasonal_avgs <- region_timeseries %>% 
   filter(season_eng == params$season,
-         yr %in% c(1982:2020)) %>% 
+         # yr %in% c(1982:2020)
+         between(time, as.Date("1982-01-01"), as.Date("2021-08-31"))
+         ) %>% 
   group_by(yr, season) %>% 
   summarise(
     mean_temp = mean(area_wtd_sst),
     mean_clim = mean(area_wtd_clim),
-    mean_anom = mean(area_wtd_anom),
+    mean_clim = if_else(yr == "2021", 14.7, mean_clim),
+    mean_anom = mean_temp - mean_clim,
     temp_f = as_fahrenheit(mean_temp),
     clim_f = as_fahrenheit(mean_clim),
     anom_f = as_fahrenheit(mean_anom, data_type = "anomalies"),
@@ -266,7 +269,7 @@ annual_rate <- coef(yr_mod)[[2]]
 decadal_rate <- round((annual_rate*10), 2)
 
 # Last Decade
-tenyr_mod <- lm(mean_temp ~ yr, filter(seasonal_avgs, yr %in% c(2010:2020)))
+tenyr_mod <- lm(mean_temp ~ yr, filter(seasonal_avgs, yr %in% c(2010:2021)))
 tenyr_rate <- coef(tenyr_mod)[[2]]
 tenyr_decadal <- round((tenyr_rate*10), 2)
 
@@ -276,7 +279,7 @@ ggplot(seasonal_avgs, aes(yr, mean_temp)) +
   geom_line(color = "gray20", linetype = 3) +
   geom_point(color = "gray20") +
   geom_smooth(formula = y~x, method = "lm", color = gmri_cols("orange"), se = FALSE) +
-  geom_smooth(data = filter(seasonal_avgs, yr %in% c(2010:2020)),
+  geom_smooth(data = filter(seasonal_avgs, yr %in% c(2011:2021)),
               aes(yr, mean_temp), linetype = 2,
               formula = y~x, method = "lm", color = gmri_cols("gmri blue"), se = FALSE) +
   labs(x = "Year",
@@ -297,12 +300,12 @@ ggplot(seasonal_avgs, aes(yr, mean_anom)) +
   geom_line(color = "gray20", linetype = 3) +
   geom_point(color = "gray20") +
   geom_smooth(formula = y~x, method = "lm", color = gmri_cols("orange"), se = FALSE) +
-  geom_smooth(data = filter(seasonal_avgs, yr %in% c(2010:2020)),
+  geom_smooth(data = filter(seasonal_avgs, yr %in% c(2011:2021)),
               aes(yr, mean_anom), linetype = 2,
               formula = y~x, method = "lm", color = gmri_cols("gmri blue"), se = FALSE) +
   labs(x = "Year",
        y = expression("Sea Surface Temperature Anomaly"~~degree*C),
-       subtitle = str_c("Average ", params$season, " Sea Surface Temperature Anomaly"))
+       subtitle = str_c(params$season, " Sea Surface Temperature Anomaly"))
 ```
 
 ## Annual Trend
