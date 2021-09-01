@@ -269,7 +269,7 @@ annual_rate <- coef(yr_mod)[[2]]
 decadal_rate <- round((annual_rate*10), 2)
 
 # Last Decade
-tenyr_mod <- lm(mean_temp ~ yr, filter(seasonal_avgs, yr %in% c(2010:2021)))
+tenyr_mod <- lm(mean_temp ~ yr, filter(seasonal_avgs, yr %in% c(2011:2021)))
 tenyr_rate <- coef(tenyr_mod)[[2]]
 tenyr_decadal <- round((tenyr_rate*10), 2)
 
