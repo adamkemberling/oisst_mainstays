@@ -161,6 +161,8 @@ season_data <- region_timeseries %>%
                 yr == year(Sys.Date())) %>% 
   mutate(week = week(time))
 
+# set end date so week's don't bleed over
+last_day <- max(season_data$time)
 
 # Process weekly subsets
 week_data <- season_data  %>% 
@@ -168,6 +170,7 @@ week_data <- season_data  %>%
   summarise(
     wk_start = floor_date(time, unit = "week"),
     wk_end   = ceiling_date(time, unit = "week"),
+    wk_end   = if_else(wk_end > last_day, last_day, wk_end),
     start_month = month(wk_start, label = T, abbr = T),
     end_month = month(wk_end, label = T, abbr = T),
     start_day = str_pad(day(wk_start), pad = "0", side = "left", width = 2),
@@ -235,6 +238,10 @@ week_summaries  %>%
 
 
 ```
+
+
+
+
 
 ## `r params$season` Temperature Record
 
@@ -644,7 +651,7 @@ data_window <- data.frame(lon = crop_x,
 # Load data
 season_anoms <- oisst_window_load(data_window = data_window, anomalies = T)
 season_anoms <- stack(season_anoms)
-season_mean <- mean(season_anoms)
+season_mean <- mean(season_anoms, na.rm = T)
 
 # Map it
 # Set palette limits to center it on 0 with scale_fill_distiller
@@ -673,7 +680,8 @@ season_map <- ggplot() +
           fill = "transparent") +
   scale_fill_distiller(palette = "RdYlBu", 
                        na.value = "transparent", 
-                       limit = limit) +
+                       limit = limit, 
+                       oob = scales::oob_squish) +
   map_theme +
   coord_sf(xlim = crop_x, 
            ylim = crop_y, 
