@@ -651,7 +651,7 @@ heatwave_heatmap
 
 ##  The Transition to a Warmer Climate
 
-An alternative visualization is to use a streamplot to track the changes in anomalies experienced through time as a fraction of the entire year. With this view it becomes clear to see both (1.) a reduction in the amount of days that the temperature is below the climate average, and (2.) a simultaneous reduction in the amount of days that temperatures are within half a degree of that average. With temperatures for much of the last decade are above $1~^oC$ the 30-year average from 1982-2011.
+As we move further away from our baseline climate period it becomes clear to see both: (1.) A reduction in the amount of days that the temperature is below the climate average, and (2.) A simultaneous reduction in the amount of days that temperatures are within half a degree of that average. With temperatures for much of the last decade are above $1~^oC$ the 30-year average from 1982-2011.
 
 ```{r}
 
@@ -793,9 +793,7 @@ season_map
 
 ## Warming Rate Ranking
 
-If we look at the rates of change for each grid cell, rather than the observed temperature, its possible to rank how hot each location on earth is warming relative to others.
-
-If we take the average ranking within the Gulf of Maine we can obtain the average warming rank for the area compared to the rest of the globe.
+If we look at the rates of change for each grid cell, rather than the observed temperature, its possible to rank how hot each location on earth is warming relative to others. By ranking those warming rates, and then taking the average ranking within the Gulf of Maine, we can obtain the average warming rank for our area compared to the rest of the globe.
 
 ```{r load warming rates}
 # 1. Warming Rates and Rankings
