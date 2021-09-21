@@ -22,7 +22,8 @@ knitr::opts_chunk$set(echo = FALSE,
                       message = F, 
                       warning = F, 
                       comment = "", 
-                      fig.align = "center")
+                      fig.align = "center", 
+                      dpi = 300)
 
 # Packages
 library(lubridate)
@@ -258,7 +259,7 @@ gtsave(data = week_summ_table, filename = here("R/markdown_reports/seasonal_upda
 
 ## `r params$season` Temperature Record
 
-```{r}
+```{r seasonal temp summary}
 # Get Seasonal Averages, #uses the max date for the season as date cutoff
 seasonal_avgs <- region_timeseries %>% 
   filter(season_eng == params$season,
@@ -274,6 +275,15 @@ seasonal_avgs <- region_timeseries %>%
     anom_f = as_fahrenheit(mean_anom, data_type = "anomalies"),
     .groups = "drop") 
   
+```
+
+
+
+
+```{r temp warming rates}
+
+# Get the rates of change for dynamic text
+
 # Decadal Rate
 yr_mod <- lm(mean_temp ~ yr, seasonal_avgs)
 annual_rate <- coef(yr_mod)[[2]]
@@ -283,24 +293,44 @@ decadal_rate <- round((annual_rate*10), 2)
 tenyr_mod <- lm(mean_temp ~ yr, filter(seasonal_avgs, yr %in% c(2011:2021)))
 tenyr_rate <- coef(tenyr_mod)[[2]]
 tenyr_decadal <- round((tenyr_rate*10), 2)
+```
 
+
+
+
+
+```{r temp figures}
 
 # Figure
-seasonal_temp_p <- ggplot(seasonal_avgs, aes(yr, mean_temp)) +
+seasonal_temp_c <- ggplot(seasonal_avgs, aes(yr, mean_temp)) +
   geom_line(color = "gray20", linetype = 3) +
   geom_point(color = "gray20") +
   geom_smooth(formula = y~x, method = "lm", color = gmri_cols("orange"), se = FALSE) +
   geom_smooth(data = filter(seasonal_avgs, yr %in% c(2011:2021)),
               aes(yr, mean_temp), linetype = 2,
               formula = y~x, method = "lm", color = gmri_cols("gmri blue"), se = FALSE) +
-  labs(x = "Year",
-       y = expression("Sea Surface Temperature"~~degree*C),
+  labs(x = "",
+       y = expression("SST"~~degree*C),
        subtitle = str_c("Average ", params$season, " Sea Surface Temperature"))
 
 
+# Fahrenheit
+seasonal_temp_f <- ggplot(seasonal_avgs, aes(yr, temp_f)) +
+  geom_line(color = "gray20", linetype = 3) +
+  geom_point(color = "gray20") +
+  geom_smooth(formula = y~x, method = "lm", color = gmri_cols("orange"), se = FALSE) +
+  geom_smooth(data = filter(seasonal_avgs, yr %in% c(2011:2021)),
+              aes(yr, temp_f), linetype = 2,
+              formula = y~x, method = "lm", color = gmri_cols("gmri blue"), se = FALSE) +
+  labs(x = "Year",
+       y = expression("SST"~~degree*"F"))
+
 
 # Show figure
+seasonal_temp_p <- seasonal_temp_c / seasonal_temp_f
 seasonal_temp_p
+
+
 
 # Save for Elijah
 ggsave(plot = seasonal_temp_p, filename = here("R/markdown_reports/seasonal_update_figs/Seasonal_temp_plot.png"), dpi = "retina", bg = "transparent")
@@ -320,22 +350,37 @@ max_anom_yr <- seasonal_avgs %>% arrange(desc(mean_anom)) %>% slice(1)
 
 `r str_to_title(params$season)`temperatures since 2008 have not fallen below $0.5~^oC$ with `r max_anom_yr$yr` remaining the hottest summer at `r max_anom_yr$mean_anom`$~^oC$ above the 30-year summer average.
 
-```{r}
+```{r seasonal anom plots}
 # Figure
-seasonal_anom_p <-ggplot(seasonal_avgs, aes(yr, mean_anom)) +
+seasonal_anom_c <- ggplot(seasonal_avgs, aes(yr, mean_anom)) +
   geom_line(color = "gray20", linetype = 3) +
   geom_point(color = "gray20") +
   geom_smooth(formula = y~x, method = "lm", color = gmri_cols("orange"), se = FALSE) +
   geom_smooth(data = filter(seasonal_avgs, yr %in% c(2011:2021)),
               aes(yr, mean_anom), linetype = 2,
               formula = y~x, method = "lm", color = gmri_cols("gmri blue"), se = FALSE) +
-  labs(x = "Year",
-       y = expression("Sea Surface Temperature Anomaly"~~degree*C),
+  labs(x = "",
+       y = expression("SST Anomaly"~~degree*C),
        subtitle = str_c(params$season, " Sea Surface Temperature Anomaly"))
+
+# Fahrenheit
+seasonal_anom_f <- ggplot(seasonal_avgs, aes(yr, anom_f)) +
+  geom_line(color = "gray20", linetype = 3) +
+  geom_point(color = "gray20") +
+  geom_smooth(formula = y~x, method = "lm", color = gmri_cols("orange"), se = FALSE) +
+  geom_smooth(data = filter(seasonal_avgs, yr %in% c(2011:2021)),
+              aes(yr, anom_f), linetype = 2,
+              formula = y~x, method = "lm", color = gmri_cols("gmri blue"), se = FALSE) +
+  labs(x = "Year",
+       y = expression("SST Anomaly"~~degree*"F"))
 
 
 # Show figure
+seasonal_anom_p <- seasonal_anom_c / seasonal_anom_f
 seasonal_anom_p
+
+
+
 
 # Save for Elijah
 ggsave(plot = seasonal_anom_p, filename = here("R/markdown_reports/seasonal_update_figs/Seasonal_anom_plot.png"), dpi = "retina", bg = "transparent")
