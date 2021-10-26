@@ -103,8 +103,9 @@ pull_heatwave_events <- function(temperature_timeseries,
                                  clim_ref_period = c("1982-01-01", "2011-12-31")) {
   
   # Pull the two column dataframe for mhw estimation
-  test_ts <- data.frame(t    = temperature_timeseries$time, 
-                        temp = temperature_timeseries$sst)
+  test_ts <- data.frame(t    = as.Date(temperature_timeseries$time), 
+                        # temp = temperature_timeseries$sst
+                        temp = temperature_timeseries$area_wtd_sst)
   
   # Detect the events in a time series
   ts  <- ts2clm(data = test_ts, 
@@ -158,7 +159,7 @@ pull_heatwave_events <- function(temperature_timeseries,
   # Close the gaps between a mhw event and sst (might not need if full line for temp exists)
   events_out <- events_out %>% 
     mutate(hwe = ifelse(is.na(hwe) & is.na(lag(hwe)) == FALSE, sst, hwe),
-           cse = ifelse(is.na(cse) & is.na(lag(cse)) == FALSE, sst, cse))%>% 
+           cse = ifelse(is.na(cse) & is.na(lag(cse)) == FALSE, sst, cse)) %>% 
     distinct(time, .keep_all = T)
   
   

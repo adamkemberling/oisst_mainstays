@@ -15,6 +15,7 @@ params:
     value: "Summer"
     input: select
     choices: !r c("Winter", "Spring", "Summer", "Fall")
+  Save Figures: FALSE
 ---
 
 ```{r setup, include=FALSE}
@@ -22,8 +23,7 @@ knitr::opts_chunk$set(echo = FALSE,
                       message = F, 
                       warning = F, 
                       comment = "", 
-                      fig.align = "center", 
-                      dpi = 300)
+                      fig.align = "center")
 
 # Packages
 library(lubridate)
@@ -35,6 +35,7 @@ library(stars)
 library(gmRi)
 library(heatwaveR)
 library(gt)
+library(gtExtras)
 library(patchwork)
 library(tidyverse)
 library(ggstream)
@@ -43,11 +44,6 @@ library(ggstream)
 # Support Functions
 source(here("R/oisst_support_funs.R"), verbose = FALSE)
 source(here("R/temp_report_support.R"), verbose = FALSE)
-
-# # Conflict prefer
-# conflicted::conflict_prefer("filter", "dplyr", quiet = T)
-# conflicted::conflict_prefer("select", "dplyr", quiet = T)
-# conflicted::conflict_prefer("area", "patchwork", quiet = T)
 
 #box paths
 box_paths <- research_access_paths()
@@ -84,10 +80,11 @@ region_paths <- get_timeseries_paths(region_group = "gmri_sst_focal_areas")
 timeseries_path <- region_paths[["apershing_gulf_of_maine"]][["timeseries_path"]]
 
 # Polygon Path
-poly_path     <- region_paths[["apershing_gulf_of_maine"]][["shape_path"]]
+poly_path <- region_paths[["apershing_gulf_of_maine"]][["shape_path"]]
 ```
 
 `r gmRi::use_gmri_style_rmd(css = "gmri_rmarkdown.css")`
+
 
 ```{r}
 # Turn on the gmri font for plots
@@ -117,6 +114,16 @@ crop_y <- st_bbox(region_extent)[c(2,4)]
 crop_x <- crop_x + c(-2.5, 2.5)
 crop_y <- crop_y + c(-1.5, 1)
 
+
+
+# Add bottom contours:
+
+
+
+
+
+
+
 # Full plot
 gom_extent_p <- ggplot() +
   geom_sf(data = new_england, fill = "gray90", size = .25) +
@@ -133,8 +140,7 @@ gom_extent_p <- ggplot() +
 # Show figure
 gom_extent_p
 
-# Save for Elijah
-ggsave(plot = gom_extent_p, filename = here("R/markdown_reports/seasonal_update_figs/GOM_extent_map.png"), dpi = "retina", bg = "transparent")
+
 
 ```
 
@@ -144,118 +150,169 @@ Area-specific time series are the most basic building block for relaying tempora
 
 By knowing how hot or cold it was in the past we can compare how observed temperatures compare with what the expected conditions are using a climatology from a specified reference period.
 
-This section highlights how the surface ocean temperatures of recent weeks compare to the climatological average spanning 1982-2011.
+This section highlights how the surface ocean temperatures of recent weeks compare to the climate average spanning 1982-2011.
 
 ```{r}
 # Load timeseries
-region_timeseries <- read_csv(timeseries_path, col_types = cols(), guess_max = 1e6)
-
-
-# format dates and seasons
-region_timeseries <- region_timeseries %>% 
+region_timeseries <- read_csv(timeseries_path, 
+                              col_types = cols(), 
+                              guess_max = 1e6) %>% 
+  distinct(time, .keep_all = T) %>% 
   mutate(time = as.Date(time),
          yr = year(time),
          month_num = month(time),
          month = month(time, label = T, abbr = T),
+         week = lubridate::week(time),
          doy = yday(time),
          season = metR::season(month_num, lang = "en"),
          season_eng = case_when(
            season == "SON" ~ "Fall",
            season == "DJF" ~ "Winter",
            season == "MAM" ~ "Spring",
-           season == "JJA" ~ "Summer")) 
+           season == "JJA" ~ "Summer"))
+
+# Get heatwave status
+# Uses area wtd sst by default
+region_hw <- pull_heatwave_events(temperature_timeseries = region_timeseries)
 
 
+# Format dates and seasons and heatwave outcomes
+region_hw <- region_hw %>% 
+  mutate(time = as.Date(time),
+         yr = year(time),
+         month_num = month(time),
+         month = month(time, label = T, abbr = T),
+         week = lubridate::week(time),
+         doy = yday(time),
+         season = metR::season(month_num, lang = "en"),
+         season_eng = case_when(
+           season == "SON" ~ "Fall",
+           season == "DJF" ~ "Winter",
+           season == "MAM" ~ "Spring",
+           season == "JJA" ~ "Summer")) %>% 
+  mutate(hw_outcomes = case_when(
+    mhw_event == TRUE ~ 1,
+    mcs_event == TRUE ~ 0,
+    TRUE ~ 0.5
+  ))
 
 
-# Subset data for the season, format date span for weeks
-season_data <- region_timeseries %>% 
+# Subset data for the season were looking at
+season_data <- region_hw %>% 
   dplyr::filter(season_eng == params$season,
-                yr == year(Sys.Date())) %>% 
-  mutate(week = week(time))
+                yr == year(Sys.Date())) 
 
-# set end date so week's don't bleed over
-last_day <- max(season_data$time)
+# Set end date so weeks don't bleed over
+first_day <- as.Date(min(season_data$time))
+last_day <- as.Date(max(season_data$time))
 
-# Process weekly subsets
-week_data <- season_data  %>% 
-  group_by(week) %>% 
-  summarise(
-    wk_start = floor_date(time, unit = "week"),
+# Set week start in the data so we can merge labels in accordingly later
+season_data <-  season_data %>% 
+  mutate(wk_start = floor_date(time, unit = "week"),
+         wk_start = if_else(wk_start < first_day, first_day, wk_start),
+         wk_start = as.Date(wk_start))
+
+
+
+
+
+#### BUG FIXING:
+#lubridate::week()
+# does not align weeks the same as floor_date and ceiling_date
+# outcome is week ID's that don't match floor/ceiling bookends
+
+
+# Format the start/end dates for weekly subsets
+week_labels <- season_data  %>% 
+  # Determine bookends for weeks and trim to season bookends
+  mutate(
     wk_end   = ceiling_date(time, unit = "week"),
-    wk_end   = if_else(wk_end > last_day, last_day, wk_end),
+    wk_end = if_else(wk_end > last_day, last_day, wk_end),
+    wk_end = as.Date(wk_end)) %>% 
+  # pull distinct weeks
+  distinct(time, wk_start, wk_end)  %>% 
+  # Add the month and day labels
+  mutate(
     start_month = month(wk_start, label = T, abbr = T),
     end_month = month(wk_end, label = T, abbr = T),
     start_day = str_pad(day(wk_start), pad = "0", side = "left", width = 2),
     end_day = str_pad(day(wk_end), pad = "0", side = "left", width = 2),
     `Week` = str_c(start_month, ", ", start_day, " - ", end_month, ", ", end_day),
-    `Week` = factor(`Week`),
-    .groups = "drop") %>% 
-  mutate(`Week` = fct_reorder(`Week`, .fun = median, .x = week))
+    `Week` = factor(`Week`)) %>%
+  # Ensure distinct weeks only, and arrange in chronological order
+  distinct(`Week`, .keep_all = T) %>% 
+  arrange(wk_start) %>% 
+  mutate(week_position = row_number())
     
     
 # rejoin the temperatures to get weekly summaries
-week_summaries <- season_data %>%
-  select(week, area_wtd_sst, area_wtd_clim, area_wtd_anom) %>%
-  left_join(week_data, by = "week") %>%
-  group_by(`Week`) %>%
+week_data <- season_data %>%
+  select(time, sst, seas, sst_anom, hw_outcomes, wk_start) %>%
+  left_join(week_labels, by = "wk_start") 
+
+
+# Process mean temps
+week_summaries <- week_data %>%
+  group_by(`Week`, week_position) %>%
   summarise(
-    temp_c = mean(area_wtd_sst),
-    clim_c = mean(area_wtd_clim),
-    anom_c = mean(area_wtd_anom),
-    .groups = "drop") %>%
+    temp_c = mean(sst),
+    clim_c = mean(seas),
+    anom_c = mean(sst_anom),
+    outcomes = list(hw_outcomes), # list column for showing what days were heatwaves
+    anomalies = list(sst_anom),
+    .groups = "drop") %>% 
+  mutate(`Week` = fct_reorder(`Week`, .x = week_position)) %>% 
+  arrange(week_position)
+
+
+
+
+# Fahrenheit formatting and column labels
+week_summaries <- week_summaries %>%
   mutate(
     temp_f = as_fahrenheit(temp_c),
     clim_f = as_fahrenheit(clim_c),
     anom_f = as_fahrenheit(anom_c, data_type = "anomalies")) %>% 
-  mutate(across(where(is.numeric), signif, 3)) %>% 
-  mutate(
-    temp_both = str_c(temp_f, "\u00b0 (", temp_f,"\u00b0)"),
-    clim_both = str_c(clim_f, "\u00b0 (", clim_f,"\u00b0)"),
-    anom_both = str_c(anom_f, "\u00b0 (", anom_f,"\u00b0)"))
+  mutate(across(where(is.numeric), signif, 3)) 
 
 
 
 # Display Table for the weeks in this season
 week_summ_table <- week_summaries  %>% 
   select(
-    Week,
-    temp_f,
-    temp_c,
-    clim_f,
-    clim_c,
-    anom_f,
-    anom_c) %>%
+    Week, temp_f, temp_c, clim_f, clim_c, anom_f, anom_c, outcomes) %>%
    gt(rowname_col = "Week") %>% 
     tab_header(
     title = md(paste0("**Weekly Sea Surface Temperatures - ", params$season, "**")), 
     subtitle = paste("Meteorological Summer (Jun-Aug)")) %>%
     tab_stubhead(label = md("*One-Week Period*")) %>% 
     tab_spanner(label = md("*Observed SST*"), 
-                columns = vars(`temp_f`, `temp_c`)) %>% 
+                columns = c(`temp_f`, `temp_c`)) %>% 
     tab_spanner(label = md("*Climate Average*"), 
-                columns = vars(`clim_f`, `clim_c`)) %>% 
+                columns = c(`clim_f`, `clim_c`)) %>% 
     tab_spanner(label = md("*Temperature Anomaly*"), 
-                columns = vars(`anom_f`, `anom_c`)) %>% 
+                columns = c(`anom_f`, `anom_c`)) %>% 
+  tab_spanner(label = md("*Heatwave Status:*"), columns = c(`outcomes`)) %>% 
+    #gt_sparkline(anomalies) %>% 
+    gt_plt_winloss(column = outcomes, 
+                   colors = c("red", "gray", "blue")) %>% 
     cols_label(
-      # Week = md("**7-Day Period**"),
       temp_f = "\u00b0F",
       temp_c = "\u00b0C",
       clim_f = "\u00b0F",
       clim_c = "\u00b0C",
       anom_f = "\u00b0F",
-      anom_c = "\u00b0C") %>% 
+      anom_c = "\u00b0C",
+      outcomes = "Heatwave | Normal | Coldspell") %>% 
     tab_source_note(source_note = md("*Data Source: NOAA OISSTv2 Daily Sea Surface Temperature Data.*") ) %>% 
     tab_source_note(md("*Climatology Reference Period: 1982-2011.*"))
 
 
 # # Display Table
-# week_summ_table
+week_summ_table
 
-
-# Save table
-gtsave(data = week_summ_table, filename = here("R/markdown_reports/seasonal_update_figs/weekly_summary_table.png"))
 ```
+
 
 ## `r params$season` Temperature Record
 
@@ -266,9 +323,15 @@ seasonal_avgs <- region_timeseries %>%
          between(time, as.Date("1982-01-01"), as.Date(last_day))) %>% 
   group_by(yr, season) %>% 
   summarise(
+    # # Not Area Weighted
+    # mean_temp = mean(sst),
+    # mean_clim = mean(sst_clim),
+    # mean_clim = median(mean_clim), # Makes sure any odd years are not different
+    # mean_anom = mean_temp - mean_clim,
+    # Area Weighted
     mean_temp = mean(area_wtd_sst),
     mean_clim = mean(area_wtd_clim),
-    mean_clim = if_else(yr == "2021", 14.7, mean_clim),
+    mean_clim = median(mean_clim), # Makes sure any odd years are not different
     mean_anom = mean_temp - mean_clim,
     temp_f = as_fahrenheit(mean_temp),
     clim_f = as_fahrenheit(mean_clim),
@@ -309,35 +372,34 @@ seasonal_temp_c <- ggplot(seasonal_avgs, aes(yr, mean_temp)) +
   geom_smooth(data = filter(seasonal_avgs, yr %in% c(2011:2021)),
               aes(yr, mean_temp), linetype = 2,
               formula = y~x, method = "lm", color = gmri_cols("gmri blue"), se = FALSE) +
+  scale_y_continuous(sec.axis = sec_axis(trans = ~as_fahrenheit(.), 
+                                         name = expression(degree*F))) +
   labs(x = "",
-       y = expression("SST"~~degree*C),
-       subtitle = str_c("Average ", params$season, " Sea Surface Temperature"))
+       y = expression(degree*C),
+       subtitle = str_c(params$season, " Sea Surface Temperature")) + 
+  theme(
+    axis.title.y.left = element_text(angle = 0, hjust = 0.5, vjust = 0.5),
+    axis.title.y.right = element_text(angle = 0, hjust = 0.5, vjust = 0.5))
 
-
-# Fahrenheit
-seasonal_temp_f <- ggplot(seasonal_avgs, aes(yr, temp_f)) +
-  geom_line(color = "gray20", linetype = 3) +
-  geom_point(color = "gray20") +
-  geom_smooth(formula = y~x, method = "lm", color = gmri_cols("orange"), se = FALSE) +
-  geom_smooth(data = filter(seasonal_avgs, yr %in% c(2011:2021)),
-              aes(yr, temp_f), linetype = 2,
-              formula = y~x, method = "lm", color = gmri_cols("gmri blue"), se = FALSE) +
-  labs(x = "Year",
-       y = expression("SST"~~degree*"F"))
 
 
 # Show figure
-seasonal_temp_p <- seasonal_temp_c / seasonal_temp_f
+seasonal_temp_p <- seasonal_temp_c
+# seasonal_temp_p <- seasonal_temp_c / seasonal_temp_f
 seasonal_temp_p
 
-
-
-# Save for Elijah
-ggsave(plot = seasonal_temp_p, filename = here("R/markdown_reports/seasonal_update_figs/Seasonal_temp_plot.png"), dpi = "retina", bg = "transparent")
-
+# most recent temp and anom
+this_yr <- year(Sys.Date())
+this_seas <- filter(seasonal_avgs, yr == this_yr)
+seas_temp <- round(this_seas$mean_temp, 2)
+seas_anom <- round(this_seas$mean_anom, 2)
 ```
 
-Over the period of 1982-2020 the Gulf of Maine has warmed at a rate of `r decadal_rate`$\frac{^oC}{Decade}$, and more recently at a rate of `r tenyr_decadal`$\frac{^oC}{Decade}$ for the last decade (since 2010). While the rate of summer warming has slowed, the average temperature over the three-month period has not fallen below $15^oC$ since 2007. Prior to 2007 this had only occurred seven times in 25 years (1982-2007).
+Over the period of 1982-2020 the Gulf of Maine has warmed at a rate of **`r decadal_rate`** $\frac{^oC}{Decade}$, and more recently at a rate of **`r tenyr_decadal`** $\frac{^oC}{Decade}$ for the last decade (2011-2021). 
+
+While the rate of summer warming has slowed, the average temperature over the three-month period has not fallen below $15^oC$ since 2007. Prior to 2007 this had only occurred seven times in 25 years (1982-2007).
+
+The average temperature for this `r tolower(params$season)` was `r seas_temp`$^oC$ / `r round(as_fahrenheit(seas_temp), 2)`$^oCF$. 
 
 ## `r params$season` Temperature Anomaly Record
 
@@ -359,33 +421,25 @@ seasonal_anom_c <- ggplot(seasonal_avgs, aes(yr, mean_anom)) +
   geom_smooth(data = filter(seasonal_avgs, yr %in% c(2011:2021)),
               aes(yr, mean_anom), linetype = 2,
               formula = y~x, method = "lm", color = gmri_cols("gmri blue"), se = FALSE) +
+  scale_y_continuous(sec.axis = sec_axis(trans = ~as_fahrenheit(., data_type = "anomalies"), 
+                                         name = expression(degree*F))) +
   labs(x = "",
-       y = expression("SST Anomaly"~~degree*C),
-       subtitle = str_c(params$season, " Sea Surface Temperature Anomaly"))
+       y = expression(degree*C),
+       subtitle = str_c(params$season, " Sea Surface Temperature Anomalies")) + 
+  theme(
+    axis.title.y.left = element_text(angle = 0, hjust = 0.5, vjust = 0.5),
+    axis.title.y.right = element_text(angle = 0, hjust = 0.5, vjust = 0.5))
 
-# Fahrenheit
-seasonal_anom_f <- ggplot(seasonal_avgs, aes(yr, anom_f)) +
-  geom_line(color = "gray20", linetype = 3) +
-  geom_point(color = "gray20") +
-  geom_smooth(formula = y~x, method = "lm", color = gmri_cols("orange"), se = FALSE) +
-  geom_smooth(data = filter(seasonal_avgs, yr %in% c(2011:2021)),
-              aes(yr, anom_f), linetype = 2,
-              formula = y~x, method = "lm", color = gmri_cols("gmri blue"), se = FALSE) +
-  labs(x = "Year",
-       y = expression("SST Anomaly"~~degree*"F"))
 
 
 # Show figure
-seasonal_anom_p <- seasonal_anom_c / seasonal_anom_f
+seasonal_anom_p <- seasonal_anom_c
 seasonal_anom_p
 
 
-
-
-# Save for Elijah
-ggsave(plot = seasonal_anom_p, filename = here("R/markdown_reports/seasonal_update_figs/Seasonal_anom_plot.png"), dpi = "retina", bg = "transparent")
-
 ```
+
+The average temperature anomaly for this `r tolower(params$season)` was `r seas_anom`$^oC$ / `r round(as_fahrenheit(seas_anom, "anomalies"), 2)`$^oCF$.
 
 ## Annual Trend
 
@@ -429,30 +483,33 @@ global_summary <- global_anoms %>%
 # Build Regression Equation Labels
 
 # 1. All years 
-lm_all <- lm(area_wtd_sst ~ year, data = filter(annual_summary, year %in% c(1982:2020))) %>% 
+lm_all <- lm(area_wtd_sst ~ year, 
+             data = filter(annual_summary, year %in% c(1982:2020))) %>% 
   coef() %>% 
   round(3)
 
-# 2. Last 15 years
-lm_15  <- lm(area_wtd_sst ~ year, data = filter(annual_summary, year %in% c(2006:2020))) %>% 
+# 2. Last 10 years
+lm_10  <- lm(area_wtd_sst ~ year, 
+             data = filter(annual_summary, year %in% c(2011:2020))) %>% 
   coef() %>% 
   round(3)
 
 # 3. Global - Area-weighted
-lm_global <- lm(area_wtd_sst ~ year, data = filter(global_summary, year %in% c(1982:2020))) %>% 
+lm_global <- lm(area_wtd_sst ~ year, 
+                data = filter(global_summary, year %in% c(1982:2020))) %>% 
   coef() %>% 
   round(3)
 
 
 # Convert yearly rate to decadal
 decade_all    <- lm_all['year'] * 10
-decade_15     <- lm_15['year'] * 10
+decade_10     <- lm_10['year'] * 10
 decade_global <- lm_global["year"] * 10
 
 
 # Equation to paste in
 eq_all    <- paste0(decade_all,    "\u00b0", "C / Decade")
-eq_15     <- paste0(decade_15,     "\u00b0", "C / Decade")
+eq_10     <- paste0(decade_10,     "\u00b0", "C / Decade")
 eq_global <- paste0(decade_global, "\u00b0", "C / Decade")
 
 ```
@@ -481,28 +538,28 @@ annual_trend_p <- ggplot(data = annual_summary, aes(yr_as_dtime, area_wtd_anom))
               aes(color = "1982-2020 Regional Trend"),
               formula = y ~ x, se = F,
               linetype = 1) +
-  geom_smooth(data = filter(annual_summary, year %in% c(2006:2020)),
-              method = "lm", 
-              aes(color = "2006-2020 Regional Trend"),
-              formula = y ~ x, se = F, 
-              linetype = 2) +
+  # geom_smooth(data = filter(annual_summary, year %in% c(2011:2021)),
+  #             method = "lm", 
+  #             aes(color = "2011-2020 Regional Trend"),
+  #             formula = y ~ x, se = F, 
+  #             linetype = 2) +
 
   
   # Manually add equations so they show yearly not daily coeff
   geom_text(data = data.frame(), 
             aes(label = eq_all, x = min(region_timeseries$time), y = Inf),
             hjust = 0, vjust = 2, color = gmri_cols("gmri blue")) +
-  geom_text(data = data.frame(), 
-            aes(label = eq_15, x = min(region_timeseries$time), y = Inf),
-            hjust = 0, vjust = 3.5, color = gmri_cols("orange")) +
+  # geom_text(data = data.frame(), 
+  #           aes(label = eq_10, x = min(region_timeseries$time), y = Inf),
+  #           hjust = 0, vjust = 3.5, color = gmri_cols("orange")) +
   geom_text(data = data.frame(), 
             aes(label = eq_global, x = min(region_timeseries$time), y = Inf),
-            hjust = 0, vjust = 5, color = gmri_cols("green")) +
+            hjust = 0, vjust = 3.5, color = gmri_cols("green")) +
 
   # Colors
   scale_color_manual(values = c(
     "1982-2020 Regional Trend" = as.character(gmri_cols("gmri blue")),
-    "2006-2020 Regional Trend" = as.character(gmri_cols("orange")),
+    # "2011-2020 Regional Trend" = as.character(gmri_cols("orange")),
     "1982-2020 Global Trend"   = as.character(gmri_cols("green")))) +
   
   # labels + theme
@@ -521,8 +578,6 @@ annual_trend_p <- ggplot(data = annual_summary, aes(yr_as_dtime, area_wtd_anom))
 # Show figure
 annual_trend_p
 
-# Save for Elijah
-ggsave(plot = annual_trend_p, filename = here("R/markdown_reports/seasonal_update_figs/annual_trend_plot.png"), dpi = "retina", bg = "transparent")
 ```
 
 ## Marine Heatwaves
@@ -531,20 +586,26 @@ A marine heatwave is defined as a situation when seawater temperatures exceeds a
 
 ```{r}
 # Use function to process heatwave data for plotting
-region_heatwaves <- pull_heatwave_events(region_timeseries, threshold = 90) %>% 
+region_heatwaves <- region_hw %>% 
   mutate(year = year(time),
          yday = yday(time))
 
+
+#### This section is mess b/c I am bouncing back and forth from last 365 days or the entire year
+
 # Grab data from the most recent year through present day to plot
 last_year <- Sys.Date() - 365
+this_yr <-  year(Sys.Date())
 
 #last_year <- last_year - yday(last_year) + 1
 last_yr_heatwaves <- region_heatwaves %>% 
-  filter(time >= last_year)
+  filter(
+    #time >= last_year,
+    year == this_yr)
 
-# Get number of heatwave events and total heatwave days for last year
+# Get number of heatwave events and total heatwave days for this
 # How many heatwave events:
-last_full_yr <- last_yr_heatwaves %>% filter(year(time) == year(last_year))
+last_full_yr <- last_yr_heatwaves
 num_events   <- max(last_full_yr$mhw_event_no, na.rm = T) - min(last_full_yr$mhw_event_no, na.rm = T)
 
 # How many heatwave days
@@ -601,8 +662,6 @@ hw_temp_p <- ggplot(last_yr_heatwaves, aes(x = time)) +
 # Show figure
 hw_temp_p
 
-# Save for Elijah
-ggsave(plot = hw_temp_p, filename = here("R/markdown_reports/seasonal_update_figs/Heatwave_temp_plot.png"), dpi = "retina", bg = "transparent")
 ```
 
 Changing the axis to anomalies rather than temperature the magnitude of the anomalies become more clear. The most severe marine heatwave event of this `r params$season` occurred during the month of June, when temperatures rose above $3.5~^oC$ above the climate average. Remember, the value of zero in this figure is the average daily temperature from the climate period of 1982-2011. Not a single day this year was within $0.5~^oC$ within that average temperature.
@@ -672,13 +731,11 @@ ggplot(aes(x = time)) +
 # Show figure
 hw_anom_p
 
-# Save for Elijah
-ggsave(plot = hw_anom_p, filename = here("R/markdown_reports/seasonal_update_figs/Heatwave_anom_plot.png"), dpi = "retina", bg = "transparent")
 ```
 
 ## Marine Heatwave Record
 
-To more clearly see the progression away from the temperature regime of the 80's and 90's and into a the warmer norm we can use a heatmap plot. This figure presents each year as a row, with each day within the year colored in accordance to how hot or cold it was relative to the climatology we've used. In this figure heatwave events are also displayed to highlight periods of exceptional deviance from the climate average.
+To more clearly see the progression away from the temperature regime of the 80's and 90's and into a the warmer norm we can use a heatmap. This figure presents each year as a row, with each day within the year colored in accordance to how hot or cold it was relative to the climatology we've used. In this figure heatwave events are also displayed to highlight periods of exceptional deviance from the climate average.
 
 With this view its apparent that since around 1999 the Gulf of Maine now see's a significant increase in the number and duration of marine heatwaves. Temperature anomalies have progressively increased and occurrences of temperatures below the climate average have become increasingly rare in recent years.
 
@@ -691,7 +748,7 @@ guide_lab <- expression("Sea Surface Temperature Anomaly"~degree*C)
 # use a flate_date so that they don't stair step
 base_date <- as.Date("2000-01-01")
 grid_data <- region_heatwaves %>% 
-  mutate(flat_date = as.Date(yday-1, origin = base_date))
+  mutate(flat_date = as.Date(yday-1, origin = base_date)) 
 
 
 # Set palette limits to center it on 0 with scale_fill_distiller
@@ -713,7 +770,9 @@ heatwave_heatmap <- ggplot(grid_data, aes(x = flat_date, y = year)) +
   geom_point(data = filter(grid_data, mhw_event == TRUE),
              aes(x = flat_date, y = year), size = .25)  +
   scale_x_date(date_labels = "%b", date_breaks = "1 month", expand = c(0,0)) +
-  scale_y_continuous(limits = c(1980.5, 2021.5), expand = c(0,0), breaks = seq(1980, 2020, by = 5)) +
+  scale_y_continuous(limits = c(1981.5, 2021.5), 
+                     expand = c(0,0),
+                     breaks = seq(1980, 2020, by = 5)) +
   labs(x = "Date Within the Year", 
        y = "Year",
        "\nClimate reference period : 1982-2011") +
@@ -741,9 +800,6 @@ heatwave_heatmap <- ggplot(grid_data, aes(x = flat_date, y = year)) +
 # Assemble pieces
 heatwave_heatmap
 
-
-# Save for Elijah
-ggsave(plot = heatwave_heatmap, filename = here("R/markdown_reports/seasonal_update_figs/Heatwave_heatmap_plot.png"), dpi = "retina", bg = "transparent")
 ```
 
 
@@ -827,8 +883,6 @@ hw_streamplot <- ggplot(day_types, aes(year, y = day_total, fill = `Anomaly Stre
 # Show figure
 hw_streamplot
 
-# Save for Elijah
-ggsave(plot = hw_streamplot, filename = here("R/markdown_reports/seasonal_update_figs/Heatwave_streamplot.png"), dpi = "retina", bg = "transparent")
 ```
 
 
@@ -893,8 +947,6 @@ season_map <- ggplot() +
 # Show figure
 season_map
 
-# Save for Elijah
-ggsave(plot = season_map, filename = here("R/markdown_reports/seasonal_update_figs/Seasonal_anom_map.png"), dpi = "retina", bg = "transparent")
 
 ```
 
@@ -1022,10 +1074,57 @@ ranks_map <- ggplot() +
 # plot map
 ranks_map
 
-
-# Save for Elijah
-ggsave(plot = ranks_map, filename = here("R/markdown_reports/seasonal_update_figs/Warming_rates_map.png"), dpi = "retina", bg = "transparent")
-
 ```
+
+
+
+
+```{r}
+# Export Figures
+if(params$`Save Figures`){
+  
+  # Gom Extent Map
+  ggsave(plot = gom_extent_p, filename = here("R/markdown_reports/seasonal_update_figs/GOM_extent_map.png"), dpi = "retina", bg = "transparent")
+  
+  
+  # Weekly Report Table
+  gtsave(data = week_summ_table, filename = here("R/markdown_reports/seasonal_update_figs/weekly_summary_table.png"))
+  
+  
+  # Seasonal Temperature Plot
+  ggsave(plot = seasonal_temp_p, filename = here("R/markdown_reports/seasonal_update_figs/Seasonal_temp_plot.png"), dpi = "retina", bg = "transparent")
+  
+  
+  # Seasonal Anomalies Plot
+  ggsave(plot = seasonal_anom_p, filename = here("R/markdown_reports/seasonal_update_figs/Seasonal_anom_plot.png"), dpi = "retina", bg = "transparent")
+  
+  
+  # Annual Temperature Trend Plot
+  ggsave(plot = annual_trend_p, filename = here("R/markdown_reports/seasonal_update_figs/annual_trend_plot.png"), dpi = "retina", bg = "transparent")
+  
+  
+  # Heatwave Temperature Plot
+  ggsave(plot = hw_temp_p, filename = here("R/markdown_reports/seasonal_update_figs/Heatwave_temp_plot.png"), dpi = "retina", bg = "transparent")
+  
+  
+  # Heatwave Anomaly Plot
+  ggsave(plot = hw_anom_p, filename = here("R/markdown_reports/seasonal_update_figs/Heatwave_anom_plot.png"), dpi = "retina", bg = "transparent")
+  
+  
+  # Heatwave Event Heatmap
+  ggsave(plot = heatwave_heatmap, filename = here("R/markdown_reports/seasonal_update_figs/Heatwave_heatmap_plot.png"), dpi = "retina", bg = "transparent")
+  
+  
+  # Heatwave Streamplot
+  ggsave(plot = hw_streamplot, filename = here("R/markdown_reports/seasonal_update_figs/Heatwave_streamplot.png"), dpi = "retina", bg = "transparent")
+  
+  # Season Map
+  ggsave(plot = season_map, filename = here("R/markdown_reports/seasonal_update_figs/Seasonal_anom_map.png"), dpi = "retina", bg = "transparent")
+  
+  # Ranks Map
+  ggsave(plot = ranks_map, filename = here("R/markdown_reports/seasonal_update_figs/Warming_rates_map.png"), dpi = "retina", bg = "transparent")
+}
+```
+
 
 `r insert_gmri_footer()`
