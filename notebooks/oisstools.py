@@ -1191,7 +1191,7 @@ def update_global_timeseries(yr_min, yr_max, box_root, var_name = "sst", referen
 
 
   # Merge standard and area weighted values
-  sst_join  = sst_df.merge(sst_wt_df, how = "left", on = ["time", "MOD"])
+  sst_join = sst_df.merge(sst_wt_df, how = "left", on = ["time", "MOD"])
   sst_join = sst_join.drop(columns=['modified_ordinal_day'])
   sst_join = sst_join[['time', 'MOD', 'sst', 'area_wtd_sst']]
 
@@ -1352,7 +1352,18 @@ def update_regional_timeseries_collection(start_yr, end_yr, region_collection, b
   for clim_ts, update_ts in zip(ts_list, complete_ts):
       # Append without overlap
       anomaly_ts = rejoin_climatology(old_ts = clim_ts, new_ts = update_ts)
+    
+      #### FLAG: WIP ####
+      # Sort
+      anomaly_ts = anomaly_ts.sort_values(by = "time")
+
+      # Drop duplicates
+      anomaly_ts = anomaly_ts.drop_duplicates(subset=['time'])
+    
+      # Add to list
       anomaly_timeseries.append(anomaly_ts)
+        
+        
 
 
   # Use the file paths we looked up before to set the save destinations and save them

@@ -432,18 +432,24 @@ For anything we wish to host on the web there is an option to display tables and
 ```{r}
 # Grab data from the most recent year through present day to plot
 last_year <- Sys.Date() - 365
-last_year <- last_year - yday(last_year) + 1
+#last_year <- last_year - yday(last_year) + 1
 last_yr_heatwaves <- region_heatwaves %>% 
   filter(time >= last_year)
 
 
 # Get number of heatwave events and total heatwave days for last year
 # How many heatwave events:
-last_full_yr <- last_yr_heatwaves %>% filter(year(time) == year(last_year))
+last_full_yr <- last_yr_heatwaves %>% 
+  filter(year(time) == year(last_year))
 num_events   <- max(last_full_yr$mhw_event_no, na.rm = T) - min(last_full_yr$mhw_event_no, na.rm = T)
 
-# How many heatwave days
-num_hw_days <- sum(last_full_yr$mhw_event, na.rm = T)
+# How many heatwave days 
+# Just this year
+this_yr <- last_yr_heatwaves %>% 
+  filter(year(time) == year(Sys.Date()))
+num_hw_days <- sum(this_yr$mhw_event, na.rm = T)
+
+
 ```
 
 
@@ -467,38 +473,83 @@ last_yr_heatwaves %>%
 color_vals <- c(
   "Sea Surface Temperature" = "royalblue",
   "Heatwave Event"          = "darkred",
-  #"Cold Spell Event"        = "lightblue",
   "MHW Threshold"           = "coral3",
-  #"MHW Threshold"           = "gray30",
-  #"MCS Threshold"           = "skyblue",
-  #"MCS Threshold"           = "gray30",
   "Daily Climatology"        = "gray30")
 
 
 # Set the label with degree symbol
-ylab <- expression("Sea Surface Temperature"~degree*C)
+ylab <- expression("Temperature"~degree*C)
 
 
 
 # Plot the last 365 days
-ggplot(last_yr_heatwaves, aes(x = time)) +
+hw_temp_p <- ggplot(last_yr_heatwaves, aes(x = time)) +
     geom_segment(aes(x = time, xend = time, y = seas, yend = sst), 
                  color = "royalblue", alpha = 0.25) +
     geom_segment(aes(x = time, xend = time, y = mhw_thresh, yend = hwe), 
                  color = "darkred", alpha = 0.25) +
     geom_line(aes(y = sst, color = "Sea Surface Temperature")) +
     geom_line(aes(y = hwe, color = "Heatwave Event")) +
-    #geom_line(aes(y = cse, color = "Cold Spell Event")) +
     geom_line(aes(y = mhw_thresh, color = "MHW Threshold"), lty = 3, size = .5) +
-    #geom_line(aes(y = mcs_thresh, color = "MCS Threshold"), lty = 3, size = .5) +
     geom_line(aes(y = seas, color = "Daily Climatology"), lty = 2, size = .5) +
     scale_color_manual(values = color_vals) +
     scale_x_date(date_labels = "%b", date_breaks = "1 month") +
     theme(legend.title = element_blank(),
+          legend.position = "none") +
+    labs(x = "", 
+         y = ylab)
+
+# Show Figure
+# hw_temp_p
+
+```
+
+
+
+```{r heatwave anomaly timeline}
+# Plot the last 365 days - anomaly scale
+linetype_key <- c(
+  "Sea Surface Temperature Anomaly" = 1,
+  "Heatwave Event"                  = 1,
+  "MHW Threshold"                   = 3,
+  "Daily Climatology"               = 2)
+
+# Same Plot as Anomalies
+hw_anom_p <- last_yr_heatwaves %>% 
+  mutate(
+    sst = sst,
+    seas = seas,
+    sst_anom = sst_anom,
+    mhw_thresh = mhw_thresh,
+    anom_thresh = mhw_thresh - seas,
+    anom_hwe = hwe - seas) %>% 
+ggplot(aes(x = time)) +
+    geom_segment(aes(x = time, xend = time, 
+                     y = 0, yend = sst_anom), 
+                 color = "royalblue", alpha = 0.25) +
+    geom_segment(aes(x = time, xend = time, 
+                       y = anom_thresh, yend = anom_hwe), 
+                 color = "darkred", alpha = 0.25) +
+    geom_line(aes(y = sst_anom, color = "Sea Surface Temperature Anomaly")) +
+    geom_line(aes(y = anom_hwe, color = "Heatwave Event")) +
+    geom_line(aes(y = anom_thresh, color = "MHW Threshold"), lty = 3, size = .5) +
+    geom_line(aes(y = 0, color = "Daily Climatology"), lty = 2, size = .5) +
+    scale_color_manual(values = color_vals) +
+    scale_linetype_manual(values = linetype_key, guide = "none") +
+    scale_x_date(date_labels = "%b", date_breaks = "1 month") +
+    guides(color = guide_legend(override.aes = list(linetype = linetype_key), nrow = 2)) +
+    theme(legend.title = element_blank(),
           legend.position = "top") +
     labs(x = "", 
-         y = ylab, 
+         y = expression("Anomaly"~~degree*C), 
          caption = paste0("Climate reference period :  1982-2011"))
+
+
+# Show figure
+#hw_anom_p
+
+hw_temp_p / hw_anom_p
+
 ```
 
 
@@ -602,7 +653,7 @@ hw_counts <- ggplot(wave_summary, aes(y = year, x = num_waves)) +
   geom_segment(aes(yend = year, xend = 0), 
                color = gmri_cols("gmri blue")) +
   geom_point(color = gmri_cols("gmri blue")) +
-  labs(x = "Heatwave Eents", y = "")
+  labs(x = "Heatwave Events", y = "")
 
 # average duration
 hw_lengths <- ggplot(wave_summary, aes(y = year, x = avg_length)) +
