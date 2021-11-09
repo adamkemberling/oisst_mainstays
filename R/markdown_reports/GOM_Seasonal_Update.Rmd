@@ -441,6 +441,46 @@ seasonal_anom_p
 
 The average temperature anomaly for this `r tolower(params$season)` was `r seas_anom`$^oC$ / `r round(as_fahrenheit(seas_anom, "anomalies"), 2)`$^oCF$.
 
+
+## How This Year Ranks
+
+
+```{r, fig.height = 3}
+# Rank the hottest years
+seasonal_ranks <- seasonal_avgs %>% 
+  mutate(yr = factor(yr),
+         year_rank = fct_reorder(.f = yr, .x = mean_temp, .fun = median, .desc = TRUE)) %>% 
+  arrange(year_rank) %>% 
+  mutate(rank = row_number(),
+         flag_year = ifelse(year_rank == this_yr, "flag", "unflag")) %>% 
+  filter(rank <= 5)
+
+# What rank are we this year?
+current_rank <- seasonal_ranks %>% filter(yr == this_yr) %>% pull(rank)
+
+
+# Plot them
+ggplot(seasonal_ranks, aes(x = mean_anom, xend = 0, 
+                          y = fct_rev(year_rank),
+                          yend = fct_rev(year_rank), 
+                          color = flag_year) ) +
+  geom_segment(size = 1) +
+  geom_point(aes(size  = flag_year)) +
+  scale_x_continuous(sec.axis = sec_axis(trans = ~as_fahrenheit(., data_type = "anomalies"), 
+                                          name = expression(Temperature~degree*F))) +
+  scale_color_manual(values = c("flag" = "darkred", "unflag" = "gray60")) +
+  scale_size_manual(values = c("flag" = 3, "unflag" = 1)) +
+  labs(x = expression(Temperature~degree*C),
+       y = "Seasonal Temperature Ranking") +
+  theme(legend.position = "none")
+```
+
+
+When compared against all previous years (1982-2020), this year ranks **# `r current_rank`** for hottest `r tolower(params$season)` on record.
+
+
+
+
 ## Annual Trend
 
 If we look at the pattern for year-round temperature we can see that the Gulf of Maine has been warming at a rate higher than the global average of $0.15~^oC$ per decade. We can also see that that pause in summer temperature increase is less pronounced, an indication that other seasons are continuing to warm.
