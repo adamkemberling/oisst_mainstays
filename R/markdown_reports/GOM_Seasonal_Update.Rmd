@@ -111,15 +111,24 @@ crop_x <- st_bbox(region_extent)[c(1,3)]
 crop_y <- st_bbox(region_extent)[c(2,4)]
 
 # Expand the area out to see the larger patterns
-crop_x <- crop_x + c(-2.5, 2.5)
-crop_y <- crop_y + c(-1.5, 1)
+crop_x <- crop_x + c(-2.25, 2.25)
+crop_y <- crop_y + c(-0.75, 0.75)
 
 
 
 # Add bottom contours:
+bathy <- raster("~/Documents/Repositories/Points_and_contours/NEShelf_Etopo1_bathy.tiff")
 
+# Contours for geom_contour()
+bathy_df <- as.data.frame(raster::coordinates(bathy))
+bathy_df$depth <- raster::extract(bathy, bathy_df)
+bathy_df$depth <- bathy_df$depth * -1
+contours_make <- c(50, 100, 250)
 
-
+# If we want contours as sf:
+# contours_make <- c(-50, -100, -250)
+# bathy_contours <- rasterToContour(bathy, levels = contours_make) %>% st_as_sf()
+# bathy_contours$level <- factor(bathy_contours$level, levels = as.character(contours_make))
 
 
 
@@ -129,6 +138,18 @@ gom_extent_p <- ggplot() +
   geom_sf(data = new_england, fill = "gray90", size = .25) +
   geom_sf(data = canada, fill = "gray90", size = .25) +
   geom_sf(data = greenland, fill = "gray90", size = .25) +
+  geom_contour(data = bathy_df, aes(x, y, z = depth),
+               breaks = contours_make,
+               color = "gray80") +
+  # metR::geom_text_contour(data = bathy_df, aes(x, y, z = depth),
+  #                   breaks = contours_make,
+  #                   color = "gray40",
+  #                   size = 1.4,
+  #                   min.size = 10,
+  #                   stroke = 0.2,
+  #                   rotate = FALSE,
+  #                   check_overlap = TRUE) +
+  coord_sf(xlim = c(-71.25, -65.25), ylim = c(41, 44.65), expand = FALSE) +
   geom_sf(data = region_extent, 
           color = gmri_cols("gmri blue"), 
           fill = gmri_cols("gmri blue"), alpha = 0.2, linetype = 2, size = 0.5) +
@@ -153,7 +174,7 @@ By knowing how hot or cold it was in the past we can compare how observed temper
 This section highlights how the surface ocean temperatures of recent weeks compare to the climate average spanning 1982-2011.
 
 ```{r}
-# Load timeseries
+# Load timeseries of SST for Region
 region_timeseries <- read_csv(timeseries_path, 
                               col_types = cols(), 
                               guess_max = 1e6) %>% 
@@ -171,7 +192,10 @@ region_timeseries <- read_csv(timeseries_path,
            season == "MAM" ~ "Spring",
            season == "JJA" ~ "Summer"))
 
-# Get heatwave status
+
+
+
+# Get heatwave status for each day:
 # Uses area wtd sst by default
 region_hw <- pull_heatwave_events(temperature_timeseries = region_timeseries)
 
@@ -190,11 +214,11 @@ region_hw <- region_hw %>%
            season == "DJF" ~ "Winter",
            season == "MAM" ~ "Spring",
            season == "JJA" ~ "Summer")) %>% 
+  # Heatwave Status Outcomes
   mutate(hw_outcomes = case_when(
     mhw_event == TRUE ~ 1,
     mcs_event == TRUE ~ 0,
-    TRUE ~ 0.5
-  ))
+    TRUE ~ 0.5))
 
 
 # Subset data for the season were looking at
@@ -228,7 +252,7 @@ week_labels <- season_data  %>%
   mutate(
     wk_end   = ceiling_date(time, unit = "week"),
     wk_end = if_else(wk_end > last_day, last_day, wk_end),
-    wk_end = as.Date(wk_end)) %>% 
+    wk_end = as.Date(wk_end) - 1) %>% 
   # pull distinct weeks
   distinct(time, wk_start, wk_end)  %>% 
   # Add the month and day labels
@@ -259,7 +283,7 @@ week_summaries <- week_data %>%
     clim_c = mean(seas),
     anom_c = mean(sst_anom),
     outcomes = list(hw_outcomes), # list column for showing what days were heatwaves
-    anomalies = list(sst_anom),
+    #anom_list = list(sst_anom), # list column for sparkline anomalies
     .groups = "drop") %>% 
   mutate(`Week` = fct_reorder(`Week`, .x = week_position)) %>% 
   arrange(week_position)
@@ -293,9 +317,9 @@ week_summ_table <- week_summaries  %>%
     tab_spanner(label = md("*Temperature Anomaly*"), 
                 columns = c(`anom_f`, `anom_c`)) %>% 
   tab_spanner(label = md("*Heatwave Status:*"), columns = c(`outcomes`)) %>% 
-    #gt_sparkline(anomalies) %>% 
+    # gt_sparkline(outcomes, range_colors = c("blue", "red"), line_color = "gray50", ) %>% 
     gt_plt_winloss(column = outcomes, 
-                   colors = c("red", "gray", "blue")) %>% 
+                   colors = c(as.character(gmri_cols("orange")), "gray", as.character(gmri_cols("gmri blue")))) %>% 
     cols_label(
       temp_f = "\u00b0F",
       temp_c = "\u00b0C",
