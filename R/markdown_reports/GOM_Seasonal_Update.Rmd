@@ -19,6 +19,7 @@ output: distill::distill_article
 # Parameters
 params <- list(
   season = "Summer",
+  `Save Data` = FALSE,
   `Save Figures` = FALSE)
 
 
@@ -51,8 +52,8 @@ source(here("R/oisst_support_funs.R"), verbose = FALSE)
 source(here("R/temp_report_support.R"), verbose = FALSE)
 
 #box paths
-box_paths <- research_access_paths()
-oisst_path <- box_paths$oisst_mainstays
+#box_paths <- research_access_paths()
+oisst_path <- box_path("res", "OISST/oisst_mainstays")
 
 
 # Set ggplot theme for figures
@@ -450,6 +451,45 @@ seasonal_temp_p
 ```
 
 
+```{r saving seasonal averages}
+
+
+if(params$`Save Data`){
+  
+
+# Rename so there is 0 chance of confusion
+save_season_avg <- seasonal_avgs %>% 
+  select(
+    year = yr,
+    months = season,
+    temp_c = mean_temp,
+    temp_f = temp_f,
+    climate_avg_c = mean_clim,
+    climate_avg_f = clim_f,
+    temp_anom_c = mean_anom,
+    temp_anom_f = anom_f) %>% 
+  mutate(season = params$season, .before = "months") %>% 
+  mutate(across(where(is.numeric), round,2))
+
+
+  # # Check plots:
+  # ggplot(save_season_avg, aes(year, temp_f)) +
+  #   geom_point() + 
+  #   geom_line(linetype = 3) +
+  #   geom_smooth(method = "lm", se = FALSE, show.legend = FALSE, formula = y ~ x, linetype = 4)
+
+
+# Save locally
+update_name <- str_c(here("R/markdown_reports/seasonal_update_data/"),
+                     "Gulf-of-Maine_SST_",
+                     params$season,
+                     "_Averages_GMRI_",
+                     str_remove_all(Sys.Date(), "[-]"),
+                     ".csv")
+write_csv(save_season_avg, 
+          file = update_name)
+}
+```
 
 
 While the rate of summer warming has slowed, the average temperature over the three-month period has not fallen below $15^oC$ since 2007. Prior to 2007 this had only occurred seven times in 25 years (1982-2007).
@@ -465,14 +505,15 @@ The average temperature for this `r tolower(params$season)` was `r seas_temp`$^o
 climate_baseline <- seasonal_avgs$mean_clim[1]
 
 # Plot the summers, use box plots for yearly distribution
-seasonal_temp_dist <- ggplot(filter(region_timeseries, season_eng == params$season), 
+seasonal_temp_dist <- ggplot(
+  filter(region_timeseries, season_eng == params$season), 
        aes(yr, area_wtd_sst, group = yr)) +
   geom_boxplot(color = "gray60") + 
   geom_segment(x = 1982, xend = 2011, y = 20.5, yend = 20.5, color = "black") +
   geom_segment(x = 1982, xend = 1982, y = 20, yend = 21, color = "black") +
   geom_segment(x = 2011, xend = 2011, y = 20, yend = 21, color = "black") +
   annotate(x = 1997, y = 21.5, label = "Climate-Reference Period", geom = "text", size = 3) +
-  geom_hline(linetype = 1, size = 0.75, aes(yintercept = climate_baseline, color = "30-Year Climate Average")) + 
+  geom_hline(linetype = 2, size = 0.75, aes(yintercept = climate_baseline, color = "30-Year Climate Average")) + 
   scale_y_continuous(sec.axis = sec_axis(trans = ~as_fahrenheit(., data_type = "anomalies"), name = expression(Temperature~degree*F))) +
   labs(x = "", y = expression(Temperature~degree*C),
        subtitle = str_c("Majority of ", params$season, " Temperatures Now Exceed Climate Average"),
@@ -1139,6 +1180,7 @@ If we look at the rates of change for each grid cell, rather than the observed t
 
 ```{r load warming rates}
 # 1. Warming Rates and Rankings
+oisst_path <- box_path("res", "OISST/oisst_mainstays")
 rates_path <- paste0(oisst_path, "warming_rates/annual_warming_rates")
 rates_stack_all <- stack(str_c(rates_path, "1982to2020.nc"), 
                          varname = "annual_warming_rate")
@@ -1156,7 +1198,7 @@ sfc <- st_sfc(st_polygon(list(
 sfc <- st_as_sf(sfc)
 ```
 
-```{r warming rates}
+```{r warming rates masking}
 
 # Clip to the study area
 mask_ranks <- function(stars_obj, mask_shape){
@@ -1218,46 +1260,124 @@ Based on data from 1982-2020, the warming rates of Gulf of Maine have been some 
 
 Over that same period locations within the Gulf of Maine have been warming at rates as low as `r low_rate`$^{\circ}C/year$ and as rapidly as `r top_rate`$^{\circ}C/year$, corresponding to ranks as low as `r low_rank`% and as high as `r top_rank`%.
 
-```{r map warming rates}
-# Make stars object
-rank_stars <- st_as_stars(ranks_masked)
+```{r map warming rates, eval = FALSE}
+# # Make stars object
+# rank_stars <- st_as_stars(ranks_masked)
+# 
+# # Make Contours
+# ranks_contour <-  st_contour(x = rank_stars, na.rm = T, breaks = seq(0.85, 1, by = 0.02))
+# 
+# 
+# # ranks map
+# ranks_map <- ggplot() +
+#   geom_stars(data = rank_stars) +
+#   geom_sf(data = ranks_contour, fill = "transparent", color = "gray25", size = 0.25) +
+#   geom_sf(data = new_england, fill = "gray90", size = .25) +
+#   geom_sf(data = canada, fill = "gray90", size = .25) +
+#   geom_sf(data = greenland, fill = "gray90", size = .25) +
+#   geom_sf(data = region_extent,
+#           color = "black",
+#           fill = "transparent", linetype = 2, size = 0.5) +
+#   scale_y_continuous(breaks = seq(-90, 90, by = 2)) +
+#   scale_fill_viridis_c(limit = c(0.95, 1),  #option = "plasma",
+#                        oob = scales::oob_squish, 
+#                        na.value = "transparent") +
+#   map_theme +
+#   coord_sf(
+#     xlim = crop_x,
+#     ylim = crop_y,
+#     expand = F) +
+#   guides("fill" = guide_colorbar(
+#     title = expression("Global Percentile of Warming Rates"),
+#     title.position = "top", 
+#     title.hjust = 0.5,
+#     barwidth = unit(2.5, "in"),
+#     frame.colour = "black",
+#     ticks.colour = "black")) +
+#   labs(caption = "Ranking color scale truncated to display ranges of 0.5-1 
+#                   Contours shown for every 2% change")
+# 
+# # plot map
+# ranks_map
 
-# Make Contours
-ranks_contour <-  st_contour(x = rank_stars, na.rm = T, breaks = seq(0.85, 1, by = 0.02))
+```
+
+
+```{r highlighting gom warming rate, eval = TRUE, layout="l-body-outset", fig.width=6, fig.height=4}
+# for an expanded view need to use the global ranks
+world_rank_stars <- st_as_stars(rotate(ranks_stack_all))
 
 
 # ranks map
-ranks_map <- ggplot() +
-  geom_stars(data = rank_stars) +
-  geom_sf(data = ranks_contour, fill = "transparent", color = "gray25", size = 0.25) +
-  geom_sf(data = new_england, fill = "gray90", size = .25) +
-  geom_sf(data = canada, fill = "gray90", size = .25) +
-  geom_sf(data = greenland, fill = "gray90", size = .25) +
-  geom_sf(data = region_extent, 
-          color = "black", 
+global_ranks_zoom <- ggplot() +
+  geom_stars(data = world_rank_stars) +
+  geom_sf(data = new_england, color = "gray80", fill = "#36454F", size = .075) +
+  geom_sf(data = canada, color = "gray80", fill = "#36454F", size = .075) +
+  geom_sf(data = greenland, color = "gray80", fill = "#36454F", size = .075) +
+  geom_sf(data = region_extent,
+          color = "black",
           fill = "transparent", linetype = 2, size = 0.5) +
-  scale_y_continuous(breaks = seq(30, 50, by = 2)) +
-  scale_fill_viridis_c(limit = c(0.5, 1), 
-                       oob = scales::oob_squish, 
-                       na.value = "transparent") +
+  scale_y_continuous(breaks = seq(-90, 90, by = 5)) +
+  scale_x_continuous(breaks = seq(-90, 40, by = 10)) +
+  scale_fill_viridis_c(limit = c(0.95, 1),  
+                       option = "plasma",
+                       #oob = scales::oob_squish, 
+                       na.value = "black") +
   map_theme +
-  coord_sf(xlim = crop_x, 
-           ylim = crop_y, 
-           expand = F) +
+  coord_sf(
+    xlim = c("xmin" = -77, "xmax" = -50),
+    ylim = c("ymin" = 32, "ymax" = 48),
+    expand = T) +
   guides("fill" = guide_colorbar(
     title = expression("Global Percentile of Warming Rates"),
     title.position = "top", 
     title.hjust = 0.5,
     barwidth = unit(2.5, "in"),
     frame.colour = "black",
-    ticks.colour = "black")) +
-  labs(caption = "Ranking color scale truncated to display ranges of 0.5-1 
-                  Lower values will display as 0.5 or 50%
-                  Contours shown for every 2% change")
+    ticks.colour = "black")) 
+
+
+# ranks zoomed_out
+global_ranks <- ggplot() +
+  geom_stars(data = world_rank_stars) +
+  geom_sf(data = world, color = "gray80", fill = "#36454F", size = .1) +
+  scale_fill_viridis_c(limit = c(0.95, 1),  
+                       option = "plasma",
+                       #oob = scales::oob_squish, 
+                       na.value = "black") +
+  map_theme +
+  coord_sf(expand = F) +
+  scale_y_continuous(breaks = seq(-90, 90, by = 30)) +
+  guides("fill" = guide_colorbar(title = expression("Global Percentile of Warming Rates"),
+                                 title.position = "top", 
+                                 title.hjust = 0.5,
+                                 barwidth = unit(2.5, "in"),
+                                 frame.colour = "black",
+                                 ticks.colour = "black"))  +
+  theme(axis.text.x = element_blank())
+
 
 # plot map
-ranks_map
+ranks_global_figure <- (global_ranks_zoom | global_ranks ) + 
+  plot_layout(guides = "collect") & 
+  theme(legend.position = "bottom")
 
+
+# plot patchwork
+ranks_global_figure
+
+
+
+# ggforce is cool but does not work well with patchwork:
+# ggforce::geom_mark_ellipse(data = data.frame("lon" = c(-71, -65, -65, -70), 
+#                                              "lat" = c( 45.1, 45.1, 40.3, 40.3),
+#                                              "region" = "Gulf of Maine"),
+#                            aes(lon, lat, label = region),
+#                            color = "white", linetype = 2, 
+#                            expand = c(0),
+#                            label.colour = "white", con.colour = "white", 
+#                            label.buffer = unit(3, "cm"),
+#                            label.fill = "transparent") +
 ```
 
 
@@ -1307,6 +1427,13 @@ if(params$`Save Figures`){
   
   # Ranks Map
   ggsave(plot = ranks_map, filename = here("R/markdown_reports/seasonal_update_figs/Warming_rates_map.png"), dpi = "retina", bg = "transparent")
+  
+  
+  # ranks global
+  ggsave(plot = ranks_global_figure, 
+         filename = here("R/markdown_reports/seasonal_update_figs/Warming_ranks_global_map.png"), 
+         dpi = "retina", bg = "transparent"
+  )
 }
 ```
 
