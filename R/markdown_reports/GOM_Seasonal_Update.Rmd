@@ -643,39 +643,14 @@ The same trends can be seen when looking through the lens of temperature anomali
 max_anom_yr <- seasonal_avgs %>% arrange(desc(mean_anom)) %>% slice(1)
 ```
 
-`r params$season`temperatures since 2008 have not fallen below $0.5~^oC$ with `r max_anom_yr$yr` remaining the hottest summer at `r max_anom_yr$mean_anom`$~^oC$ above the 30-year summer average.
+`r params$season`temperatures since 2008 have not fallen below $0.5~^oC$ with `r max_anom_yr$yr` positioned as the hottest `r tolower(params$season)` at `r max_anom_yr$mean_anom`$~^oC$ above the 30-year summer average.
 
-```{r seasonal anom plots}
-# # Figure
-# seasonal_anom_p <- ggplot(seasonal_avgs, aes(yr, mean_anom)) +
-#   geom_line(color = "gray20", linetype = 3) +
-#   geom_point(color = "gray20") +
-#   geom_smooth(formula = y~x, method = "lm", color = gmri_cols("orange"), se = FALSE) +
-#   geom_smooth(data = filter(seasonal_avgs, yr %in% c(2011:2021)),
-#               aes(yr, mean_anom), linetype = 2,
-#               formula = y~x, method = "lm", color = gmri_cols("gmri blue"), se = FALSE) +
-#   scale_y_continuous(sec.axis = sec_axis(trans = ~as_fahrenheit(., data_type = "anomalies"), 
-#                                          name = expression(degree*F))) +
-#   labs(x = "",
-#        y = expression(degree*C),
-#        subtitle = str_c(params$season, " Sea Surface Temperature Anomalies")) + 
-#   theme(
-#     axis.title.y.left = element_text(angle = 0, hjust = 0.5, vjust = 0.5),
-#     axis.title.y.right = element_text(angle = 0, hjust = 0.5, vjust = 0.5))
-# 
-# 
-# 
-# # Show figure
-# seasonal_anom_p
-# 
-
-```
 
 The average temperature anomaly for this `r tolower(params$season)` was `r seas_anom`$^oC$ / `r round(as_fahrenheit(seas_anom, "anomalies"), 2)`$^oF$.
 
 
 
-```{r daily anomalies figure, fig.height = 6, fig.width=8}
+```{r daily anomalies figure}
 #warmest year details:
 warmest_year <- as.numeric(seasonal_avgs[seasonal_avgs$mean_temp == max(seasonal_avgs$mean_temp), "season_yr"])
 
@@ -704,7 +679,7 @@ season_anom_p <- ggplot(region_timeseries, aes(time, area_wtd_anom)) +
                     label.fill = "transparent", 
                     label.fontsize = 9, 
                     linetype = 2,
-                    label.buffer = unit(1, "cm")) +
+                    label.buffer = unit(1.25, "cm")) +
   scale_y_continuous(sec.axis = sec_axis(trans = ~as_fahrenheit(., data_type = "anomalies"), name = expression(Temperature~Anomaly~degree*F))) +
   labs(x = "", y = expression(Temperature~Anomaly~degree*C), subtitle = str_c(params$season, " Sea Surface Temperature Anomalies"))
 
