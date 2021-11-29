@@ -389,7 +389,7 @@ week_summ_table <- week_summaries  %>%
    gt(rowname_col = "Week") %>% 
     tab_header(
     title = md(paste0("**Weekly Sea Surface Temperatures - ", params$season, "**")), 
-    subtitle = paste("Meteorological Summer (Jun-Aug)")) %>%
+    subtitle = paste("Meteorological", params$season, "(Sep-Nov)")) %>%
     tab_stubhead(label = md("*One-Week Period*")) %>% 
     tab_spanner(label = md("*Observed SST*"), 
                 columns = c(`temp_f`, `temp_c`)) %>% 
