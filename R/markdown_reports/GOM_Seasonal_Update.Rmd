@@ -185,8 +185,7 @@ gom_extent_p
 ```
 
 
-For the data within this seasonal report, include data for `r params$season` following the meteorological definitions for the seasons. This is in contrast to the astrological seasons, which track with Earth's tilt in relationship to the sun. Using this meteorological system the first days of March, June, September, and December each mark the start of Meteorological Spring, Summer, Fall and Winter respectively. 
-
+For the data within this seasonal report, we include data for `r params$season` that follows the meteorological definitions for the seasons. Under this system the first days of March, June, September, and December each mark the start of Meteorological Spring, Summer, Fall and Winter respectively.
 
 ```{r season circle, eval = TRUE}
 
@@ -245,12 +244,12 @@ ggplot(met_seasons_df) +
 
 ## Weekly Temperatures: `r params$season` 
 
-Knowing how hot or cold it was in the past gives us a baseline that we can compare with temperatures we observe today. In the below table, we highlight how the surface ocean temperature for each week this summer (observed SST) compares to a 30-year baseline period (climate average) that spans from 1982 to 2011. The table shows the absolute values as well as the departures from that long-term average (temperature anomalies).
+Knowing how hot or cold it was in the past gives us a baseline that we can compare against temperatures we observe today. In the below table, we highlight how the surface ocean temperature for each week this summer (observed SST) compares to a 30-year baseline period (climate average) that spans from 1982 to 2011. The table shows the absolute values as well as the departures from that long-term average (temperature anomalies).
 
 We can learn two important lessons by looking at data this way:
 
- 1. The SST anomalies in July were lower than they were in June or August, meaning the month of July was relatively cooler (it was also significantly wetter).   
- 2. **Even in that “cool” month of July, the Gulf of Maine was still close to 2°C warmer than normal** (and almost 3°C warmer than normal for stretches in June and August).   
+ 1. The SST anomalies in September were lower than they were in October or November, meaning the month of September was relatively cooler than the rest of `r tolower(params$season)`.   
+ 2. **Even in that “cool” month of September, the Gulf of Maine was still between to 1.6 & 2.9°C warmer than normal** (and as much as 3°C warmer than normal for a week in October).   
 
 ```{r heatwave timeseries setup}
 # Load timeseries of SST for Region
@@ -618,7 +617,7 @@ seasonal_temp_dist <- ggplot(
        subtitle = str_c("Above Average ", params$season, " Temperatures the New Normal"),
        color = "") +
   scale_color_manual(values = c("30-Year Climate Average" = "darkred")) +
-  theme(legend.position = c(0.78, 0.1), 
+  theme(legend.position = c(0.8, 0.09), 
         legend.background = element_blank(),
         legend.key = element_blank())
 
@@ -697,14 +696,15 @@ season_anom_p <- ggplot(region_timeseries, aes(time, area_wtd_anom)) +
               aes(x = time, y = area_wtd_anom),
               formula = y~x, method = "lm", se = FALSE,
               color = "darkred", linetype = 4, size = 1) +
-  ggforce::geom_mark_ellipse(data = filter(seasonal_avgs, yr == warmest_year), 
-                             aes(x = season_center, 
-                                 y = mean_anom, 
-                                 label = str_c(round(mean_temp, 2), "\u00b0", "C  |  ", round(temp_f, 2), "\u00b0", "F")), 
-                             description = str_c("Warmest ", params$season, " on Record"), 
-                             label.fill = "transparent", label.fontsize = 8, 
-                             linetype = 2,
-                             label.buffer = unit(1, "cm")) +
+  geom_mark_ellipse(data = filter(seasonal_avgs, yr == warmest_year), 
+                    aes(x = season_center, 
+                        y = mean_anom, 
+                        label = str_c(round(mean_temp, 2), "\u00b0", "C  |  ", round(temp_f, 2), "\u00b0", "F")), 
+                    description = str_c("Warmest ", params$season, " on Record"), 
+                    label.fill = "transparent", 
+                    label.fontsize = 9, 
+                    linetype = 2,
+                    label.buffer = unit(1, "cm")) +
   scale_y_continuous(sec.axis = sec_axis(trans = ~as_fahrenheit(., data_type = "anomalies"), name = expression(Temperature~Anomaly~degree*F))) +
   labs(x = "", y = expression(Temperature~Anomaly~degree*C), subtitle = str_c(params$season, " Sea Surface Temperature Anomalies"))
 
@@ -735,23 +735,29 @@ current_rank <- seasonal_ranks %>% filter(yr == this_yr) %>% pull(rank)
 `r this_yr` is among the warmest years seen in the Gulf of Maine during this 40+ year period. When compared against all previous years (1982-2020), this year ranks **# `r current_rank`** for hottest `r tolower(params$season)` on record.
 
 
-```{r, fig.height = 2}
+```{r, fig.height = 3}
+
 
 # Plot them
-ggplot(seasonal_ranks, aes(x = mean_anom, xend = 0, 
-                          y = fct_rev(year_rank),
-                          yend = fct_rev(year_rank), 
+ggplot(seasonal_ranks, aes(x = mean_anom, 
+                           xend = 0, 
+                           y = rank,
+                           yend = rank, 
                           color = flag_year) ) +
   geom_segment(size = 1) +
-  geom_point(aes(size  = flag_year)) +
+  geom_label(aes(label = year_rank, size  = flag_year)) +
+  scale_y_reverse(breaks = seq(1, 5, 1), expand = c(0, 0.5)) +
   scale_x_continuous(sec.axis = sec_axis(trans = ~as_fahrenheit(., data_type = "anomalies"), 
-                                          name = expression(Temperature~degree*F))) +
+                                          name = expression(Average~Temperature~Anomaly~degree*F)), expand = c(0,0.15)) +
   scale_color_manual(values = c("flag" = "darkred", "unflag" = "gray60")) +
-  scale_size_manual(values = c("flag" = 3, "unflag" = 1)) +
-  labs(x = expression(Temperature~degree*C),
-       y = "",
-       subtitle = "Seasonal Temperature Rankings:") +
-  theme(legend.position = "none")
+  scale_size_manual(values = c("flag" = 4, "unflag" = 3)) +
+  labs(x = expression(Average~Temperature~Anomaly~degree*C),
+       y = "Seasonal Warming Ranking") +
+  theme(legend.position = "none", 
+        panel.grid.major.y = element_blank(),
+        panel.grid.minor.y = element_blank(),
+        panel.grid.minor.x = element_blank()
+        )
 ```
 
 
