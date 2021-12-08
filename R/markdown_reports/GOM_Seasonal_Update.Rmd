@@ -1435,7 +1435,8 @@ global_ranks <- ggplot() +
                                  barwidth = unit(2.5, "in"),
                                  frame.colour = "black",
                                  ticks.colour = "black"))  +
-  theme(axis.text.x = element_blank())
+  theme(axis.text.x = element_blank(),
+        axis.ticks.x = element_blank())
 
 
 # plot map
