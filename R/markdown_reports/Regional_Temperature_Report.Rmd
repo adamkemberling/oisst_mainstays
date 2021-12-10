@@ -992,10 +992,10 @@ sfc <- st_as_sf(sfc)
 ```{r warming rates functions}
 
 # Clip to the study area
-mask_ranks <- function(stars_obj, mask_shape){
+mask_ranks <- function(ras_obj, mask_shape){
   
   # Get stats from ranks
-  m1 <- mask(rotate(stars_obj), mask_shape)
+  m1 <- mask(rotate(ras_obj), mask_shape)
   m1 <- crop(m1, mask_shape)
   return(m1)
 }

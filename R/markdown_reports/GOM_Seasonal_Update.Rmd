@@ -1247,6 +1247,100 @@ season_map
 
 ```
 
+Average monthly temperatures are displayed below:
+
+```{r month avgs, eval = TRUE, layout="l-body-outset", fig.width=6, fig.height=4}
+# Load the monthly average array
+monthly_avgs <- stack(str_c(oisst_path, "monthly_averages/oisst_monthly.nc"), varname = "sst")
+
+# Drop days from name
+monthly_avgs <- setNames(monthly_avgs, str_sub(names(monthly_avgs), 1, -4))
+
+# Make names for the months to pull based on the season and current year
+season_months <- switch(params$season,
+  "Spring" = str_c("X", this_yr, ".", c("03", "04", "05")),
+  "Summer" = str_c("X", this_yr, ".", c("06", "07", "08")),
+  "Fall" = str_c("X", this_yr, ".", c("09", "10", "11")),
+  "Winter" = map2(c(this_yr-1, this_yr, this_yr), c("12","01","02"), ~ str_c("X", .x, ".", .y))
+)
+
+# pull months
+display_months <- unstack(monthly_avgs[[season_months]])
+display_months <- setNames(display_months, season_months)
+
+
+
+# Clip to the study exxpanded area
+# Expanded area
+expanded_area <- structure(c(crop_x, crop_y),  
+                           class = "bbox",
+  crs = 4326) %>% 
+  st_as_sfc() %>% 
+  st_as_sf()
+mask_ranks <- function(ras_obj, mask_shape){
+  
+  # Get stats from ranks
+  m1 <- raster::mask(rotate(ras_obj), mask_shape)
+  m1 <- raster::crop(m1, mask_shape)
+  return(m1)
+}
+
+# Perform masking
+months_masked <- map(display_months, mask_ranks, expanded_area)
+
+# Make plots for each
+month_plots <- imap(months_masked, function(month_avg_layer, month_id){
+  
+  # # tester
+  # month_avg_layer <- months_masked[[1]]
+  # month_id <- names(display_months[[1]])
+  
+  # Set up text label  
+  month_label <- str_sub(month_id, 2, -1)
+  month_label <- str_replace(month_label, "[.]", "-")
+  
+  # Make stars object for plot
+  month_stars <- st_as_stars(month_avg_layer)
+  
+  # build plot
+  month_fig <- ggplot() +
+    geom_stars(data = month_stars) +
+    geom_sf(data = new_england, fill = "gray90", size = .25) +
+    geom_sf(data = canada, fill = "gray90", size = .25) +
+    geom_sf(data = greenland, fill = "gray90", size = .25) +
+    geom_sf(data = region_extent, 
+            color = "black", 
+            linetype = 2, size = 0.5,
+            fill = "transparent") +
+    scale_y_continuous(breaks = seq(30, 50, by = 2)) +
+    scale_fill_distiller(palette = "RdYlBu", 
+                         limit = c(10, 30),
+                         oob = scales::squish) +
+    map_theme +
+    theme(title = element_text(hjust = 0.5, size = 8),
+          axis.text = element_text(size = 6)) +
+    coord_sf(xlim = crop_x, 
+             ylim = crop_y, 
+             expand = T) +
+    guides("fill" = guide_colorbar(
+      title = expression(" Average Temperature"~degree*C),
+      title.position = "top",
+      title.hjust = 0.5,
+      barwidth = unit(3, "in"),
+      frame.colour = "black",
+      ticks.colour = "black")) +
+      labs(title = str_c(month_label))
+  return(month_fig)
+  
+  
+})
+
+# assemble plots
+(month_plots[[1]] | month_plots[[2]] | month_plots[[3]]) + plot_layout(guides = "collect")  & theme(legend.position = 'bottom')
+
+```
+
+
 ## Warming Rate Ranking
 
 If we look at the rates of change for each grid cell on Earth’s surface, rather than a plot of SST over time, it is possible to rank how each location on Earth is warming relative to others. By ranking those warming rates, and then taking the average ranking across the Gulf of Maine, we can obtain the average warming rank for our area compared to the rest of the globe.
@@ -1445,6 +1539,11 @@ ranks_global_figure <- (global_ranks_zoom | global_ranks ) +
   theme(legend.position = "bottom")
 
 
+ranks_global_vertical <- (global_ranks_zoom / global_ranks ) + 
+  plot_layout(guides = "collect") & 
+  theme(legend.position = "bottom")
+
+
 # plot patchwork
 ranks_global_figure
 
@@ -1514,6 +1613,12 @@ if(params$`Save Figures`){
   # ranks global
   ggsave(plot = ranks_global_figure, 
          filename = here("R/markdown_reports/seasonal_update_figs/Warming_ranks_global_map.png"), 
+         dpi = "retina", bg = "transparent"
+  )
+  
+  
+  ggsave(plot = ranks_global_vertical, 
+         filename = here("R/markdown_reports/seasonal_update_figs/Warming_ranks_global_vert.png"), 
          dpi = "retina", bg = "transparent"
   )
 }
