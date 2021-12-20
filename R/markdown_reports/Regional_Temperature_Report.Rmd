@@ -48,13 +48,10 @@ library(ggalt)
 source(here("R/oisst_support_funs.R"))
 source(here("R/temp_report_support.R"))
 
-#box paths
-box_paths <- research_access_paths()
-
 
 # File Paths
-mills_path <- box_paths$mills
-oisst_path <- box_paths$oisst_mainstays
+mills_path <- box_path("mills")
+oisst_path <- box_path("res", "OISST/oisst_mainstays")
 
 
 # Set ggplot theme for figures
@@ -126,8 +123,14 @@ if(tolower(params$region) == "cpr gulf of maine"){
   crop_y <- c(40.375,   45.125)}
 
 
-# one off shapes
-# region_extent <- read_sf(paste0(res_path, ""))
+# Add the bottom contours:
+bathy <- raster("~/Documents/Repositories/Points_and_contours/NEShelf_Etopo1_bathy.tiff")
+
+# Contours for geom_contour()
+bathy_df <- as.data.frame(raster::coordinates(bathy))
+bathy_df$depth <- raster::extract(bathy, bathy_df)
+bathy_df$depth <- bathy_df$depth * -1
+contours_make <- c(50, 100, 250)
 
 # Full plot
 ggplot() +
@@ -137,6 +140,9 @@ ggplot() +
   geom_sf(data = region_extent, 
           color = gmri_cols("gmri blue"), 
           fill = gmri_cols("gmri blue"), alpha = 0.2, linetype = 2, size = 0.5) +
+  geom_contour(data = bathy_df, aes(x, y, z = depth),
+               breaks = contours_make,
+               color = "gray80") +
   map_theme +
   coord_sf(xlim = crop_x, 
            ylim = crop_y, expand = T) 
