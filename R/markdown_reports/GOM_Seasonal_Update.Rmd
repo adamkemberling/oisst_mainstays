@@ -91,14 +91,12 @@ poly_path <- region_paths[["apershing_gulf_of_maine"]][["shape_path"]]
 
 ```{r param setup, echo = FALSE}
 
-# Turn on the gmri font for plots
-showtext::showtext_auto()
-
 # Parameters
 params <- list(
   season = "Fall",
   `Save Data` = FALSE,
-  `Save Figures` = TRUE)
+  `Save Figures` = FALSE)
+
 
 # Current date checking:
 reporting_date <- Sys.Date()
@@ -142,6 +140,10 @@ season_months <- switch(params$season,
   "Fall" = str_c("X", this_yr, ".", c("09", "10", "11")),
   "Winter" = map2(c(this_yr-1, this_yr, this_yr), c("12","01","02"), ~ str_c("X", .x, ".", .y))
 )
+
+
+# Turn on the gmri font for plots
+showtext::showtext_auto()
 ```
 
 
@@ -773,7 +775,6 @@ temp_rankings_p
 
 If we look at the pattern for year-round temperature we can see that the Gulf of Maine has been warming at a rate higher than the global average of $0.15~^oC$ per decade. 
 
-We also see a less-pronounced pause than in summer temperature increases, an indication that other seasons are continuing to warm even if the Summer warming has slowed.
 
 ```{r yearly summaries}
 # Summarize by year to return mean annual anomalies and variance
@@ -978,7 +979,14 @@ hw_temp_p <- ggplot(last_yr_heatwaves, aes(x = time)) +
           legend.position = "bottom") +
     labs(x = "", 
          y = "Sea Surface Temperature", 
-         subtitle = "2021: Heatwave Conditions")
+         subtitle = "2021: Heatwave Conditions") #+
+  
+    # # Anomalies on same plot
+    # geom_segment(aes(x = time, xend = time, 
+    #                    y = 0, yend = sst_anom), 
+    #              color = "darkred", alpha = 0.25) +
+    # geom_line(aes(y = sst_anom), color = "darkred") +
+    # geom_line(aes(y = 0), color = "gray30", linetype = 2) +
 
 
 # Show figure
@@ -989,19 +997,6 @@ hw_temp_p
 Changing the axis to anomalies rather than temperature the magnitude of the anomalies become more clear. The most severe marine heatwave event of this `r params$season` occurred during the month of June, when temperatures rose above $3.5~^oC$ above the climate average. Remember, the value of zero in this figure is the average daily temperature from the climate period of 1982-2011. Not a single day this year was within $0.5~^oC$ within that average temperature.
 
 ```{r}
-
-# # math check
-# last_yr_heatwaves %>% 
-#   transmute(
-#     sst = sst,
-#     seas = seas,
-#     sst_anom = sst_anom,
-#     mhw_thresh = mhw_thresh,
-#     anom_thresh = mhw_thresh - seas,
-#     anom_hwe = hwe - seas,
-#     sst_check = anom_hwe == sst_anom,
-#     thresh_check = (seas + anom_thresh) == mhw_thresh) %>% 
-#   head()
 
 # Color & linetype keys
 color_vals <- c(
@@ -1282,6 +1277,8 @@ season_map
 Average monthly temperature anomalies are displayed below. From these we can see that warm temperature anomalies along the Southeastern edge of Georges Bank were very clear, but that the region as a whole was warmer than the climate of the recent past.
 
 ```{r month avgs, eval = TRUE, layout="l-body-outset", fig.width=6, fig.height=4}
+
+
 # Load the monthly average array
 monthly_avgs <- stack(str_c(oisst_path, "monthly_averages/oisst_monthly.nc"), varname = "sst_anom")
 
@@ -1295,13 +1292,15 @@ display_months <- setNames(display_months, season_months)
 
 
 
-# Clip to the study exxpanded area
+# Clip to the study expanded area
 # Expanded area
 expanded_area <- structure(c(crop_x, crop_y),  
                            class = "bbox",
   crs = 4326) %>% 
   st_as_sfc() %>% 
   st_as_sf()
+
+# function to mask
 mask_ranks <- function(ras_obj, mask_shape){
   
   # Get stats from ranks
@@ -1321,8 +1320,12 @@ month_plots <- imap(months_masked, function(month_avg_layer, month_id){
   # month_id <- names(display_months[[1]])
   
   # Set up text label  
-  month_label <- str_sub(month_id, 2, -1)
-  month_label <- str_replace(month_label, "[.]", "-")
+  # month_label <- str_sub(month_id, 2, -1)
+  # month_label <- str_replace(month_label, "[.]", "-")
+  month_yr <- str_sub(month_id, 2, 5)
+  month_number <- as.numeric(str_sub(month_id, -2, -1))
+  month_label <- str_c(month.name[month_number], ", ", month_yr)
+  
   
   # Make stars object for plot
   month_stars <- st_as_stars(month_avg_layer)

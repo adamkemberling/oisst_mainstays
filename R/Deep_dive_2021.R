@@ -9,12 +9,12 @@ library(raster)
 library(patchwork)
 library(heatwaveR)
 library(tidyverse)
+library(lubridate)
 library(ggforce)
-library(magrittr)
 
 #box paths
-box_paths <- research_access_paths()
-res_path <-  box_paths$res
+# box_paths <- research_access_paths()
+res_path <-  box_path("res")
 
 # Support Functions
 source(here("R/oisst_support_funs.R"))
@@ -25,16 +25,14 @@ theme_set(theme_bw())
 
 
 # OISST Data
-gom_oisst <- oisst_access_timeseries(oisst_path = box_paths$oisst_mainstays, 
-                                     region_family = "gmri focus areas", 
+gom_oisst <- oisst_access_timeseries(region_family = "gmri focus areas", 
                                      poly_name = "apershing gulf of maine")
 
 
 # Plot 2012 and 2021
 gom_oisst <- gom_oisst %>% 
   mutate(time = as.Date(time),
-         yr = str_sub(time, 1, 4)) %>% 
-  select(time, yr, sst, sst_anom) 
+         yr = year(time)) 
 
 
 # Pull Heatwaves
@@ -55,7 +53,7 @@ gom_hw <- gom_hw %>%
 
 
 gom_21 <- gom_hw %>% 
-  filter(year %in% c("2012", "2016", "2021"),
+  filter(year %in% c("2012", "2021"),
          month < 12)
 
 # Pull out a single year to plot the climatology just once
@@ -163,14 +161,14 @@ excess_temp <- gom_21 %>%
   theme(legend.position = "bottom")
 
 # # stack and plot
-# hw_days | excess_temp
+hw_days | excess_temp
 
 
 ####  Monthly Comparisons  ####
 
 # Monthly Summary
 month_summs <- gom_21 %>% 
-  filter(month %in% c(1:6)) %>% 
+  filter(month %in% c(1:12)) %>% 
   group_by(year, month) %>% 
   summarise(
     avg_temp = mean(sst),
@@ -183,7 +181,6 @@ month_summs <- gom_21 %>%
   mutate(month = factor(month.abb[month], levels = month.abb))
 
 ggplot(month_summs, aes(x = month, y = avg_anom)) +
-  geom_line(aes(color = year,group = year)) +
   geom_col(aes(fill = year), position = "dodge")+
   scale_fill_gmri() +
   labs(y = expression("Average Temerature Anomaly"~~degree~C),
@@ -327,8 +324,8 @@ gom_21 %>%
 
 # cumulative degrees
 gom_21 %>% 
-  group_by(year)
-  summarise()
+  group_by(year) %>% 
+  summarise(excess_temp = sum(sst_anom))
 
 
 
