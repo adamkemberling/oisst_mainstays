@@ -53,7 +53,26 @@ oisst_path <- box_path("res", "OISST/oisst_mainstays")
 
 
 # Set ggplot theme for figures
-theme_set(theme_bw())
+theme_set(theme_bw() + 
+            theme(
+              # Titles
+              plot.title = element_text(hjust = 0.5),
+              # Axes
+              axis.line.y = element_line(),
+              axis.ticks.y = element_line(), 
+              axis.line.x = element_line(),
+              axis.ticks.x = element_line(), 
+              axis.text = element_text(size = 11),
+              # Facets
+              strip.text = element_text(color = "white", 
+                                        face = "bold",
+                                        size = 11),
+              strip.background = element_rect(
+                color = "white", 
+                fill = "#36454F", 
+                size = 1, 
+                linetype="solid"))
+          )
 
 
 # Set theme up for maps
@@ -654,7 +673,7 @@ The same trends can be seen when looking through the lens of temperature anomali
 max_anom_yr <- seasonal_avgs %>% arrange(desc(mean_anom)) %>% slice(1)
 ```
 
-`r params$season`temperatures since 2008 have not fallen below $0.5~^oC$ with `r max_anom_yr$yr` positioned as the hottest `r tolower(params$season)` at `r max_anom_yr$mean_anom`$~^oC$ above the 30-year summer average.
+`r params$season` temperatures since 2008 have not fallen below $0.5~^oC$ with `r max_anom_yr$yr` positioned as the hottest `r tolower(params$season)` at `r max_anom_yr$mean_anom`$~^oC$ above the 30-year summer average.
 
 
 The average temperature anomaly for this `r tolower(params$season)` was `r seas_anom`$^oC$ / `r round(as_fahrenheit(seas_anom, "anomalies"), 2)`$^oF$.
@@ -691,7 +710,7 @@ regional_anom_p <- ggplot(region_timeseries, aes(time, area_wtd_anom)) +
                     linetype = 2) +
   # Place the text manually
   geom_mark_ellipse(data = filter(seasonal_avgs, yr == warmest_year), 
-                    aes(x = season_center-(365*10), 
+                    aes(x = season_center-(365*8), 
                         y = mean_anom + 1.75, 
                         label = str_c(round(mean_temp, 2), "\u00b0", "C  |  ", round(temp_f, 2), "\u00b0", "F")), 
                     color = "transparent",
@@ -712,8 +731,34 @@ regional_anom_p <- ggplot(region_timeseries, aes(time, area_wtd_anom)) +
 
 
 # Show figure
-regional_anom_p  
+regional_anom_p
 ```
+
+
+
+
+
+
+```{r}
+# Hottest Daily Temperature
+daily_peak <- region_timeseries %>% 
+  filter(season_eng == params$season,
+         season_yr == year(Sys.Date())) %>% 
+  top_n(n = 1, wt = sst_anom) %>% 
+  select(time, sst, area_wtd_sst, sst_clim, area_wtd_clim,  sst_anom, area_wtd_anom) %>% 
+  mutate(
+    temp_f = as_fahrenheit(sst),
+    area_wtd_temp_f = as_fahrenheit(area_wtd_sst),
+    clim_f = as_fahrenheit(sst_clim),
+    area_wtd_clim_f = as_fahrenheit(area_wtd_clim),
+    anom_f = as_fahrenheit(sst_anom, data_type = "anomalies"),
+    area_wtd_anom_f = as_fahrenheit(area_wtd_anom, data_type = "anomalies")
+    
+  ) %>% 
+  mutate(across(.cols = is.numeric, .fns = round, 2))
+```
+
+Daily temperature anomalies this season peaked on `r daily_peak$time`, at `r daily_peak$area_wtd_anom`C | `r daily_peak$area_wtd_anom_f`F degrees above the long-term average.
 
 ## How Does `r this_yr` Compare?
 
