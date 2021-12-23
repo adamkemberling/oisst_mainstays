@@ -12,6 +12,32 @@ library(tidyverse)
 library(lubridate)
 library(ggforce)
 
+# ggplot theme
+theme_set(theme_bw() + 
+            theme(
+              # Titles
+              plot.title = element_text(hjust = 0.5),
+              # Axes
+              axis.line.y = element_line(),
+              axis.ticks.y = element_line(), 
+              axis.line.x = element_line(),
+              axis.ticks.x = element_line(), 
+              axis.text = element_text(size = 11),
+              # Facets
+              strip.text = element_text(color = "white", 
+                                        face = "bold",
+                                        size = 11),
+              strip.background = element_rect(
+                color = "white", 
+                fill = "#36454F", 
+                size = 1, 
+                linetype="solid"), 
+              # Legends
+              legend.position = "bottom", 
+              legend.background = element_rect(fill = "transparent", 
+                                               color = "black"))
+)
+
 #box paths
 # box_paths <- research_access_paths()
 res_path <-  box_path("res")
@@ -156,12 +182,12 @@ excess_temp <- gom_21 %>%
   scale_color_manual(values = c("2021" = as.character(gmri_cols("orange")),
                                 "2012" = as.character(gmri_cols("gmri blue")))) +
   labs(y = "Excess Temperature Above 'Norm'",
-       x = "Date",
+       x = "",
        color = "") +
   theme(legend.position = "bottom")
 
 # # stack and plot
-hw_days | excess_temp
+(hw_days | excess_temp) + plot_annotation(title = "Comparing the top two hottest years:")
 
 
 ####  Monthly Comparisons  ####
@@ -180,11 +206,11 @@ month_summs <- gom_21 %>%
   ungroup() %>% 
   mutate(month = factor(month.abb[month], levels = month.abb))
 
-ggplot(month_summs, aes(x = month, y = avg_anom)) +
+(month_summs <- ggplot(month_summs, aes(x = month, y = avg_anom)) +
   geom_col(aes(fill = year), position = "dodge")+
   scale_fill_gmri() +
   labs(y = expression("Average Temerature Anomaly"~~degree~C),
-       x = "")
+       x = ""))
 
 
 ####  Percentages  ####
@@ -192,6 +218,7 @@ ggplot(month_summs, aes(x = month, y = avg_anom)) +
 # donut plot?
 
 # maximum possible days
+library(magrittr)
 max_days <- filter(gom_21, year == 2021) %$% max(yday) 
 max_2021 <- filter(gom_21, year == 2021) %$% max(cum_hw_days) 
 rem_2021 <- max_days - max_2021
@@ -217,13 +244,16 @@ gom_donuts <- gom_percentages %>%
                  #alpha = 0.6, 
                  stat = "pie") +
   facet_wrap(~year) +
-  theme_no_axes() +
   scale_fill_gmri(reverse = T) +
+  theme(axis.text = element_blank(),
+        axis.line = element_blank(),
+        panel.grid = element_blank(),
+        axis.ticks = element_blank()) +
   labs(fill = "Surface Ocean State", subtitle = "Relative Amount of  Marine Heatwave Days to 'Normal Days'")
 
 
 # Stack and plot
-(hw_days / excess_temp) / gom_donuts
+(excess_temp / month_summs) / gom_donuts
 
 
 
