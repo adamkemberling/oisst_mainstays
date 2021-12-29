@@ -802,8 +802,9 @@ temp_rankings_p <- ggplot(seasonal_ranks, aes(x = mean_anom,
   scale_size_manual(values = c("flag" = 4, "unflag" = 3)) +
   labs(x = "Temperature Anomaly",
        y = "Rank",
-       title = str_c(params$season, " Temperature Rankings")) +
-  theme(legend.position = "none", 
+       title = str_c(params$season, " Temperatures,  Ranked")) +
+  theme(plot.title = element_text(face = "bold", size = 14, hjust = 0),
+        legend.position = "none", 
         panel.grid.major.y = element_blank(),
         panel.grid.minor.y = element_blank(),
         panel.grid.minor.x = element_blank())
@@ -1280,7 +1281,6 @@ limit <- c(max_season * -1, max_season)
 Over the course of the `r params$season` season the Gulf of Maine and surrounding areas experienced above average temperatures for much of the area, with particularly warm patches South and Southeast of Georges Banks. The peak daily temperature anomaly was `r max_daily`$^oC$, with a peak seasonal average of `r max_season`$^oC$.
 
 ```{r}
-
 # Plot Heatwave 1 day at a time as a GIF
 anoms_st <- st_as_stars(season_mean)
 
@@ -1360,13 +1360,8 @@ months_masked <- map(display_months, mask_ranks, expanded_area)
 # Make plots for each
 month_plots <- imap(months_masked, function(month_avg_layer, month_id){
   
-  # # tester
-  # month_avg_layer <- months_masked[[1]]
-  # month_id <- names(display_months[[1]])
   
   # Set up text label  
-  # month_label <- str_sub(month_id, 2, -1)
-  # month_label <- str_replace(month_label, "[.]", "-")
   month_yr <- str_sub(month_id, 2, 5)
   month_number <- as.numeric(str_sub(month_id, -2, -1))
   month_label <- str_c(month.name[month_number], ", ", month_yr)
@@ -1563,14 +1558,13 @@ global_ranks_zoom <- ggplot() +
   geom_sf(data = new_england, color = "gray80", fill = "#36454F", size = .075) +
   geom_sf(data = canada, color = "gray80", fill = "#36454F", size = .075) +
   geom_sf(data = greenland, color = "gray80", fill = "#36454F", size = .075) +
-  geom_sf(data = region_extent,
-          color = "black",
-          fill = "transparent", linetype = 2, size = 0.5) +
+  # geom_sf(data = region_extent,
+  #         color = "white",
+  #         fill = "transparent", linetype = 1, size = 0.75) +
   scale_y_continuous(breaks = seq(-90, 90, by = 5)) +
   scale_x_continuous(breaks = seq(-90, 40, by = 10)) +
   scale_fill_viridis_c(limit = c(0.95, 1),  
-                       option = "plasma",
-                       #oob = scales::oob_squish, 
+                       option = "inferno",
                        na.value = "black") +
   map_theme +
   coord_sf(
@@ -1591,7 +1585,7 @@ global_ranks <- ggplot() +
   geom_stars(data = world_rank_stars) +
   geom_sf(data = world, color = "gray80", fill = "#36454F", size = .1) +
   scale_fill_viridis_c(limit = c(0.95, 1),  
-                       option = "plasma",
+                       option = "inferno",
                        #oob = scales::oob_squish, 
                        na.value = "black") +
   map_theme +
