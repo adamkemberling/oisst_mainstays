@@ -114,13 +114,13 @@ poly_path <- region_paths[["apershing_gulf_of_maine"]][["shape_path"]]
 params <- list(
   season = "Fall",
   `Save Data` = FALSE,
-  `Save Figures` = FALSE)
+  `Save Figures` = TRUE)
 
 
 # Current date checking:
 reporting_date <- Sys.Date()
-this_yr <- year(reporting_date)
-
+#this_yr <- year(reporting_date)
+this_yr <- 2021
 
 #####  Parameter switches:  ####
 
@@ -594,7 +594,7 @@ seasonal_temp_p <- ggplot(seasonal_avgs, aes(yr, mean_temp)) +
                         label = anom_label),
                     color = "darkred",
                     linetype = 2,
-                    description = str_c("Temperature Above\n1982-2011 Climate"), 
+                    description = str_c("Temperature Above\n1982-2011 climatological average"), 
                     label.colour = "darkred",
                     con.colour =  "darkred",
                     label.fill = "transparent", 
@@ -949,37 +949,30 @@ annual_trend_p
 
 ```
 
-## Marine Heatwaves
+## Marine Heatwave Timeline
 
 A [marine heatwaves](http://www.marineheatwaves.org/all-about-mhws.html) (MHW) is defined as a situation when seawater temperatures exceeds a seasonally-varying threshold (usually the 90th percentile) for at least 5 consecutive days. Successive heatwaves with gaps of 2 days or less are considered part of the same event. The heatwave threshold used below was 90%. 
 
 
 ```{r}
-# Use function to process heatwave data for plotting
-region_heatwaves <- region_hw %>% 
-  mutate(year = year(time),
-         yday = yday(time))
 
+# Season End cutoff using day of the year
+season_end <- switch (params$season,
+  "Winter" = yday("2000-02-28"),
+  "Spring" = yday("2000-05-30"),
+  "Summer" = yday("2000-08-30"),
+  "Fall"   = yday("2000-11-30")
+)
 
-#### This section is mess b/c I am bouncing back and forth from last 365 days or the entire year
-
-# Grab data from the most recent year through present day to plot
-last_year <- reporting_date - 365
-this_yr <-  year(reporting_date)
-
-#last_year <- last_year - yday(last_year) + 1
-last_yr_heatwaves <- region_heatwaves %>% 
+# Pull this year's data, up until end of the season
+last_yr_heatwaves <- region_hw %>% 
   filter(
-    #time >= last_year,
-    year == this_yr)
+    doy <= season_end,
+    yr == this_yr)
 
-# Get number of heatwave events and total heatwave days for this
-# How many heatwave events:
-last_full_yr <- last_yr_heatwaves
-num_events   <- max(last_full_yr$mhw_event_no, na.rm = T) - min(last_full_yr$mhw_event_no, na.rm = T)
-
-# How many heatwave days
-num_hw_days <- sum(last_full_yr$mhw_event, na.rm = T)
+# Get number of heatwave events and total heatwave days for this Season
+num_events   <- max(last_yr_heatwaves$mhw_event_no, na.rm = T) - min(last_yr_heatwaves$mhw_event_no, na.rm = T)
+num_hw_days <- sum(last_yr_heatwaves$mhw_event, na.rm = T)
 
 ```
 
@@ -987,8 +980,6 @@ Using this broadly accepted definition, **the Gulf of Maine has experienced MHW 
 
 
 ```{r}
-
-
 # Set colors by name
 color_vals <- c(
   "Sea Surface Temperature" = "royalblue",
@@ -1111,8 +1102,8 @@ guide_lab <- expression("Sea Surface Temperature Anomaly"~degree*C)
 # Set new axis dimensions, y = year, x = day within year
 # use a flate_date so that they don't stair step
 base_date <- as.Date("2000-01-01")
-grid_data <- region_heatwaves %>% 
-  mutate(flat_date = as.Date(yday-1, origin = base_date)) 
+grid_data <- region_hw %>% 
+  mutate(flat_date = as.Date(doy-1, origin = base_date)) 
 
 
 # Set palette limits to center it on 0 with scale_fill_distiller
@@ -1120,11 +1111,11 @@ limit <- max(abs(grid_data$sst_anom)) *c(-1,1)
 
 
 # Assemble heatmap plot
-heatwave_heatmap <- ggplot(grid_data, aes(x = flat_date, y = year)) +
+heatwave_heatmap <- ggplot(grid_data, aes(x = flat_date, y = yr)) +
   
   # background box fill for missing dates
   geom_rect(xmin = base_date, xmax = base_date + 365, 
-            ymin = min(grid_data$year) - .5, ymax = max(grid_data$year) + .5, 
+            ymin = min(grid_data$yr) - .5, ymax = max(grid_data$yr) + .5, 
             fill = "gray75", color = "transparent") +
   
   # tile for sst colors
@@ -1132,7 +1123,7 @@ heatwave_heatmap <- ggplot(grid_data, aes(x = flat_date, y = year)) +
   
   # points for heatwave events
   geom_point(data = filter(grid_data, mhw_event == TRUE),
-             aes(x = flat_date, y = year), size = .25)  +
+             aes(x = flat_date, y = yr), size = .25)  +
   scale_x_date(date_labels = "%b", date_breaks = "1 month", expand = c(0,0)) +
   scale_y_continuous(limits = c(1981.5, 2021.5), 
                      expand = c(0,0),
@@ -1186,14 +1177,14 @@ bin_colors <- RColorBrewer::brewer.pal(n = length(bin_order), name = "RdBu")
 bin_colors <- rev(bin_colors)
 
 # Count Days in Bins
-day_types <- region_heatwaves %>% 
+day_types <- region_hw %>% 
   mutate(
     `Less than -1`   = if_else(sst_anom <= -1, TRUE, FALSE),
     `-1 to -0.5`     = if_else(between(sst_anom, -1, -0.5), TRUE, FALSE),
     `Within 0.5`     = if_else(between(sst_anom, -0.5, 0.5), TRUE, FALSE),
     `0.5 to 1`       = if_else(between(sst_anom, 0.5, 1), TRUE, FALSE),
     `Greater than 1` = if_else(sst_anom >= 1, TRUE, FALSE)) %>% 
-  group_by(year) %>% 
+  group_by(yr) %>% 
   summarise(
     `Less than -1`   = sum(`Less than -1`, na.rm = T),
      `-1 to -0.5`    = sum(`-1 to -0.5`, na.rm = T),
@@ -1207,7 +1198,7 @@ day_types <- region_heatwaves %>%
 
 
 # Plot the Streamplot
-hw_streamplot <- ggplot(day_types, aes(year, y = day_total, fill = `Anomaly Strength`)) +
+hw_streamplot <- ggplot(day_types, aes(yr, y = day_total, fill = `Anomaly Strength`)) +
   geom_stream(type = "proportion") +
   #geom_segment(y = .5, yend = 0.5, linetype = 3, color = "gray50", x = 1981, xend = 2021, size = 0.25) +
   scale_x_continuous(breaks = seq(1980,2030, by = 10), 
@@ -1482,6 +1473,7 @@ get_masked_vals <- function(masked_ranks, masked_rates){
 }
 ```
 
+
 ```{r mask warming rates}
 
 # Get the rank information that go with each area
@@ -1615,18 +1607,6 @@ ranks_global_vertical <- (global_ranks_zoom / global_ranks ) +
 # plot patchwork
 ranks_global_figure
 
-
-
-# ggforce is cool but does not work well with patchwork:
-# ggforce::geom_mark_ellipse(data = data.frame("lon" = c(-71, -65, -65, -70), 
-#                                              "lat" = c( 45.1, 45.1, 40.3, 40.3),
-#                                              "region" = "Gulf of Maine"),
-#                            aes(lon, lat, label = region),
-#                            color = "white", linetype = 2, 
-#                            expand = c(0),
-#                            label.colour = "white", con.colour = "white", 
-#                            label.buffer = unit(3, "cm"),
-#                            label.fill = "transparent") +
 ```
 
 
