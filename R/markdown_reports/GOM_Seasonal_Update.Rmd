@@ -42,6 +42,7 @@ library(patchwork)
 library(tidyverse)
 library(ggstream)
 library(ggforce)
+library(geomtextpath)
 
 
 # Support Functions
@@ -49,7 +50,7 @@ source(here("R/oisst_support_funs.R"), verbose = FALSE)
 source(here("R/temp_report_support.R"), verbose = FALSE)
 
 #box paths
-oisst_path <- box_path("res", "OISST/oisst_mainstays")
+oisst_path <- cs_path("res", "OISST/oisst_mainstays")
 
 
 # Set ggplot theme for figures
@@ -96,7 +97,8 @@ greenland   <- ne_states(country = "greenland", returnclass = "sf")
 
 
 # File paths for various extents based on "apershing_gulf_of_maine"
-region_paths <- get_timeseries_paths(region_group = "gmri_sst_focal_areas")
+region_paths <- get_timeseries_paths(region_group = "gmri_sst_focal_areas", 
+                                     mac_os = "mojave")
 
 # Timeseries Path
 timeseries_path <- region_paths[["apershing_gulf_of_maine"]][["timeseries_path"]]
@@ -261,8 +263,10 @@ met_seasons_df <- data.frame(
   mutate(y_orig = y,
          y = ifelse(season == params$season, y + 0.5, y),
          y_high = y + 1.5,
-         label_y = y_orig + 4.5,
+         label_y = y_orig + 4,
          current_season = ifelse(season == params$season, season_col, "gray70"))
+
+
 
 
 # Plot
@@ -272,12 +276,12 @@ ggplot(met_seasons_df) +
                 ymin = y,
                 ymax = y_high),
             fill = met_seasons_df$current_season) +
-  geom_text(aes(x = labeldate, y = label_y, label = season), 
-            color = met_seasons_df$current_season) +
+  geom_textpath(aes(x = labeldate, y = label_y, label = season), 
+                color = met_seasons_df$current_season, size = 6) +
   scale_x_date(date_breaks = "1 month", date_labels = month.abb,
                limits = range(as.Date(c("2015-12-01", "2016-11-30")))) +
   ylim(0,13) +
-  coord_polar() +
+  coord_curvedpolar() +
   labs(title = "The Meteorological Seasons", 
        x = "", y = "") +
   theme(panel.background = element_blank(),
@@ -755,7 +759,7 @@ daily_peak <- region_timeseries %>%
     area_wtd_anom_f = as_fahrenheit(area_wtd_anom, data_type = "anomalies")
     
   ) %>% 
-  mutate(across(.cols = is.numeric, .fns = round, 2))
+  mutate(across(where(is.numeric), .fns = round, 2))
 ```
 
 Daily temperature anomalies this season peaked on `r daily_peak$time`, at `r daily_peak$area_wtd_anom`C | `r daily_peak$area_wtd_anom_f`F degrees above the long-term average.
@@ -1258,7 +1262,7 @@ data_window <- data.frame(lon = crop_x,
                           time = season_dates)
 
 # Load data
-season_anoms <- oisst_window_load(data_window = data_window, anomalies = T)
+season_anoms <- oisst_window_load(data_window = data_window, anomalies = T, mac_os = "mojave")
 season_anoms <- stack(season_anoms)
 season_mean <- mean(season_anoms, na.rm = T)
 
@@ -1415,7 +1419,7 @@ This variability reflects the various physical oceanographic drivers influencing
 
 ```{r load warming rates}
 # 1. Warming Rates and Rankings
-oisst_path <- box_path("res", "OISST/oisst_mainstays")
+oisst_path <- cs_path("res", "OISST/oisst_mainstays")
 rates_path <- paste0(oisst_path, "warming_rates/annual_warming_rates")
 rates_stack_all <- stack(str_c(rates_path, "1982to2020.nc"), 
                          varname = "annual_warming_rate")

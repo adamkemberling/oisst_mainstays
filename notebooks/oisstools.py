@@ -29,7 +29,10 @@ def set_workspace(workspace: str) -> None:
   
   """
   # Root paths
-  root_locations = {"local"  : "/Users/akemberling/Box/",
+  # root_locations = {"local"  : "/Users/akemberling/Box/",
+  #                   "docker" : "/home/jovyan/"}
+
+  root_locations = {"local"  : "/Users/akemberling/Library/CloudStorage/Box-Box/",
                     "docker" : "/home/jovyan/"}
   
   # Set root with workspace
@@ -157,16 +160,12 @@ def cache_oisst(cache_month, update_yr, workspace = "local", verbose = True):
     
     # Format month string
     this_month = str(cache_month).rjust(2, "0")
-    
-    # Root paths
-    root_locations = {"local"  : "/Users/akemberling/Box/",
-                      "docker" : "/home/jovyan/"}
   
     # Set root with workspace
-    box_root = root_locations[workspace]
+    box_root = set_workspace(workspace)
     
     # Global cache root
-    _cache_root = f"{box_root}RES_Data/OISST/oisst_mainstays/"
+    _cache_root = set_cache_root(box_root)
     
     # Cache Subdirectory Locations
     cache_locs = {
@@ -340,15 +339,11 @@ def build_annual_from_cache(last_month, this_month, workspace = "local", verbose
     last_month = str(last_month).rjust(2, "0")
     this_month = str(this_month).rjust(2, "0")
     
-    # Root paths
-    root_locations = {"local"  : "/Users/akemberling/Box/",
-                      "docker" : "/home/jovyan/"}
-  
     # Set root with workspace
-    box_root = root_locations[workspace]
+    box_root = set_workspace(workspace)
     
     # Global cache root
-    _cache_root = f"{box_root}RES_Data/OISST/oisst_mainstays/"
+    _cache_root = set_cache_root(box_root)
     
     # Cache Subdirectory Locations
     cache_locs = {
