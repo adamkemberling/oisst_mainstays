@@ -43,15 +43,17 @@ library(plotly)
 library(ggpmisc)
 library(gt)
 library(ggalt)
+library(geomtextpath)
 
 # Support Functions
 source(here("R/oisst_support_funs.R"))
 source(here("R/temp_report_support.R"))
+path_fun <- os_fun_switch(mac_os = "mojave")
 
 
 # File Paths
-mills_path <- box_path("mills")
-oisst_path <- box_path("res", "OISST/oisst_mainstays")
+mills_path <- path_fun("mills")
+oisst_path <- path_fun("res", "OISST/oisst_mainstays")
 
 
 # Set ggplot theme for figures
@@ -105,7 +107,7 @@ The spatial extent for `r tidy_name` is displayed below. This bounding box is th
 ```{r}
 
 # File paths for various extents based on params$region
-region_paths <- get_timeseries_paths(region_group = "gmri_sst_focal_areas")
+region_paths <- get_timeseries_paths(region_group = "gmri_sst_focal_areas", mac_os = "mojave")
 
 # Load the bounding box for Andy's GOM to show they align
 poly_path     <- region_paths[[params$region]][["shape_path"]]
@@ -166,7 +168,7 @@ region_timeseries <- read_csv(timeseries_path, col_types = cols(), guess_max = 1
 region_timeseries <- region_timeseries %>% 
   mutate(time = as.Date(time))
 
-# Display Table of first 6 entries
+# Display Table of last 6 entries
 tail(region_timeseries) %>% 
   mutate(across(where(is.numeric), round, 2)) %>% 
   select(
@@ -280,6 +282,10 @@ eq_all    <- paste0(decade_all,    "\u00b0", "C / Decade")
 eq_15     <- paste0(decade_15,     "\u00b0", "C / Decade")
 eq_global <- paste0(decade_global, "\u00b0", "C / Decade")
 
+# Generate a smoothed temperature line using splines
+yearly_temp_smooth <-  as.data.frame(spline(annual_summary$yr_as_dtime, annual_summary$area_wtd_anom)) %>% 
+  mutate(x = as.Date(x, origin = "1970-01-01"))
+
 ```
 
 
@@ -292,22 +298,23 @@ ggplot(data = annual_summary, aes(yr_as_dtime, area_wtd_anom)) +
   
   # Add daily data
   geom_line(data = region_timeseries,
-            aes(time, area_wtd_anom),
-            alpha = 0.5, color = "gray") +
+            aes(time, area_wtd_anom, color = "Daily Temperatures")) +
   
   # Overlay yearly means
-  geom_line(alpha = 0.7, color = "gray20") +
+  geom_line(data = yearly_temp_smooth, aes(x, y, color = "Average Yearly Temperature"), alpha = 0.7, linetype = 2) +
+  # geom_line(color = "gray20", alpha = 0.7) +
   geom_point(alpha = 0.7, size = 0.75) +
   
   # Add regression lines 
-  geom_smooth(data = filter(global_summary, year <= 2020),
-              method = "lm", 
-              aes(color = "1982-2020 Global Trend"),
+  geom_textsmooth(data = filter(global_summary, year <= 2020),
+              method = "lm", text_smoothing = 30, 
+              label = "Global Trend",
+              color = gmri_cols("green"),
               formula = y ~ x, se = F, 
-              linetype = 3) +
+              linetype = 3, hjust = 0.925) +
   geom_smooth(data = filter(annual_summary, year <= 2020),
               method = "lm",
-              aes(color = "1982-2020 Regional Trend"),
+              aes(color = "1982-2020 Regional Trend"), #label = "40-Year Trend",
               formula = y ~ x, se = F,
               linetype = 1) +
   geom_smooth(data = filter(annual_summary, year %in% c(2006:2020)),
@@ -332,11 +339,13 @@ ggplot(data = annual_summary, aes(yr_as_dtime, area_wtd_anom)) +
   scale_color_manual(values = c(
     "1982-2020 Regional Trend" = as.character(gmri_cols("gmri blue")),
     "2006-2020 Regional Trend" = as.character(gmri_cols("orange")),
-    "1982-2020 Global Trend"   = as.character(gmri_cols("green")))) +
+    #"1982-2020 Global Trend"   = as.character(gmri_cols("green")),
+    "Average Yearly temperature" = "gray20",
+    "Daily Temperatures"       = "gray90")) +
   
   # labels + theme
   labs(x = "", 
-       y = expression("Sea Surface Temperature Anomaly"~degree*C),
+       y = "Sea Surface Temperature Anomaly \u00b0C",
        caption = paste0("Anomalies calculated using 1982-2011 reference period.")) +
   # theme
    theme(legend.title = element_blank(),
@@ -383,12 +392,19 @@ quarter_summary %>%
                parse = T) +
   scale_color_manual(values = c("Regional Trend" = as.character(gmri_cols("orange")))) +
   labs(x = "", 
-       y = expression("Sea Surface Temperature Anomaly"~degree*C),
+       y = "Sea Surface Temperature Anomaly \u00b0C",
        caption = "Regression coefficients reflect annual change in sea surface temperature.") +
   theme(legend.title = element_blank(),
         legend.position = c(0.875, 0.05),
         legend.background = element_rect(fill = "transparent"),
-        legend.key = element_rect(fill = "transparent", color = "transparent")) +
+        legend.key = element_rect(fill = "transparent", color = "transparent"),
+        strip.text = element_text(color = "white", 
+                                  face = "bold"),
+                  strip.background = element_rect(
+                    color = "white", 
+                    fill = "#36454F", 
+                    size = 0.75, 
+                    linetype="solid")) +
   facet_wrap(~season)
 ```
 
@@ -410,7 +426,7 @@ ggplot(dat_combined, aes(x = `1982`, xend = `2020`, y = fct_rev(Area))) +
                 size = 3, 
                 dot_guide = TRUE, 
                 dot_guide_size = 0.5) +
-  labs(x = expression("Sea Surface Temperature"~~degree*C), 
+  labs(x = "Sea Surface Temperature \u00b0C", 
        subtitle = "Change in Sea Surface Temeprature - 1982-2020", 
        y = "")
 ```
@@ -484,7 +500,7 @@ color_vals <- c(
 
 
 # Set the label with degree symbol
-ylab <- expression("Temperature"~degree*C)
+ylab <- "Temperature \u00b0C"
 
 
 
@@ -547,7 +563,7 @@ ggplot(aes(x = time)) +
     theme(legend.title = element_blank(),
           legend.position = "top") +
     labs(x = "", 
-         y = expression("Anomaly"~~degree*C), 
+         y = "Temperature Anomaly \u00b0C", 
          caption = paste0("Climate reference period :  1982-2011"))
 
 
@@ -566,7 +582,7 @@ hw_temp_p / hw_anom_p
 ```{r}
 
 # Prep the legend title
-guide_lab <- expression("Sea Surface Temperature Anomaly"~degree*C)
+guide_lab <- "Sea Surface Temperature Anomaly \u00b0C"
 
 # Set new axis dimensions, y = year, x = day within year
 # use a flate_date so that they don't stair step
@@ -744,7 +760,7 @@ data_window <- data.frame(
 
 # Pull data off box
 hw_stack <- oisst_window_load(data_window = data_window, 
-                              anomalies = T)
+                              anomalies = T, mac_os = "mojave")
 
 
 #drop any empty years that bug in
@@ -803,7 +819,7 @@ day_plots <- imap(day_count, function(date_index, date_label) {
              ylim = crop_y, 
              expand = T) +
     guides("fill" = guide_colorbar(
-      title = expression("Sea Surface Temperature Anomaly"~degree*C),
+      title = "Sea Surface Temperature Anomaly \u00b0C",
       title.position = "top",
       title.hjust = 0.5,
       barwidth = unit(3, "in"),
@@ -838,7 +854,7 @@ day_plots <- imap(day_count, function(date_index, date_label) {
     labs(x = "", 
          y = "",
          color = "",
-         subtitle = expression("Regional Temperature"~degree~"C"),
+         subtitle = "Regional Temperature \u00b0C",
          shape = "Heatwave Event") +
     theme(legend.position = "bottom")
   
@@ -939,7 +955,7 @@ front_plots <- imap(day_count, function(date_index, date_label) {
     labs(x = "", 
          y = "",
          color = "",
-         subtitle = expression("Regional Temperature"~degree~"C"),
+         subtitle = "Regional Temperature \u00b0C",
          shape = "Heatwave Event") +
     theme(legend.position = "bottom")
   
@@ -1090,7 +1106,7 @@ rates_map <- ggplot() +
   coord_sf(xlim = crop_x, 
            ylim = crop_y, expand = F) +
   guides("fill" = guide_colorbar(
-    title = expression("Annual Temperature Change"~~degree*C~"/year"),
+    title = "Annual Temperature Change \u00b0C/year",
     title.position = "top", 
     title.hjust = 0.5,
     barwidth = unit(2.5, "in"),
@@ -1115,7 +1131,7 @@ ranks_map <- ggplot() +
   coord_sf(xlim = crop_x, 
            ylim = crop_y, expand = F) +
   guides("fill" = guide_colorbar(
-    title = expression("Global Percentile of Warming Rates"),
+    title = "Global Percentile of Warming Rates",
     title.position = "top", 
     title.hjust = 0.5,
     barwidth = unit(2.5, "in"),
@@ -1167,7 +1183,7 @@ heatwaves_91 %>%
   geom_line(aes(y = upper_shift, color = "MHW Threshold Change")) + 
   geom_line(aes(y = lower_shift, color = "MCS Threshold Change")) + 
   labs(x = "", 
-       y = expression("Shift in Expected Temperature"~degree*C),
+       y = "Shift in Expected Temperature \u00b0C",
        color = "") + 
   theme(legend.position = "bottom") +
   scale_color_gmri() +
