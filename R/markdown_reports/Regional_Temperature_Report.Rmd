@@ -33,6 +33,7 @@ library(rnaturalearth)
 library(sf)
 library(stars)
 library(gmRi)
+library(scales)
 library(here)
 library(janitor)
 library(knitr)
@@ -343,13 +344,19 @@ ggplot(data = annual_summary, aes(yr_as_dtime, area_wtd_anom)) +
     "Average Yearly temperature" = "gray20",
     "Daily Temperatures"       = "gray90")) +
   
+  # Axes
+   scale_y_continuous(sec.axis = sec_axis(trans = ~as_fahrenheit(., data_type = "anomalies"),
+                                         labels =  number_format(suffix = " \u00b0F")),
+                     labels = number_format(suffix = " \u00b0C")) +
+  
+  
   # labels + theme
   labs(x = "", 
-       y = "Sea Surface Temperature Anomaly \u00b0C",
+       y = "Sea Surface Temperature Anomaly",
        caption = paste0("Anomalies calculated using 1982-2011 reference period.")) +
   # theme
    theme(legend.title = element_blank(),
-        legend.position = c(0.85, 0.1),
+        legend.position = c(0.825, 0.15),
         legend.background = element_rect(fill = "transparent"),
         legend.key = element_rect(fill = "transparent", color = "transparent"),
         panel.grid = element_blank())
@@ -392,8 +399,11 @@ quarter_summary %>%
                parse = T) +
   scale_color_manual(values = c("Regional Trend" = as.character(gmri_cols("orange")))) +
   labs(x = "", 
-       y = "Sea Surface Temperature Anomaly \u00b0C",
+       y = "Sea Surface Temperature Anomaly",
        caption = "Regression coefficients reflect annual change in sea surface temperature.") +
+   scale_y_continuous(sec.axis = sec_axis(trans = ~as_fahrenheit(., data_type = "anomalies"),
+                                         labels =  number_format(suffix = " \u00b0F")),
+                     labels = number_format(suffix = " \u00b0C")) +
   theme(legend.title = element_blank(),
         legend.position = c(0.875, 0.05),
         legend.background = element_rect(fill = "transparent"),
@@ -426,9 +436,12 @@ ggplot(dat_combined, aes(x = `1982`, xend = `2020`, y = fct_rev(Area))) +
                 size = 3, 
                 dot_guide = TRUE, 
                 dot_guide_size = 0.5) +
-  labs(x = "Sea Surface Temperature \u00b0C", 
+  labs(x = "Sea Surface Temperature", 
        subtitle = "Change in Sea Surface Temeprature - 1982-2020", 
-       y = "")
+       y = "") +
+   scale_x_continuous(sec.axis = sec_axis(trans = ~as_fahrenheit(., data_type = "temperature"),
+                                         labels =  number_format(suffix = " \u00b0F")),
+                     labels = number_format(suffix = " \u00b0C"))
 ```
 
 
@@ -500,7 +513,7 @@ color_vals <- c(
 
 
 # Set the label with degree symbol
-ylab <- "Temperature \u00b0C"
+ylab <- "Sea Surface Temperature"
 
 
 
@@ -516,6 +529,9 @@ hw_temp_p <- ggplot(last_yr_heatwaves, aes(x = time)) +
     geom_line(aes(y = seas, color = "Daily Climatology"), lty = 2, size = .5) +
     scale_color_manual(values = color_vals) +
     scale_x_date(date_labels = "%b", date_breaks = "1 month") +
+    scale_y_continuous(sec.axis = sec_axis(trans = ~as_fahrenheit(., data_type = "temperature"),
+                                         labels =  number_format(suffix = " \u00b0F")),
+                     labels = number_format(suffix = " \u00b0C")) +
     theme(legend.title = element_blank(),
           legend.position = "none") +
     labs(x = "", 
@@ -562,8 +578,11 @@ ggplot(aes(x = time)) +
     guides(color = guide_legend(override.aes = list(linetype = linetype_key), nrow = 2)) +
     theme(legend.title = element_blank(),
           legend.position = "top") +
+    scale_y_continuous(sec.axis = sec_axis(trans = ~as_fahrenheit(., data_type = "anomalies"),
+                                           labels =  number_format(suffix = " \u00b0F")),
+                       labels = number_format(suffix = " \u00b0C")) +
     labs(x = "", 
-         y = "Temperature Anomaly \u00b0C", 
+         y = "Temperature Anomaly", 
          caption = paste0("Climate reference period :  1982-2011"))
 
 
@@ -881,9 +900,9 @@ walk(day_plots, print)
 
 ### Front Progression
 
-Same idea as above but looking at the Belkin O'Reilly fronts rather than absolute values.
+Same idea as above but looking at the Belkin O'Reilly fronts rather than absolute values. Under development.
 
-```{r, eval = T, animation.hook = 'gifski', fig.height=8, fig.width=9}
+```{r, eval = F, animation.hook = 'gifski', fig.height=8, fig.width=9}
 # Use belkin fronts function to get the sst fronts
 this_yr_fronts <- map(unstack(this_yr), get_belkin_fronts) %>% 
   stack() %>% 
