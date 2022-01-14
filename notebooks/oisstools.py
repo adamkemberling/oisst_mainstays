@@ -404,7 +404,6 @@ def build_annual_from_cache(last_month, this_month, workspace = "local", verbose
     oisst_combined = apply_oisst_attributes(oisst_combined, anomalies = False)
     
     
-    
     # Load the full year into memory
     oisst_combined = oisst_combined.load()
     
@@ -614,6 +613,14 @@ def apply_oisst_attributes(oisst_grid, anomalies = False, reference_period = "19
     "comment"       : "Reynolds, et al.(2007) Daily High-Resolution-Blended Analyses for Sea Surface Temperature (available at https://doi.org/10.1175/2007JCLI1824.1). Banzon, et al.(2016) A long-term record of blended satellite and in situ sea-surface temperature for climate monitoring, modeling and environmental studies (available at https://doi.org/10.5194/essd-8-165-2016). Huang et al. (2020) Improvements of the Daily Optimum Interpolation Sea Surface Temperature (DOISST) Version v02r01, submitted.Climatology is based on 1971-2000 OI.v2 SST. Satellite data: Pathfinder AVHRR SST and Navy AVHRR SST. Ice data: NCEP Ice and GSFC Ice. Data less than 15 days old may be subject to revision."
     
   }
+    
+  # Time attrs
+  time_attrs =  {
+    'long_name' : 'Time',
+    'delta_t'   : '0000-00-01 00:00:00',
+    'avg_period': '0000-00-01 00:00:00',
+    'axis'      : 'T'
+  }
   
   
   # Toggle which to use
@@ -626,6 +633,7 @@ def apply_oisst_attributes(oisst_grid, anomalies = False, reference_period = "19
   oisst_grid.attrs = attr_dict
   
   # Set the Time encodings
+  oisst_grid.time.attrs = time_attrs 
   oisst_grid.time.encoding = {"units" : "days since '1800-01-01'"}
   
   # Return the grid

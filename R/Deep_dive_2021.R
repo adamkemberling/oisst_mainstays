@@ -40,7 +40,7 @@ theme_set(theme_bw() +
 
 #box paths
 # box_paths <- research_access_paths()
-res_path <-  box_path("res")
+res_path <-  cs_path("res")
 
 # Support Functions
 source(here("R/oisst_support_funs.R"))
@@ -52,7 +52,8 @@ theme_set(theme_bw())
 
 # OISST Data
 gom_oisst <- oisst_access_timeseries(region_family = "gmri focus areas", 
-                                     poly_name = "apershing gulf of maine")
+                                     poly_name = "apershing gulf of maine", 
+                                     mac_os = "mojave")
 
 
 # Plot 2012 and 2021
@@ -80,7 +81,7 @@ gom_hw <- gom_hw %>%
 
 gom_21 <- gom_hw %>% 
   filter(year %in% c("2012", "2021"),
-         month < 12)
+         month <= 12)
 
 # Pull out a single year to plot the climatology just once
 clim <- filter(gom_21, year == "2012")
@@ -303,7 +304,7 @@ gom_21 %>%
   facet_wrap(~year, nrow = 2) +
   scale_x_date(date_labels = "%b", date_breaks = "1 month", expand = c(0,0)) +
   scale_y_continuous(breaks = seq(0, 6, by = 1)) +
-  theme_minimal() +
+  #theme_minimal() +
   theme(panel.border = element_rect(fill = "transparent"),
         panel.grid.major.y = element_line(linetype = 1),
         legend.position = "bottom", strip.background = element_rect(color = "black"),

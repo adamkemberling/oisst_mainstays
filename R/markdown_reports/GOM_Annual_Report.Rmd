@@ -1,0 +1,603 @@
+---
+title: "2021: Gulf of Maine's Warmest Year on Record"
+author: 
+  - first_name: "Adam"
+    last_name: "Kemberling"
+    url: https://github.com/adamkemberling
+    affiliation: Gulf of Maine Research Institute
+    affiliation_url: https://www.gmri.org
+description: | 
+  Characteristics of a record setting year for ocean temperatures
+date: "Updated on: `r Sys.Date()`"
+editor_options: 
+  chunk_output_type: console
+output: 
+  distill::distill_article:
+    toc: true
+    toc_depth: 2
+    toc_float: true
+---
+
+```{r setup, include=FALSE}
+# knitr options
+knitr::opts_chunk$set(echo = FALSE, 
+                      message = F, 
+                      warning = F, 
+                      comment = "", 
+                      fig.align = "center", 
+                      fig.height = 6, 
+                      fig.width = 8)
+
+####  Packages  ####
+library(lubridate)
+library(raster)
+library(here)
+library(rnaturalearth)
+library(scales)
+library(sf)
+library(stars)
+library(gmRi)
+library(heatwaveR)
+library(gt)
+library(gtExtras)
+library(patchwork)
+library(tidyverse)
+library(ggstream)
+library(ggforce)
+library(geomtextpath)
+library(ggHoriPlot)
+library(ggradar)
+
+
+# Support Functions
+source(here("R/oisst_support_funs.R"), verbose = FALSE)
+source(here("R/temp_report_support.R"), verbose = FALSE)
+
+#box paths
+oisst_path <- cs_path("res", "OISST/oisst_mainstays")
+
+
+# Set ggplot theme for figures
+theme_set(theme_bw() + 
+            theme(
+              # Titles
+              plot.title = element_text(hjust = 0.5),
+              # Axes
+              axis.line.y = element_line(),
+              axis.ticks.y = element_line(), 
+              axis.line.x = element_line(),
+              axis.ticks.x = element_line(), 
+              axis.text = element_text(size = 11),
+              # Facets
+              strip.text = element_text(color = "white", 
+                                        face = "bold",
+                                        size = 11),
+              strip.background = element_rect(
+                color = "white", 
+                fill = "#36454F", 
+                size = 1, 
+                linetype="solid"))
+          )
+
+
+# File paths for various extents based on "apershing_gulf_of_maine"
+region_paths <- get_timeseries_paths(region_group = "gmri_sst_focal_areas", 
+                                     mac_os = "mojave")
+
+# Timeseries Path
+timeseries_path <- region_paths[["apershing_gulf_of_maine"]][["timeseries_path"]]
+
+# Polygon Path
+poly_path <- region_paths[["apershing_gulf_of_maine"]][["shape_path"]]
+
+# Adding Logo to plot
+logo_path <- paste0(system.file("stylesheets", package = "gmRi"), "/gmri_logo.png")
+lab_logo <- magick::image_read(logo_path)
+
+# Add using grid::grid.raster()
+# grid::grid.raster(lab_logo, x = 0.08, y = 0.03, just = c('left', 'bottom'), width = unit(0.8, 'inches'))
+```
+
+`r gmRi::use_gmri_style_rmd(css = "gmri_rmarkdown.css")`
+
+# Gulf of Maine 2021 Annual Temperature Review
+
+#### An exceptional year
+
+2021 was an exceptionally warm year for the Gulf of Maine. It had the warmest fall on record for the area, and the second warmest summer. Much of the year the region experienced what would be considered "heatwave conditions".
+
+```{r}
+# Load the timeseries
+region_timeseries <- read_csv(timeseries_path, col_types = cols(), guess_max = 1e6)
+
+
+# Clean up the data - add labels
+region_timeseries <- region_timeseries %>% 
+  distinct(time, .keep_all = T) %>% 
+  mutate(time = as.Date(time),
+         yr = year(time),
+         month_num = month(time),
+         month = month(time, label = T, abbr = T),
+         week = lubridate::week(time),
+         doy = yday(time),
+         season = metR::season(month_num, lang = "en"),
+         #Set up correct year for winters, they carry across into next year
+         season_eng = case_when(
+           season == "SON" ~ "Fall",
+           season == "DJF" ~ "Winter",
+           season == "MAM" ~ "Spring",
+           season == "JJA" ~ "Summer"),
+         season_yr = ifelse( (season_eng == "Winter" & month_num %in% c(1,2)), yr - 1, yr)
+         )
+```
+
+
+```{r}
+# Get heatwave statuses for each day:
+# Uses area weighted sst by default
+region_hw <- pull_heatwave_events(temperature_timeseries = region_timeseries)
+
+# Format dates and seasons and heatwave outcomes
+region_hw <- region_hw %>% 
+  mutate(time = as.Date(time),
+         yr = year(time),
+         month_num = month(time),
+         month = month(time, label = T, abbr = T),
+         week = lubridate::week(time),
+         doy = yday(time),
+         season = metR::season(month_num, lang = "en"),
+         season_eng = case_when(
+           season == "SON" ~ "Fall",
+           season == "DJF" ~ "Winter",
+           season == "MAM" ~ "Spring",
+           season == "JJA" ~ "Summer"),
+         #Set up correct year for winters, they carry across into next year
+         season_yr = ifelse(
+           (season_eng == "Winter" & month_num %in% c(1,2)), yr - 1, yr)
+         )
+
+# Set up heatwave status outcomes for fancy table features:
+region_hw <- region_hw %>% 
+  mutate(hw_outcomes = case_when(
+    mhw_event == TRUE ~ 1,
+    mcs_event == TRUE ~ 0,
+    TRUE ~ 0.5))
+
+```
+
+
+## Climate Patterns
+
+To better get a sense of what kind of year 2021 was it is helpful to relate it to what we would expect from similar years. One large factor in global weather patterns is the El Niño Southern Oscillation., here is where the year fell in regards to the El nino southern oscillation.
+
+ - El nino status
+ - NAO status
+ 
+
+## Temperature and Anomaly Patterns
+
+
+```{r}
+
+ # Last Calendar Year
+this_yr <- region_hw %>% 
+  filter(year(time) == 2021)
+
+
+# Set colors by name
+color_vals <- c(
+  "Sea Surface Temperature" = "royalblue",
+  "Heatwave Event"          = "darkred",
+  "MHW Threshold"           = "coral3",
+  "Daily Climatology"        = "gray30")
+
+
+# Set the label with degree symbol
+ylab <- "Sea Surface Temperature"
+
+
+
+# Plot the last 365 days
+hw_temp_p <- ggplot(this_yr, aes(x = time)) +
+    geom_segment(aes(x = time, xend = time, y = seas, yend = sst), 
+                 color = "royalblue", alpha = 0.25) +
+    geom_segment(aes(x = time, xend = time, y = mhw_thresh, yend = hwe), 
+                 color = "darkred", alpha = 0.25) +
+    geom_line(aes(y = sst, color = "Sea Surface Temperature")) +
+    geom_line(aes(y = hwe, color = "Heatwave Event")) +
+    geom_line(aes(y = mhw_thresh, color = "MHW Threshold"), lty = 3, size = .5) +
+    geom_line(aes(y = seas, color = "Daily Climatology"), lty = 2, size = .5) +
+    scale_color_manual(values = color_vals) +
+    scale_x_date(date_labels = "%b", date_breaks = "1 month") +
+    scale_y_continuous(sec.axis = sec_axis(trans = ~as_fahrenheit(., data_type = "temperature"),
+                                         labels =  number_format(suffix = " \u00b0F")),
+                     labels = number_format(suffix = " \u00b0C")) +
+    theme(legend.title = element_blank(),
+          legend.position = "none") +
+    labs(x = "", 
+         y = ylab)
+
+```
+
+
+```{r heatwave anomaly timeline}
+
+# Plot the last 365 days - anomaly scale
+linetype_key <- c(
+  "Sea Surface Temperature Anomaly" = 1,
+  "Heatwave Event"                  = 1,
+  "MHW Threshold"                   = 3,
+  "Daily Climatology"               = 2)
+
+# Same Plot as Anomalies
+hw_anom_p <- this_yr %>% 
+  mutate(
+    sst = sst,
+    seas = seas,
+    sst_anom = sst_anom,
+    mhw_thresh = mhw_thresh,
+    anom_thresh = mhw_thresh - seas,
+    anom_hwe = hwe - seas) %>% 
+ggplot(aes(x = time)) +
+    geom_segment(aes(x = time, xend = time, 
+                     y = 0, yend = sst_anom), 
+                 color = "royalblue", alpha = 0.25) +
+    geom_segment(aes(x = time, xend = time, 
+                       y = anom_thresh, yend = anom_hwe), 
+                 color = "darkred", alpha = 0.25) +
+    geom_line(aes(y = sst_anom, color = "Sea Surface Temperature Anomaly")) +
+    geom_line(aes(y = anom_hwe, color = "Heatwave Event")) +
+    geom_line(aes(y = anom_thresh, color = "MHW Threshold"), lty = 3, size = .5) +
+    geom_line(aes(y = 0, color = "Daily Climatology"), lty = 2, size = .5) +
+    scale_color_manual(values = color_vals) +
+    scale_linetype_manual(values = linetype_key, guide = "none") +
+    scale_x_date(date_labels = "%b", date_breaks = "1 month") +
+    guides(color = guide_legend(override.aes = list(linetype = linetype_key), nrow = 2)) +
+    theme(legend.title = element_blank(),
+          legend.position = "top") +
+    scale_y_continuous(sec.axis = sec_axis(trans = ~as_fahrenheit(., data_type = "anomalies"),
+                                           labels =  number_format(suffix = " \u00b0F")),
+                       labels = number_format(suffix = " \u00b0C")) +
+    labs(x = "", 
+         y = "Temperature Anomaly", 
+         caption = paste0("Climate reference period :  1982-2011"))
+```
+
+
+```{r}
+# Show figure
+hw_temp_p / hw_anom_p
+
+```
+
+
+## Heatwave Days
+
+```{r}
+
+#Use gg hori plot instead of heatmap
+# use facet zoom to pull out this year:
+
+# Prep the legend title
+guide_lab <- "Sea Surface Temperature Anomaly \u00b0C"
+
+# Set new axis dimensions, y = year, x = day within year
+# use a flate_date so that they don't stair step
+base_date <- as.Date("2000-01-01")
+grid_data <- region_hw %>% 
+  mutate(year = year(time),
+         yday = yday(time),
+         flat_date = as.Date(yday-1, origin = base_date))
+
+
+# Set palette limits to center it on 0 with scale_fill_distiller
+limit <- max(abs(grid_data$sst_anom)) *c(-1,1)
+
+
+
+```
+
+
+## Heatwave Seasonality
+
+```{r}
+# Polar plot comparing when each year experienced peak heatwave conditions
+```
+
+
+
+## Heatwave Day Heatmap
+
+```{r}
+# Assemble heatmap plot
+heatwave_heatmap <- ggplot(grid_data, aes(x = flat_date, y = year)) +
+  
+  # background box fill for missing dates
+  geom_rect(xmin = base_date, xmax = base_date + 365, 
+            ymin = min(grid_data$year) - .5, ymax = max(grid_data$year) + .5, 
+            fill = "gray75", color = "transparent") +
+  
+  # tile for sst colors
+  geom_tile(aes(fill = sst_anom)) +
+  
+  # points for heatwave events
+  geom_point(data = filter(grid_data, mhw_event == TRUE),
+             aes(x = flat_date, y = year), size = .25)  +
+  scale_x_date(date_labels = "%b", date_breaks = "1 month", expand = c(0,0)) +
+  scale_y_continuous(limits = c(1980.5, 2021.5), expand = c(0,0)) +
+  labs(x = "", 
+       y = "",
+       "\nClimate reference period : 1982-2011") +
+  
+  #scale_fill_gradient2(low = "blue", mid = "white", high = "red") +
+  scale_fill_distiller(palette = "RdYlBu", na.value = "transparent", 
+                       limit = limit) +
+  
+  #5 inches is default rmarkdown height for barheight
+  guides("fill" = guide_colorbar(title = guide_lab, 
+                                 title.position = "right", 
+                                 title.hjust = 0.5,
+                                 barheight = unit(4.8, "inches"), 
+                                 frame.colour = "black", 
+                                 ticks.colour = "black")) +  
+  theme_classic() +
+  theme(legend.title = element_text(angle = 90))
+
+
+
+
+
+# Assemble pieces
+heatwave_heatmap
+```
+
+##  Temperature Horizons
+
+```{r}
+hori_data <- grid_data %>% 
+  mutate(year = factor(year),
+         year = fct_rev(year))
+
+
+# cut out outliers and set cutpoints
+cutpoints <- hori_data %>% 
+  mutate(
+    outlier = between(
+      sst_anom,
+      quantile(sst_anom, 0.25, na.rm=T)-
+        1.5*IQR(sst_anom, na.rm=T),
+      quantile(sst_anom, 0.75, na.rm=T)+
+        1.5*IQR(sst_anom, na.rm=T))) %>% 
+  filter(outlier)
+
+# Set origin
+#ori <- sum(range(cutpoints$sst_anom)) / 2
+ori <- 0
+
+# Set horizon scale cutpoints
+# sca <- seq(range(cutpoints$sst_anom)[1], 
+#            range(cutpoints$sst_anom)[2], 
+#            length.out = 7)[-4]
+
+# Manually pick them
+sca <- seq(-4, 4, length.out = 9)
+
+sca_bins <- str_c(sca[1:(length(sca)-1)], " to ", sca[2:length(sca)], "\u00b0C")
+sca_labels <- rev(sca_bins
+                  )
+
+
+# Function to plot one or more years
+anom_horizon_plot <- function(hori_data, origin = ori, scale_cutpoints = sca, labels = sca_labels){
+  
+   ggplot(hori_data) +
+  geom_horizon(aes(flat_date, 
+                   sst_anom,
+                   fill = ..Cutpoints..), 
+               origin = ori, 
+               horizonscale = sca) +
+  scale_fill_hcl(palette = 'RdBu', reverse = T, labels = sca_labels) +
+  #scale_fill_manual(values = setNames(sca_colors, sca_names)) +
+  facet_grid(year~.) +
+  theme_classic() +
+  theme(
+    panel.spacing.y=unit(0, "lines"),
+    strip.text.y = element_text(size = 7, angle = 0, hjust = 0),
+    axis.text.y = element_blank(),
+    axis.title.y = element_blank(),
+    axis.ticks.y = element_blank(),
+    panel.border = element_blank(),
+    legend.position = "left"
+    ) +
+  scale_x_date(expand=c(0,0), 
+               date_breaks = "1 month", 
+               date_labels = "%b") +
+  labs(x = '', 
+       fill = "Temperature Anomaly \u00b0C") 
+  
+  
+}
+```
+
+
+```{r}
+# All Years
+anom_horizon_plot(hori_data = hori_data, origin = ori, scale_cutpoints = sca)
+
+```
+
+## Comparing the Gulf's Two Hottest Years
+
+
+Early into 2021 it was apparent that the year was on-par with the previous title-holder for warmest year on record.
+
+```{r}
+
+# 2012
+hori_2012 <- hori_data %>% 
+  filter(year == "2012") %>% 
+  anom_horizon_plot() +
+  theme_minimal(base_size = 10) +
+  facet_wrap(~year, strip.position = "top")
+  
+# 2021
+hori_2021 <- hori_data %>% filter(year == "2021") %>% 
+  anom_horizon_plot() +
+  theme_minimal(base_size = 10) +
+  facet_wrap(~year, strip.position = "top") +
+  theme(plot.caption = element_text(colour = "gray25", size = 6)) +
+  labs(caption = "Climatatological Reference Period: 1982-2011")
+
+# Put them together as one figure
+comparison_horizons <- hori_2012 / hori_2021 + plot_layout(guides = "collect")
+
+# Do a bunch of formatting
+comparison_horizons &
+  theme(
+    # axis text/ticks
+    axis.title.y = element_blank(),
+    axis.line.x = element_line(),
+    axis.ticks.x = element_line(),
+    axis.line.y = element_line(),
+    axis.text.y = element_blank(),
+    # Legend 
+    legend.position = "top",
+    legend.key.height = unit(.5, "lines"),
+    legend.key.width = unit(3.75, "lines"),
+    # Gridlines
+    panel.grid.minor = element_blank(),
+    panel.grid = element_line(size = 0.2),
+    # Plot margin
+    plot.margin = unit(c(.5,1,.3,.5), "cm"),
+    plot.title.position = "plot",
+    plot.title = element_text(face = "bold", size = 14, hjust = 0),
+    plot.subtitle = element_text(size = 9),
+    plot.caption = element_text(size = 7.2, margin = margin(t = 20)),
+    legend.title = element_text(size = 9),
+    legend.text = element_text(size = 7.5),
+    legend.margin = margin(c(7,0,0,0)),
+    legend.justification = "center",
+    # Facet Design
+    strip.text = element_text(
+      color = "white", 
+      face = "bold",
+      size = 11),
+    strip.background = element_rect(
+      color = "white", 
+      fill = "#36454F", 
+      size = 1, 
+      linetype="solid")) &
+   guides(fill = guide_legend(title = "Temperature Anomaly",
+                             title.hjust = 0.5, 
+                             title.position = "top",
+                             label.position = "bottom", 
+                             nrow = 1, 
+                             byrow = T, reverse = T)) &
+  plot_annotation(title = "Comparing the Gulf of Maine's Two Hottest Years", 
+                  subtitle = "Duration of temperature anomaly horizons, colored by their strength")
+  grid::grid.raster(lab_logo, x = 0.08, y = 0.04, just = c('left', 'bottom'), width = unit(0.8, 'inches'))
+  
+```
+
+
+## Streamplot
+
+
+```{r}
+
+# Set Factor Order for Bins
+bin_order <- c(
+  "Less than -1", 
+  "-1 to -0.5",
+  "Within 0.5",
+  "0.5 to 1", 
+  "Greater than 1")
+
+# Set Colors
+bin_colors <- RColorBrewer::brewer.pal(n = length(bin_order), 
+                                       name = "RdBu")
+bin_colors <- rev(bin_colors)
+
+# Count Days in Bins
+day_types <- region_hw %>% 
+  mutate(
+    `Less than -1`   = if_else(sst_anom <= -1, TRUE, FALSE),
+    `-1 to -0.5`     = if_else(between(sst_anom, -1, -0.5), TRUE, FALSE),
+    `Within 0.5`     = if_else(between(sst_anom, -0.5, 0.5), TRUE, FALSE),
+    `0.5 to 1`       = if_else(between(sst_anom, 0.5, 1), TRUE, FALSE),
+    `Greater than 1` = if_else(sst_anom >= 1, TRUE, FALSE)) %>% 
+  group_by(yr) %>% 
+  summarise(
+    `Less than -1`   = sum(`Less than -1`, na.rm = T),
+     `-1 to -0.5`    = sum(`-1 to -0.5`, na.rm = T),
+    `Within 0.5`     = sum(`Within 0.5`, na.rm = T),
+    `0.5 to 1`       = sum(`0.5 to 1`, na.rm = T),
+    `Greater than 1` = sum(`Greater than 1`, na.rm = T),
+    .groups = "drop") %>% 
+  pivot_longer(cols = "Less than -1":"Greater than 1", names_to = "Anomaly Strength", values_to = "day_total", values_drop_na = FALSE) %>% 
+  mutate(day_total = if_else(is.na(day_total), 0L, day_total),
+         `Anomaly Strength` = factor(`Anomaly Strength`, levels = bin_order))
+
+
+# Plot the Streamplot
+hw_streamplot <- ggplot(day_types, aes(yr, y = day_total, fill = `Anomaly Strength`)) +
+  geom_stream(type = "proportion") +
+  #geom_segment(y = .5, yend = 0.5, linetype = 3, color = "gray50", x = 1981, xend = 2021, size = 0.25) +
+  scale_x_continuous(breaks = seq(1980,2030, by = 10), 
+                     minor_breaks = seq(1975, 2030, by = 5), 
+                     expand = c(.03,0)) +
+  scale_y_continuous(labels = scales::percent_format(), expand = c(0,0)) + 
+  scale_fill_manual(values = setNames(bin_colors, bin_order)) + 
+  labs(y = "", x = "", fill = "", 
+       title = "A Warmer Gulf of Maine",
+       subtitle = "Fractions of Each Year Experienced as Hot/Cold Anomalies",
+       caption = "1981 not a complete years in the data*") +
+  theme_minimal(base_size = 10) +
+  theme(
+    axis.line.x = element_line(),
+    axis.ticks.x = element_line(),
+    axis.line.y = element_line(),
+    axis.ticks.y = element_line(),
+    legend.position = "top",
+    legend.key.height = unit(.5, "lines"),
+    legend.key.width = unit(3.75, "lines"),
+    panel.grid.minor = element_blank(),
+    panel.grid = element_line(size = 0.2),
+    plot.margin = unit(c(.5,1,.3,.5), "cm"),
+    plot.title.position = "plot",
+    plot.title = element_text(face = "bold", size = 14),
+    plot.subtitle = element_text(size = 9),
+    plot.caption = element_text(size = 7.2, margin = margin(t = 20)),
+    legend.title = element_text(size = 9),
+    legend.text = element_text(size = 7.5),
+    legend.margin = margin(c(7,0,0,0)),
+    legend.justification = "center") +
+   guides(fill = guide_legend(title = "Anomaly Strength \u00b0C",
+                             title.hjust = 0.5, 
+                             title.position = "left",
+                             label.position = "bottom", 
+                             nrow = 1, 
+                             byrow = T))
+
+
+# Show figure
+hw_streamplot
+
+```
+
+
+## Characteristics of the Hottest Years
+
+Multivariate figure comparing characteristics of both years: 2012 & 2021
+
+
+
+
+
+
+## Biological Events
+
+ - whale sharks
+ - hammerheads
+ - blue crab
+ - 
