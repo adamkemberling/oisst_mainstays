@@ -61,7 +61,11 @@ oisst_path <- cs_path("res", "OISST/oisst_mainstays")
 theme_set(theme_bw() + 
             theme(
               # Titles
-              plot.title = element_text(hjust = 0.5),
+              plot.title = element_text(hjust = 0.5, face = "bold", size = 14),
+              plot.subtitle = element_text(size = 9),
+              plot.caption = element_text(size = 7.2, margin = margin(t = 20)),
+              legend.title = element_text(size = 9),
+              legend.text = element_text(size = 7.5),
               # Axes
               axis.line.y = element_line(),
               axis.ticks.y = element_line(), 
@@ -100,7 +104,7 @@ lab_logo <- magick::image_read(logo_path)
 
 `r gmRi::use_gmri_style_rmd(css = "gmri_rmarkdown.css")`
 
-# Gulf of Maine 2021 Annual Temperature Review
+# 2021 Sea Surface Temperature
 
 #### An exceptional year
 
@@ -172,6 +176,10 @@ To better get a sense of what kind of year 2021 was it is helpful to relate it t
 
  - El nino status
  - NAO status
+ 
+ When we look at average temperatures and how that relates to these patterns, there is a general relationship of El nino years correlating well with ___, and la nina years correlating more with __. 
+ 
+ 
  
 
 ## Temperature and Anomaly Patterns
@@ -351,6 +359,16 @@ heatwave_heatmap <- ggplot(grid_data, aes(x = flat_date, y = year)) +
 heatwave_heatmap
 ```
 
+
+## Following Each Heatwave
+
+Do some breakdowns of how each heatwave looked:
+ - where was heat concentrated
+ - how long did it last
+ - was anything unique about it?
+
+
+
 ##  Temperature Horizons
 
 ```{r}
@@ -432,17 +450,31 @@ anom_horizon_plot(hori_data = hori_data, origin = ori, scale_cutpoints = sca)
 Early into 2021 it was apparent that the year was on-par with the previous title-holder for warmest year on record.
 
 ```{r}
+# Reset the outliers
+# cut out outliers and set cutpoints
+cutpoints_2 <- hori_data %>% 
+  filter(year %in% c("2012", "2021")) %>% 
+  mutate(
+    outlier = between(
+      sst_anom,
+      quantile(sst_anom, 0.25, na.rm=T)-
+        1.5*IQR(sst_anom, na.rm=T),
+      quantile(sst_anom, 0.75, na.rm=T)+
+        1.5*IQR(sst_anom, na.rm=T))) %>% 
+  filter(outlier)
+
+
 
 # 2012
 hori_2012 <- hori_data %>% 
   filter(year == "2012") %>% 
-  anom_horizon_plot() +
+  anom_horizon_plot(scale_cutpoints = cutpoints_2) +
   theme_minimal(base_size = 10) +
   facet_wrap(~year, strip.position = "top")
   
 # 2021
 hori_2021 <- hori_data %>% filter(year == "2021") %>% 
-  anom_horizon_plot() +
+  anom_horizon_plot(scale_cutpoints = cutpoints_2) +
   theme_minimal(base_size = 10) +
   facet_wrap(~year, strip.position = "top") +
   theme(plot.caption = element_text(colour = "gray25", size = 6)) +
@@ -582,7 +614,7 @@ hw_streamplot <- ggplot(day_types, aes(yr, y = day_total, fill = `Anomaly Streng
 
 # Show figure
 hw_streamplot
-
+grid::grid.raster(lab_logo, x = 0.08, y = 0.04, just = c('left', 'bottom'), width = unit(0.8, 'inches'))
 ```
 
 
@@ -591,6 +623,69 @@ hw_streamplot
 Multivariate figure comparing characteristics of both years: 2012 & 2021
 
 
+```{r}
+
+# # Which were hottest
+# top_5_years <- hori_data %>% 
+#   filter(year != "1981") %>% 
+#   group_by(year) %>% 
+#   summarise(mean_temp = mean(sst), .groups = "drop") %>% 
+#   slice_max(n = 5, order_by = mean_temp) %>% 
+#   pull(year)
+# 
+# # Pull data for 5 years
+# top_years_dat <- filter(hori_data, year %in% top_5_years)
+
+
+# Use all years so they can be ranked independently
+
+# Metrics?
+year_mets <- hori_data %>% 
+  group_by(year) %>% 
+  summarise(
+    total_days = n(),
+    `Average Temperature` = mean(sst, na.rm = T),
+    `Temperature Above Average` = mean(sst_anom, na.rm = T),
+    `Cumulative Degrees Above Average` = sum(sst_anom, na.rm = T),
+    hw_days = sum(mhw_event, na.rm = T),
+    hw_events = n_distinct(mhw_event_no),
+    peak_temp = max(sst),
+    peak_anom = max(sst_anom)) %>% 
+  mutate(
+    hw_day_pct = (hw_days/total_days) * 100,
+    `Average Heatwave Length` = hw_days/hw_events
+  ) %>% 
+  pivot_longer(names_to = "Var", values_to = "Metric", cols = `Average Temperature`:`Average Heatwave Length`)
+
+
+# Snipe out the top5 for each
+library(tidytext)
+year_met_ranks <- year_mets %>% 
+  filter(Var %in% c("Average Temperature", "Temperature Above Average", "Average Heatwave Length", "Cumulative Degrees Above Average")) %>% 
+  group_by(Var) %>% 
+  slice_max(n = 5, order_by = Metric) %>% 
+  ungroup() %>%
+  mutate(
+    yr_focus = ifelse(year == "2021", TRUE, FALSE),
+    year = reorder_within(year, Metric, Var)) 
+
+
+year_met_ranks %>% 
+  ggplot(aes(year, Metric, fill = yr_focus)) +
+    geom_col(show.legend = FALSE) +
+    facet_wrap(~Var, scales = "free", ncol = 2) +
+    coord_flip() +
+    scale_x_reordered() +
+    scale_y_continuous() +
+    labs(y = "",
+         x = NULL,
+         title = "How 2021 Stacks Up:",
+         subtitle = "Ranking Characteristics of Acute and Prolonged Warming Events") +
+  theme(plot.title = element_text(hjust = 0)) + 
+  scale_fill_gmri() +
+  theme(panel.border = element_blank())
+
+```
 
 
 
@@ -601,3 +696,8 @@ Multivariate figure comparing characteristics of both years: 2012 & 2021
  - hammerheads
  - blue crab
  - 
+
+
+
+
+`r insert_gmri_footer()`
