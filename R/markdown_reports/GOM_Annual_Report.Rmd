@@ -306,6 +306,35 @@ limit <- max(abs(grid_data$sst_anom)) *c(-1,1)
 ```
 
 
+## Heatwave Events
+
+```{r}
+
+# Isolate 2021
+hw_2021 <- filter(region_hw, yr == "2021")
+
+# Get Event numbers
+events_21 <-  hw_2021 %>% drop_na(mhw_event_no) %>% distinct(mhw_event_no) %>% pull(mhw_event_no)
+events_num <-  length(events_21)
+
+
+# Pull their data
+events_dat <- filter(region_hw, mhw_event_no %in% as.character(events_21))
+  
+
+# How long on average
+avg_duration <- round(nrow(events_dat) / events_num, digits = 0)
+```
+
+During 2021 there were three main marine heatwave events, including one that began on the new year. The average duration for each heatwave event was `r avg_duration` days, or over three months long.
+
+
+```{r}
+#| alt
+```
+
+
+
 ## Heatwave Seasonality
 
 ```{r}
