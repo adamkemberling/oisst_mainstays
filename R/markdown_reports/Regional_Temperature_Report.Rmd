@@ -26,39 +26,35 @@ knitr::opts_chunk$set(echo = TRUE,
                       fig.align = "center")
 
 # Packages
-library(lubridate)
-library(ncdf4)
-library(raster)
-library(rnaturalearth)
-library(sf)
-library(stars)
-library(gmRi)
-library(scales)
-library(here)
-library(janitor)
-library(knitr)
-library(patchwork)
-library(tidyverse)
-library(heatwaveR)
-library(plotly)
-library(ggpmisc)
-library(gt)
-library(ggalt)
-library(geomtextpath)
+suppressPackageStartupMessages( library(lubridate) )
+suppressPackageStartupMessages( library(ncdf4) )
+suppressPackageStartupMessages( library(raster) )
+suppressPackageStartupMessages( library(rnaturalearth) )
+suppressPackageStartupMessages( library(sf) )
+suppressPackageStartupMessages( library(stars) )
+suppressPackageStartupMessages( library(gmRi) )
+suppressPackageStartupMessages( library(scales) )
+suppressPackageStartupMessages( library(here) )
+suppressPackageStartupMessages( library(janitor) )
+suppressPackageStartupMessages( library(knitr) )
+suppressPackageStartupMessages( library(patchwork) )
+suppressPackageStartupMessages( library(tidyverse) )
+suppressPackageStartupMessages( library(heatwaveR) )
+suppressPackageStartupMessages( library(plotly) )
+suppressPackageStartupMessages( library(ggpmisc) )
+suppressPackageStartupMessages( library(gt) )
+suppressPackageStartupMessages( library(ggalt) )
+suppressPackageStartupMessages( library(geomtextpath) )
 
 # Support Functions
-source(here("R/oisst_support_funs.R"))
-source(here("R/temp_report_support.R"))
+suppressPackageStartupMessages(source(here("R/oisst_support_funs.R")))
+suppressPackageStartupMessages(source(here("R/temp_report_support.R")))
 path_fun <- os_fun_switch(mac_os = "mojave")
 
 
 # File Paths
 mills_path <- path_fun("mills")
 oisst_path <- path_fun("res", "OISST/oisst_mainstays")
-
-
-# Set ggplot theme for figures
-theme_set(theme_bw())
 
 
 # Set theme up for maps
