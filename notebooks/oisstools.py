@@ -400,12 +400,12 @@ def build_annual_from_cache(last_month, this_month, workspace = "local", verbose
     
     # # NOTE: added to oisstools.py as a function
     
-    # # Add the attributes to the combined dataset
-    oisst_combined = apply_oisst_attributes(oisst_combined, anomalies = False)
-    
     
     # Load the full year into memory
     oisst_combined = oisst_combined.load()
+    
+     # # Add the attributes to the combined dataset
+    oisst_combined = apply_oisst_attributes(oisst_combined, anomalies = False)
     
     # Return the combined data
     return oisst_combined
@@ -1374,3 +1374,47 @@ def update_regional_timeseries_collection(start_yr, end_yr, region_collection, b
       updated_timeline_i.to_csv(update_path_i, index = False)
 
   
+
+#-----------------------------------------------------
+#
+# Calculate Warming Trends
+#
+#-----------------------------------------------------
+
+def calc_warming_trends(year_avg, start_yr, end_yr):
+    """
+    Calculate table of annual warming rates from average yearly temperatures, resulting from `oisst.groupby('time.year').mean()`
+    
+    Args:
+        year_avg  : String indicating the starting year to include in the update
+        start_yr  :
+        end_yr    : String indicating the last year to include in the update
+  
+    
+    
+    """
+    
+    # Filtering the Years
+    print(f"Calculating warming trends from {start_yr} to {end_yr}.")
+    year_subset = year_avg.sel(year = slice(start_yr, end_yr))
+    
+    # Pull arrays of the sea surface temperatures and the time dimensions
+    vals  = year_subset.sst.values
+    years = year_subset.year.values
+
+    # Reshape to an array with as many rows as years and as many columns as there are pixels
+    vals2 = vals.reshape(len(years), -1)
+
+    # Do a first-degree polyfit (i.e. a line)
+    regressions = np.polyfit(years, vals2, 1)
+    
+#     # What is going on with the regressions array?
+#     # 2 x ncells. First value is regression coefficients
+#     regressions.shape
+
+
+    # Get the coefficients back
+    trends = regressions[0, :].reshape(vals.shape[1], vals.shape[2])
+    
+    # Return the trends table
+    return trends
