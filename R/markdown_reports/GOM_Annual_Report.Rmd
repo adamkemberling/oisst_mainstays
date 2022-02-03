@@ -93,17 +93,18 @@ theme_set(theme_bw() +
               legend.title = element_text(size = 9),
               legend.text = element_text(size = 7.5),
               # Axes
-              axis.line.y = element_line(),
+              axis.line.y = element_line(color = "black"),
               axis.ticks.y = element_line(), 
-              axis.line.x = element_line(),
+              axis.line.x = element_line(color = "black"),
               axis.ticks.x = element_line(), 
               axis.text = element_text(size = 11),
+              rect = element_rect(fill = "transparent", color = "black"),
               # Facets
               strip.text = element_text(color = "white", 
                                         face = "bold",
                                         size = 11),
               strip.background = element_rect(
-                color = "white", 
+                color = "#00736D", 
                 fill = "#00736D", 
                 size = 1, 
                 linetype="solid"))
@@ -393,7 +394,7 @@ hw_temp_p <- ggplot(this_yr, aes(x = time)) +
     #geom_line(aes(y = seas, color = "Daily Climatology"), lty = 2, size = .5) +
     geom_textpath(aes(y = seas,  color = "Daily Climatology"), label = "Climatology Mean", hjust = 0.5, lty = 2) +
     scale_color_manual(values = color_vals) +
-    scale_x_date(date_labels = "%b", date_breaks = "1 month") +
+    scale_x_date(date_labels = "%b", date_breaks = "1 month", expand = expansion(mult = c(0,0))) +
     scale_y_continuous(sec.axis = sec_axis(trans = ~as_fahrenheit(., data_type = "temperature"),
                                          labels =  number_format(suffix = " \u00b0F")),
                      labels = number_format(suffix = " \u00b0C")) +
@@ -435,7 +436,7 @@ ggplot(aes(x = time)) +
     #               label = "Climatology Mean", hjust = 0.5, lty = 2, show.legend = FALSE) +
     scale_color_manual(values = color_vals) +
     scale_linetype_manual(values = linetype_key, guide = "none") +
-    scale_x_date(date_labels = "%b", date_breaks = "1 month") +
+    scale_x_date(date_labels = "%b", date_breaks = "1 month", expand = expansion(mult = c(0,0))) +
     guides(color = guide_legend(override.aes = list(linetype = linetype_key), nrow = 2)) +
     theme(legend.title = element_blank(),
           legend.position = "top") +
@@ -458,14 +459,18 @@ hw_temp_p / hw_anom_p
 
 ```{r}
 
-# Get Event numbers
-events_21 <-  this_yr %>% drop_na(mhw_event_no) %>% distinct(mhw_event_no) %>% pull(mhw_event_no)
+# Get the Event numbers
+events_21 <-  this_yr %>% 
+  drop_na(mhw_event_no) %>% 
+  distinct(mhw_event_no) %>% 
+  pull(mhw_event_no)
+
 events_num <-  length(events_21)
 
 
-# Pull their data
+# Pull their data, including the days before and after
 events_dat <- filter(region_hw, mhw_event_no %in% as.character(events_21),
-                     yr <= 2021)
+                     yr == 2021)
 # Days in HW state
 days_hw <- nrow(events_dat)
 
@@ -473,77 +478,47 @@ days_hw <- nrow(events_dat)
 avg_duration <- round(days_hw / events_num, digits = 0)
 ```
 
-During 2021 there were `r events_num` main marine heatwave events, including one that carried over from the previous year and one that has continued into 2022. The average duration for these events was `r avg_duration` days (excludes ongoing days in 2022).
+During 2021 there were `r events_num` main marine heatwave events, including one that carried over from the previous year and one that has continued into 2022. The average duration for these events was `r avg_duration` days (excluding days in 2020 & 2022).
 
 
+## Record Daily Temperatures
 
-## Heatwave Seasonality
+To add context on the severity of these sustained heatwaves, many of the individual daily temperatures throughout 2021 were themselves the hottest days on record.
 
-Over the last ~40 years the frequency, duration, and intensity of heatwave events has increased. This year was no exception with `r days_hw` days meeting the criteria for heatwave status.
+```{r}
+# Grab the hottest day for each day of the year
+hottest_days <- region_hw %>% 
+  group_by(doy) %>% 
+  slice_max(order_by = sst_anom, n = 1) %>% 
+  ungroup() 
 
+# Number in 2021
+hottest_2021 <- hottest_days %>% 
+  count(yr) %>% 
+  filter(yr == "2021") %>% 
+  pull(n)
+
+# hottest_days %>% 
+#   count(yr) %>% arrange(desc(n))
+```
+
+Of the 365 days in a year, 2021 set a new record temperature on `r hottest_2021` or `r round((hottest_2021/365) * 100, 2)`% of the year.
+
+
+## Long-Term Heatwave Seasonality
+
+When looking at the last ~40 years of marine heatwave events here in the Gulf of Maine. We see that the frequency, duration, and intensity of heatwave events has increased. This year was no exception with `r days_hw` days meeting the criteria for heatwave status.
 
 
 ```{r}
-# Set new axis dimensions, y = year, x = day within year
-# use a flate_date so that they don't stair step
+#| fig.alt = "Heatmap of heatwave temperatures and heatwave days"
+
+# Set up the date within a year
 base_date <- as.Date("2000-01-01")
 grid_data <- region_hw %>% 
   mutate(year = year(time),
          yday = yday(time),
          flat_date = as.Date(yday-1, origin = base_date))
-
-
-# Polar plot comparing when each year experienced peak heatwave conditions
-polar_dat <- grid_data %>% filter(year %in% c("2012", "2021")) %>% 
-  mutate(hw_line =  ifelse(mhw_event == TRUE, sst_anom, NA),
-         hw_mag = ifelse(year == "2012", hw_line * -1, hw_line))
-```
-
-
-```{r, eval = F}
-# Things to highlight:
-# when the heatwaves ocurred, how they overlapped
-# severity?
-
-
-# Side by side - need data separately
-polar_dat %>% 
-  ggplot(aes(x = flat_date, xend = flat_date,
-             y = sst_anom, yend = 0, color = mhw_event)) +
-  geom_segment(alpha = 0.9, show.legend = F) +
-  geom_textpath(aes(x = flat_date, y = mhw_thresh - seas), 
-                label = "Heatwave Threshold", linetype = 1, color = "black", hjust = 0.85, straight = T) +
-  scale_x_date(date_labels = "%b", date_breaks = "1 month", expand = expansion(mult = c(0,0))) + 
-  scale_y_continuous(sec.axis = sec_axis(trans = ~as_fahrenheit(., data_type = "anomalies"),
-                                           labels =  number_format(suffix = " \u00b0F")),
-                     labels = number_format(suffix = " \u00b0C"),
-                     expand = expansion(mult = c(0,0))) +
-  facet_wrap( ~ year, nrow = 2) + 
-  scale_color_manual(values = c("TRUE" = "darkred", "FALSE" = "black")) +
-  # scale_color_gmri() +
-  # theme_gmri() +
-  labs(x = "", y = "Temperature Anomalies", fill = "Year")
-```
-
-
-
-
-
-## Following Each Heatwave
-
-Do some breakdowns of how each heatwave looked:
- - where was heat concentrated
- - how long did it last
- - was anything unique about it?
-
-
-
-
-## Heatwave Frequency Heatmap
-
-```{r}
-#| fig.alt = "Heatmap of heatwave temperatures and heatwave days"
-
 
 # Prep the legend title
 guide_lab <- "Sea Surface Temperature Anomaly \u00b0C"
@@ -583,7 +558,6 @@ heatwave_heatmap <- ggplot(grid_data, aes(x = flat_date, y = year)) +
                                  barheight = unit(4.8, "inches"), 
                                  frame.colour = "black", 
                                  ticks.colour = "black")) +  
-  theme_classic() +
   theme(legend.title = element_text(angle = 90))
 
 
@@ -594,7 +568,9 @@ heatwave_heatmap
 
 
 
-##  Temperature Horizons
+##  Temperature Anomaly Horizons
+
+One way to think about the severity of these changes is to think about temperature horizons. A temperature horizon captures how long temperatures remain above certain thresholds. Each threshold is designated its own temperature, and in this way we can see how long within a year temperatures remained: 1 to 2 or as much as 4$^oC$ above normal.  
 
 ```{r}
 #| fig.alt = "Horizon plot of all years and their temperature anomaly horizons"
@@ -638,8 +614,9 @@ anom_horizon_plot <- function(hori_data, origin = ori, scale_cutpoints = sca, la
   scale_fill_hcl(palette = 'RdBu', reverse = T, labels = sca_labels) +
   facet_grid(year~.) +
   theme(
+    #strip.background = element_rect(fill = "#36454F", color = "#36454F"),
     panel.grid = element_blank(),
-    panel.spacing.y=unit(0, "lines"),
+    panel.spacing.y=unit(0.1, "lines"),
     strip.text.y = element_text(size = 7, angle = 0, hjust = 0),
     axis.text.y = element_blank(),
     axis.title.y = element_blank(),
@@ -664,13 +641,16 @@ anom_horizon_plot(hori_data = filter(hori_data, yr <= 2021),
   labs(title = "Temperature Anomaly Horizons",
        subtitle = "How deviation from the norm has become the new-normal",
        caption = "Climatatological Reference Period: 1982-2011")
-
+grid::grid.raster(lab_logo, x = 0.08, y = 0.04, just = c('left', 'bottom'), width = unit(0.8, 'inches'))
 ```
 
 ## Comparing the Gulf's Two Hottest Years
 
+If we pull the horizons of our two hottest years on record it makes it easier to contrast where either one experienced acute high temperature events, and where there were sustained periods of above average temperatures.
 
 Early into 2021 it was apparent that the year was on-par with the previous title-holder for warmest year on record.
+
+*Could have more text here*
 
 ```{r}
 #| fig.alt = "Single year horizon plots comparing 2012 and 2022"
@@ -726,8 +706,11 @@ comparison_horizons &
 ```
 
 
-## Streamplot
+## Losing the Balance Between Hot and Cold
 
+Another way to visualize the climate transition that we are observing is by looking at the fraction of each year spent in different temperature ranges. Under a steady climate we would expect over the long-term to spend similar amounts of the year experiencing relatively warm & cold temperatures. These periods would balance themselves out and we would on-average have experienced something similar to the long-term climate.
+
+What we have been seeing in the Gulf of Maine recently has lost that sense of balance. Larger fractions of the year are shared by above average temperatures & cold spell events are becoming vanishingly rare.
 
 ```{r}
 #| fig.alt = "Streamplot tracking fraction of each year spent in varying degrees of temperature anomalies"
@@ -776,6 +759,8 @@ hw_streamplot <- ggplot(day_types, aes(yr, y = day_total, fill = `Anomaly Streng
                      expand = c(.03,0)) +
   scale_y_continuous(labels = scales::percent_format(), expand = c(0,0)) + 
   scale_fill_manual(values = setNames(bin_colors, bin_order)) + 
+  annotate(x = 2015.5, y = 0.25, geom = "text", color = "white",
+           label = "More than 50%\nof Days >1\u00b0C\nAbove Average") +
   labs(y = "", x = "", fill = "", 
        title = "A Warmer Gulf of Maine",
        subtitle = "Fractions of Each Year Experienced as Hot/Cold Anomalies",
@@ -854,7 +839,7 @@ year_met_ranks <- year_mets %>%
     yr_focus = ifelse(year == "2021", TRUE, FALSE),
     year = reorder_within(year, Metric, Var)) 
 
-
+# Plot the rankings
 year_met_ranks %>% 
   ggplot(aes(year, Metric, color = yr_focus)) +
     geom_col(aes(fill = yr_focus), show.legend = F) +
@@ -874,6 +859,7 @@ year_met_ranks %>%
         panel.grid.major.x = element_blank(),
         panel.grid.minor.x = element_blank(),
         panel.grid.major. = element_line(linetype = 3, color = "gray50"))
+grid::grid.raster(lab_logo, x = 0.84, y = 0.94, just = c('left', 'bottom'), width = unit(0.8, 'inches'))
 
 ```
 
@@ -948,13 +934,12 @@ ranks_map <- ggplot() +
   scale_y_continuous(breaks = seq(-90, 90, 30), 
                      expand = expansion(mult = c(0,0))) +
   labs(title = "Record Setting Temperatures of 2021",
-       subtitle = "Regions that experienced record setting temperatures",
        fill = "",
        caption = "Temperature rankings cover period of 1982-2021") +
   map_theme
   
 ranks_map
-
+grid::grid.raster(lab_logo, x = 0.08, y = 0.04, just = c('left', 'bottom'), width = unit(0.8, 'inches'))
 ```
 
 
@@ -971,9 +956,12 @@ ggplot() +
   geom_sf(data = canada, size = .25) +
   scale_fill_brewer(palette = "RdBu", na.value = "transparent")+ 
   coord_sf(xlim = c(-80, -55), ylim = c(34, 49)) +
-  labs(x = "", y = "", fill = "2021 Temperature Rank")  +
+  labs(x = "", y = "", fill = "2021 Temperature Rank",
+       title = "Record Warm Temperatures",
+       subtitle = "From North Carolina to Newfoundland",
+       caption = "Temperature rankings cover period of 1982-2021")  +
   map_theme
-
+grid::grid.raster(lab_logo, x = 0.08, y = 0.04, just = c('left', 'bottom'), width = unit(0.8, 'inches'))
 ```
 
 
@@ -1312,7 +1300,20 @@ lme_shapes <- map(lme_names, ~  read_sf(lme_paths[[.x]][["shape_path"]]))  %>%
   setNames(lme_names)
 
 # Include Gulf of Maine as a shape
+gom_shape <- read_sf(poly_path)
 lme_shapes[["gulf_of_maine"]] <- gom_shape
+
+
+
+# Masking Function to clip to the study area
+mask_nc <- function(ras_obj, mask_shape){
+  
+  # Get stats from ranks
+  m1 <- mask(rotate(ras_obj), mask_shape)
+  m1 <- crop(m1, mask_shape)
+  return(m1)
+}
+
 
 
 # Mask with each to get warming %
@@ -1335,15 +1336,14 @@ if( all(names(lme_rates_masked) == names(lme_perc_masked)) ){
 }
 
 
-# Check it out:
-percentile_table %>% arrange(desc(warming_percentile)) %>% head()
-percentile_table %>% arrange(desc(annual_rate)) %>% head()
+# # Check it out:
+# percentile_table %>% arrange(desc(warming_percentile)) %>% head()
+# percentile_table %>% arrange(desc(annual_rate)) %>% head()
 
 
 # Bizarre...
 
-# Put LME's in one
-class(rbind(lme_shapes))
+# Put LME's in one collection
 lme_shape_tab <- bind_rows(lme_shapes)
 
 # Join with the  rates/ranks
@@ -1352,12 +1352,23 @@ perc_tab <- percentile_table %>%
          name = str_to_title(name),
          name = str_replace(name, "Of", "of"))
 
-left_join(lme_shape_tab, perc_tab, by = c("name")) %>% 
-  ggplot() +
-  geom_sf(aes(fill = warming_percentile)) +
-  scale_fill_distiller(palette = "RdBu", direction = -1, na.value = "black") +
+# Add the percentile information, and map them
+lme_sf_ranks <- left_join(lme_shape_tab, perc_tab, by = c("name")) 
+
+ggplot() +
+  geom_sf(data = lme_sf_ranks, aes(fill = warming_percentile), color = "transparent") +
+  geom_sf(data = world_sf, size = 0.25) +
+  scale_fill_distiller(palette = "RdBu", direction = -1, na.value = "transparent") +
   theme(legend.position = "bottom") +
-  labs(fill = "Warming Rate Percentile")
+  coord_sf(expand = FALSE) +
+  map_theme +
+  guides(fill = guide_colorbar(
+    title.position = "top",
+    title.hjust = 0.5, 
+    barwidth = unit(4, "in"), 
+    frame.colour = "black")) +
+  labs(fill = "Warming Rate Percentile",
+       title = "")
 
 
 ```
@@ -1365,11 +1376,6 @@ left_join(lme_shape_tab, perc_tab, by = c("name")) %>%
 
 
 ## Biological Events
-
- - basking sharks
- - hammerheads
- - blue crab
- - 
 
 
 

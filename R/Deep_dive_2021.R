@@ -405,3 +405,66 @@ month_yr_summary %>%
   geom_col(aes(fill = year), position = "dodge")
 
 
+
+
+#####  Code Discard  ####
+
+
+
+
+# Set new axis dimensions, y = year, x = day within year
+# use a flate_date so that they don't stair step
+base_date <- as.Date("2000-01-01")
+grid_data <- region_hw %>% 
+  mutate(year = year(time),
+         yday = yday(time),
+         flat_date = as.Date(yday-1, origin = base_date))
+
+
+# Polar plot comparing when each year experienced peak heatwave conditions
+polar_dat <- grid_data %>% filter(year %in% c("2012", "2021")) %>% 
+  mutate(hw_line =  ifelse(mhw_event == TRUE, sst_anom, NA),
+         hw_mag = ifelse(year == "2012", hw_line * -1, hw_line))
+
+
+
+
+# Things to highlight:
+# when the heatwaves ocurred, how they overlapped
+# severity?
+
+
+# Side by side - need data separately
+polar_dat %>% 
+  ggplot(aes(x = flat_date, xend = flat_date,
+             y = sst_anom, yend = 0, color = mhw_event)) +
+  geom_segment(alpha = 0.9, show.legend = F) +
+  geom_textpath(aes(x = flat_date, y = mhw_thresh - seas), 
+                label = "Heatwave Threshold", linetype = 1, color = "black", hjust = 0.85, straight = T) +
+  scale_x_date(date_labels = "%b", date_breaks = "1 month", expand = expansion(mult = c(0,0))) + 
+  scale_y_continuous(sec.axis = sec_axis(trans = ~as_fahrenheit(., data_type = "anomalies"),
+                                         labels =  number_format(suffix = " \u00b0F")),
+                     labels = number_format(suffix = " \u00b0C"),
+                     expand = expansion(mult = c(0,0))) +
+  facet_wrap( ~ year, nrow = 2) + 
+  scale_color_manual(values = c("TRUE" = "darkred", "FALSE" = "black")) +
+  # scale_color_gmri() +
+  # theme_gmri() +
+  labs(x = "", y = "Temperature Anomalies", fill = "Year")
+
+
+
+
+
+
+## Following Each Heatwave
+"
+Do some breakdowns of how each heatwave looked:
+  - where was heat concentrated
+- how long did it last
+- was anything unique about it?
+  
+"
+  
+  
+
