@@ -53,11 +53,14 @@ source(here("R/temp_report_support.R"), verbose = FALSE)
 oisst_path <- cs_path("res", "OISST/oisst_mainstays")
 
 
-# Set ggplot theme for figures
 theme_set(theme_bw() + 
             theme(
               # Titles
-              plot.title = element_text(hjust = 0.5),
+              plot.title = element_text(hjust = 0, face = "bold", size = 14),
+              plot.subtitle = element_text(size = 9),
+              plot.caption = element_text(size = 7.2, margin = margin(t = 20), color = "gray40"),
+              legend.title = element_text(size = 9),
+              legend.text = element_text(size = 7.5),
               # Axes
               axis.line.y = element_line(),
               axis.ticks.y = element_line(), 
@@ -70,10 +73,11 @@ theme_set(theme_bw() +
                                         size = 11),
               strip.background = element_rect(
                 color = "white", 
-                fill = "#36454F", 
+                fill = "#00736D", 
                 size = 1, 
-                linetype="solid"))
-          )
+                linetype="solid")))
+
+
 
 
 # Set theme up for maps
@@ -278,7 +282,7 @@ ggplot(met_seasons_df) +
             fill = met_seasons_df$current_season) +
   geom_textpath(aes(x = labeldate, y = label_y, label = season), 
                 color = met_seasons_df$current_season, size = 6) +
-  scale_x_date(date_breaks = "1 month", date_labels = month.abb,
+  scale_x_date(date_breaks = "1 month", labels = date_format("%b"), 
                limits = range(as.Date(c("2015-12-01", "2016-11-30")))) +
   ylim(0,13) +
   coord_curvedpolar() +
