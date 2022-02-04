@@ -360,7 +360,7 @@ anom_diff <- round(diff(anom_range), 2)
 ```
 
 
-The Gulf of Maine has a regular seasonal cycle hitting its lowest temperatures in March, and experiencing its peak highs in August. The difference between these two seasons is typically `r as_fahrenheit(clim_diff, "anomalies")`$^oF$ or `r clim_diff`$^oC$. In 2021 the temperature range was `r temp_range[1]`-`r temp_range[2]`$^oC$ or `r temp_diff`$^oC$, with temperature anomaly values ranging from `r anom_range[1]`-`r anom_range[2]`$^oC$.
+The Gulf of Maine has a seasonal temperature cycle that experiences its lowest temperatures around March, and its peak summer highs in August. The difference between these two seasons is typically `r as_fahrenheit(clim_diff, "anomalies")`$^oF$ or `r clim_diff`$^oC$. In 2021 the temperature range was `r temp_range[1]`-`r temp_range[2]`$^oC$ or `r temp_diff`$^oC$, with temperature anomaly values ranging from `r anom_range[1]`-`r anom_range[2]`$^oC$.
 
 The highest temperatures anomalies spiked in the last days of June, capping off an already warm start to the year. A very-warm August and steady, above-average temperatures from early September through the end of the year helped solidifify 2021 as the hottest year on record for the Gulf of Maine.
 
@@ -478,7 +478,7 @@ days_hw <- nrow(events_dat)
 avg_duration <- round(days_hw / events_num, digits = 0)
 ```
 
-During 2021 there were `r events_num` main marine heatwave events, including one that carried over from the previous year and one that has continued into 2022. The average duration for these events was `r avg_duration` days (excluding days in 2020 & 2022).
+During 2021 there were `r events_num` marine heatwave events,  lasting a total of `r days_hw`. These events include one that carried over from the previous year and another that has persisted into 2022. The average duration for these events was `r avg_duration` days (excluding days in 2020 & 2022).
 
 
 ## Record Daily Temperatures

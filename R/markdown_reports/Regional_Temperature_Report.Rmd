@@ -126,6 +126,9 @@ mask_nc <- function(ras_obj, mask_shape){
 }
 
 
+# Adding Logo to plot
+logo_path <- paste0(system.file("stylesheets", package = "gmRi"), "/gmri_logo.png")
+lab_logo <- magick::image_read(logo_path)
 
 ```
 
@@ -673,7 +676,7 @@ color_vals <- c(
 
 
 # Set the label with degree symbol
-ylab <- "Sea Surface Temperature"
+ylab <- "Sea Surface Temperature \u00b0C"
 
 
 
@@ -688,7 +691,7 @@ hw_temp_p <- ggplot(last_yr_heatwaves, aes(x = time)) +
     geom_line(aes(y = mhw_thresh, color = "MHW Threshold"), lty = 3, size = .5) +
     geom_line(aes(y = seas, color = "Daily Climatology"), lty = 2, size = .5) +
     scale_color_manual(values = color_vals) +
-    scale_x_date(date_labels = "%b", date_breaks = "1 month") +
+    scale_x_date(date_labels = "%b", date_breaks = "1 month", expand = expansion(mult = c(0,0))) +
     scale_y_continuous(sec.axis = sec_axis(trans = ~as_fahrenheit(., data_type = "temperature"),
                                          labels =  number_format(suffix = " \u00b0F")),
                      labels = number_format(suffix = " \u00b0C")) +
@@ -737,7 +740,7 @@ ggplot(aes(x = time)) +
     geom_line(aes(y = 0, color = "Daily Climatology"), lty = 2, size = .5) +
     scale_color_manual(values = color_vals) +
     scale_linetype_manual(values = linetype_key, guide = "none") +
-    scale_x_date(date_labels = "%b", date_breaks = "1 month") +
+    scale_x_date(date_labels = "%b", date_breaks = "1 month", expand = expansion(mult = c(0,0))) +
     guides(color = guide_legend(override.aes = list(linetype = linetype_key), nrow = 2)) +
     theme(legend.title = element_blank(),
           legend.position = "top") +
@@ -887,7 +890,7 @@ hw_peaks <-  ggplot(wave_summary, aes(y = year, x = peak_intensity)) +
 
 
 
-## SST Anomaly Maps {.tabset .tabset-pills}
+## SST Anomaly Maps
 
 The 2021 global sea surface temperature anomalies have been loaded and displayed below to visualize how different areas of the ocean experience swings in temperature.
 
@@ -903,7 +906,7 @@ anoms_2021 <- stack(anom_path)
 
 ```
 
-###  Global Anomalies {.tabset}
+###  Global Anomalies  {.tabset .tabset-pills}
 
 
 
@@ -916,27 +919,37 @@ anoms_2021 <- stack(anom_path)
 # Make Annual Average
 ann_anom_ras <- calc(anoms_2021, fun = mean, na.rm = T)
 
-# Color limit for palette
-#temp_limits <- c(-5, 5)
-temp_limits <- max(abs(values(ann_anom_ras)), na.rm = T) * c(-1,1) # Dynamic Limits
+# Color scale title
+sst_lab <- "Sea Surface Temperature Anomaly"
 
-sst_lab <- expression("Sea Surface Temperature Anomaly"~~degree~C)
+# Color limit for palettes
+temp_limits <- c(-2, 2)
+temp_breaks <- c(temp_limits[1], temp_limits[1]/2,  0, temp_limits[2]/2, temp_limits[2])
+temp_labels <- str_c(c(str_c("< ", temp_limits[1]), temp_limits[1]/2, 0, temp_limits[2]/2, str_c("> ", temp_limits[2])), "\u00b0C")
+
+# Make st object
+ann_anom_st <- st_as_stars(rotate(ann_anom_ras)) 
 
 # Build Map
 ggplot() +
-  geom_stars(data = st_as_stars(rotate(ann_anom_ras))) +
+  geom_stars(data = ann_anom_st) +
   geom_sf(data = world, fill = "gray30", color = "white", size = .25) +
-  scale_fill_distiller(palette = "RdBu", na.value = "transparent", 
-                         limit = temp_limits, oob = scales::squish
-                       ) +
+  scale_fill_distiller(palette = "RdBu", 
+                       na.value = "transparent", 
+                       limit = temp_limits, 
+                       oob = scales::squish,
+                       breaks = temp_breaks, 
+                       labels = temp_labels) +
   guides("fill" = guide_colorbar(title = sst_lab, 
-                                 title.position = "top", 
+                                 title.position = "right", 
                                  title.hjust = 0.5,
-                                 barwidth = unit(3, "inches"), 
+                                 barheight = unit(3, "inches"), 
                                  frame.colour = "black", 
                                  ticks.colour = "black")) +  
   coord_sf(expand = F) +
   map_theme +
+  theme(legend.position = "right", 
+        legend.title = element_text(angle = 90)) +
   labs(title = str_c("Global Temperature Anomalies - ", nc_year))
 ```
 
@@ -995,25 +1008,35 @@ season_stacks <- map(month_key, function(mon){
 
 
 # Plotting the seasons
-seas_anom_maps <- function(season, lab_years){
+seas_anom_maps <- function(season, lab_years, temp_lim = 5){
+  
+  #temp_limits <- max(abs(values(season_stacks[[season]])), na.rm = T) * c(-1,1) 
   
   # Center the color scale with Dynamic Limits
-  temp_limits <- max(abs(values(season_stacks[[season]])), na.rm = T) * c(-1,1) 
+  temp_limits <- c(-1,1) * temp_lim
+  temp_breaks <- c(temp_limits[1], temp_limits[1]/2,  0, temp_limits[2]/2, temp_limits[2])
+  temp_labels <- str_c(c(str_c("< ", temp_limits[1]), temp_limits[1]/2, 0, temp_limits[2]/2, str_c("> ", temp_limits[2])), "\u00b0C")
   
   # Make map
   seas_map <- ggplot() +
     geom_stars(data = st_as_stars(rotate(season_stacks[[season]]))) +
     geom_sf(data = world, fill = "gray30", color = "white", size = .25) +
-    scale_fill_distiller(palette = "RdBu", na.value = "transparent", 
-                         limit = temp_limits, oob = scales::squish) +
+    scale_fill_distiller(palette = "RdBu", 
+                     na.value = "transparent", 
+                     limit = temp_limits, 
+                     oob = scales::squish,
+                     breaks = temp_breaks, 
+                     labels = temp_labels) +
     guides("fill" = guide_colorbar(title = sst_lab, 
-                                   title.position = "top", 
+                                   title.position = "right", 
                                    title.hjust = 0.5,
-                                   barwidth = unit(3, "inches"), 
+                                   barheight = unit(3, "inches"), 
                                    frame.colour = "black", 
                                    ticks.colour = "black")) +  
     coord_sf(expand = F) +
-    map_theme +
+   map_theme +
+    theme(legend.position = "right", 
+          legend.title = element_text(angle = 90)) +
     labs(title = str_c(season, " - ", lab_years))
   return(seas_map)
 
@@ -1026,7 +1049,7 @@ seas_anom_maps <- function(season, lab_years){
 
 
 ```{r}
-seas_anom_maps("Winter", "2020-2021")
+seas_anom_maps("Winter", "2020-2021", temp_lim = 2)
 
 ```
 
@@ -1034,14 +1057,14 @@ seas_anom_maps("Winter", "2020-2021")
 
 
 ```{r}
-seas_anom_maps("Spring", "2021")
+seas_anom_maps("Spring", "2021", temp_lim = 2)
 ```
 
 ##### Summer
 
 
 ```{r}
-seas_anom_maps("Summer", "2021")
+seas_anom_maps("Summer", "2021", temp_lim = 2)
 ```
 
 ##### Fall
@@ -1049,15 +1072,13 @@ seas_anom_maps("Summer", "2021")
 
 ```{r}
 ####  Making Maps of Each
-seas_anom_maps("Fall", "2021")
+seas_anom_maps("Fall", "2021", temp_lim = 2)
 ```
 
-###  Regional Maps {.tabset}
+###  Regional Maps  {.tabset .tabset-pills}
 
 
 ```{r}
-
-# Create an expanded area to see regional patterns beyond the explicit region used
 
 # # Expand the area out to see the larger patterns
 # crop_x <- crop_x + c(-2.5, 2.5)
@@ -1083,7 +1104,12 @@ region_extent_expanded <- st_as_sf(region_extent_expanded)
 reg_ann_anom <- mask_nc(ras_obj = ann_anom_ras, mask_shape = region_extent_expanded)
 
 # Center temperature limits
-temp_limits <- max(abs(values(reg_ann_anom)), na.rm = T) * c(-1,1) # Dynamic Limits
+# temp_limits <- max(abs(values(reg_ann_anom)), na.rm = T) * c(-1,1) # Dynamic Limits
+
+# Color limit for palettes
+temp_limits <- c(-5, 5)
+temp_breaks <- c(temp_limits[1], temp_limits[1]/2,  0, temp_limits[2]/2, temp_limits[2])
+temp_labels <- str_c(c(str_c("< ", temp_limits[1]), temp_limits[1]/2, 0, temp_limits[2]/2, str_c("> ", temp_limits[2])), "\u00b0C")
 
 # Build Map
 ggplot() +
@@ -1091,15 +1117,21 @@ ggplot() +
   geom_sf(data = new_england, fill = "gray30", color = "white", size = .25) +
   geom_sf(data = canada, fill = "gray30", color = "white", size = .25) +
   geom_sf(data = greenland, fill = "gray30", color = "white", size = .25) +
-  scale_fill_distiller(palette = "RdBu", na.value = "transparent",
-                       limit = temp_limits, oob = scales::squish) +
-  guides("fill" = guide_colorbar(title = sst_lab, 
-                                 title.position = "top", 
-                                 title.hjust = 0.5,
-                                 barwidth = unit(3, "inches"), 
-                                 frame.colour = "black", 
-                                 ticks.colour = "black")) +  
+  scale_fill_distiller(palette = "RdBu", 
+                     na.value = "transparent", 
+                     limit = temp_limits, 
+                     oob = scales::squish,
+                     breaks = temp_breaks, 
+                     labels = temp_labels) +
+    guides("fill" = guide_colorbar(title = sst_lab, 
+                                   title.position = "right", 
+                                   title.hjust = 0.5,
+                                   barheight = unit(3, "inches"), 
+                                   frame.colour = "black", 
+                                   ticks.colour = "black")) +  
   map_theme +
+  theme(legend.position = "right", 
+        legend.title = element_text(angle = 90)) +
   coord_sf(xlim = crop_x, 
            ylim = crop_y, expand = F) +
   labs(title = str_c("Regional Temperature Anomalies - ", nc_year))
@@ -1114,13 +1146,17 @@ ggplot() +
 seasons_masked <- map(season_stacks, mask_nc, region_extent_expanded)
 
 # Plot the seasons
-plot_masked_season <- function(season, year_lab){
+plot_masked_season <- function(season, year_lab, temp_lim = 5){
   
   # Grab Season
   reg_seas_anom <- seasons_masked[[season]]
   
   # Get temp limits
-  temp_limits <- max(abs(values(reg_seas_anom)), na.rm = T) * c(-1,1) # Dynamic Limits
+  # temp_limits <- max(abs(values(reg_seas_anom)), na.rm = T) * c(-1,1) # Dynamic Limits
+  # Color limit for palettes
+  temp_limits <- c(-1, 1) * temp_lim
+  temp_breaks <- c(temp_limits[1], temp_limits[1]/2,  0, temp_limits[2]/2, temp_limits[2])
+  temp_labels <- str_c(c(str_c("< ", temp_limits[1]), temp_limits[1]/2, 0, temp_limits[2]/2, str_c("> ", temp_limits[2])), "\u00b0C")
   
   
   # Build Map
@@ -1129,15 +1165,21 @@ plot_masked_season <- function(season, year_lab){
     geom_sf(data = new_england, fill = "gray30", color = "white", size = .25) +
     geom_sf(data = canada, fill = "gray30", color = "white", size = .25) +
     geom_sf(data = greenland, fill = "gray30", color = "white", size = .25) +
-    scale_fill_distiller(palette = "RdBu", na.value = "transparent",
-                         limit = temp_limits, oob = scales::squish) +
+    scale_fill_distiller(palette = "RdBu", 
+                     na.value = "transparent", 
+                     limit = temp_limits, 
+                     oob = scales::squish,
+                     breaks = temp_breaks, 
+                     labels = temp_labels) +
     guides("fill" = guide_colorbar(title = sst_lab, 
-                                   title.position = "top", 
+                                   title.position = "right", 
                                    title.hjust = 0.5,
-                                   barwidth = unit(3, "inches"), 
+                                   barheight = unit(3, "inches"), 
                                    frame.colour = "black", 
                                    ticks.colour = "black")) +  
-    map_theme +
+  map_theme +
+  theme(legend.position = "right", 
+        legend.title = element_text(angle = 90)) +
     coord_sf(xlim = crop_x, 
              ylim = crop_y, expand = F) +
     labs(title = str_c(season, " - ", year_lab))
@@ -1152,13 +1194,13 @@ plot_masked_season <- function(season, year_lab){
 ##### Winter
 
 ```{r}
-plot_masked_season("Winter", year_lab = "2020-2021")
+plot_masked_season("Winter", year_lab = "2020-2021", temp_lim = 5)
 ```
 
 ##### Spring
 
 ```{r}
-plot_masked_season("Spring", year_lab = "2021")
+plot_masked_season("Spring", year_lab = "2021", temp_lim = 5)
 ```
 
 
@@ -1166,7 +1208,7 @@ plot_masked_season("Spring", year_lab = "2021")
 
 
 ```{r}
-plot_masked_season("Summer", year_lab = "2021")
+plot_masked_season("Summer", year_lab = "2021", temp_lim = 5)
 ```
 
 
@@ -1174,7 +1216,7 @@ plot_masked_season("Summer", year_lab = "2021")
 
 
 ```{r}
-plot_masked_season("Fall", year_lab = "2021")
+plot_masked_season("Fall", year_lab = "2021", temp_lim = 5)
 ```
 
 
@@ -1203,8 +1245,8 @@ date_seq <- seq.Date(from = event_start,
 
 
 # Expand the area out to see the larger patterns
-crop_x <- crop_x + c(-2.5, 2.5)
-crop_y <- crop_y + c(-1.5, 1)
+# crop_x <- crop_x + c(-2.5, 2.5)
+# crop_y <- crop_y + c(-1.5, 1)
 
 # Load the heatwave dates
 data_window <- data.frame(
@@ -1334,105 +1376,7 @@ walk(day_plots, print)
 
 ```
 
-#### Front Progression
 
-Same idea as above but looking at the Belkin O'Reilly fronts rather than absolute values. Under development.
-
-```{r, eval = F, animation.hook = 'gifski', fig.height=8, fig.width=9}
-# Use belkin fronts function to get the sst fronts
-this_yr_fronts <- map(unstack(this_yr), get_belkin_fronts) %>% 
-  stack() %>% 
-  setNames(names(this_yr))
-
-# Set palette limits to center it on 0 with scale_fill_distiller
-limit <- c(max(values(this_yr_fronts), na.rm = T) * -1, 
-           max(values(this_yr_fronts), na.rm = T) )
-
-
-# Build Plots for Animation
-
-# Plot Heatwave 1 day at a time as a GIF
-front_plots <- imap(day_count, function(date_index, date_label) {
-  
-  # grab dates
-  sst_fronts_st  <- st_as_stars(this_yr_fronts[[date_index]])
-  
-  #### 1. Map the Anomalies in Space
-  day_plot <- ggplot() +
-    geom_stars(data = sst_fronts_st) +
-    geom_sf(data = new_england, fill = "gray90", size = .25) +
-    geom_sf(data = canada, fill = "gray90", size = .25) +
-    geom_sf(data = greenland, fill = "gray90", size = .25) +
-    geom_sf(data = region_extent, 
-            color = gmri_cols("gmri blue"), 
-            linetype = 2, size = 1,
-            fill = "transparent") +
-    scale_fill_distiller(palette = "RdYlBu", 
-                         na.value = "transparent",
-                         limit = limit) +
-    map_theme +
-    coord_sf(xlim = crop_x, 
-             ylim = crop_y, 
-             expand = T) +
-    guides("fill" = guide_colorbar(
-      title = "Front Strength?",
-      title.position = "top",
-      title.hjust = 0.5,
-      barwidth = unit(3, "in"),
-      frame.colour = "black",
-      ticks.colour = "black")) 
-  
-  
-  
-  
-  #### 2.  Plot the day and the overall anomaly to track dates
-  date_timeline <- ggplot(data = hw_timeline, aes(x = time)) +
-    geom_line(aes(y = sst, color = "Sea Surface Temperature")) +
-    geom_line(aes(y = hwe, color = "Heatwave Event")) +
-    geom_line(aes(y = cse, color = "Cold Spell Event")) +
-    geom_line(aes(y = mhw_thresh, color = "MHW Threshold"), lty = 3, size = .5) +
-    geom_line(aes(y = mcs_thresh, color = "MCS Threshold"), lty = 3, size = .5) +
-    geom_line(aes(y = seas, color = "Daily Climatology"), lty = 2, size = .5) +
-    scale_color_manual(values = color_vals) +
-    
-    # Animated Point /  line
-    geom_point(
-      data = filter(hw_timeline, time == as.Date(date_label)),
-      aes(time, sst, shape = factor(mhw_event)), 
-      color = gmri_cols("gmri blue"), 
-      size = 3, show.legend = FALSE) + 
-    geom_vline(data = filter(hw_timeline, time == as.Date(date_label)),
-               aes(xintercept = time), 
-               color = "gray50", 
-               size = 0.5,
-               linetype = 3,
-               alpha = 0.8) + 
-    labs(x = "", 
-         y = "",
-         color = "",
-         subtitle = "Regional Temperature \u00b0C",
-         shape = "Heatwave Event") +
-    theme(legend.position = "bottom")
-  
-  
-  ####  3. Assemble plot(s)
-  p_layout <- c(
-    area(t = 1, l = 1, b = 2, r = 8),
-    area(t = 3, l = 1, b = 8, r = 8))
-  
-  # plot_agg <- (date_timeline / day_plot) + plot_layout(heights = c(1, 3))
-  plot_agg <- date_timeline + day_plot + plot_layout(design = p_layout)
-  
-  
-  return(plot_agg)
-  
-  
-})
-
-
-walk(front_plots, print)
-
-```
 
 ## Ranking Warming Rates
 
@@ -1523,68 +1467,181 @@ rates_masked <- mask_nc(rates_stack_all, region_extent_expanded)
 # Make stars object
 rank_stars <- st_as_stars(ranks_masked)
 rates_stars <- st_as_stars(rates_masked)
+```
 
-# Make Contours
+
+```{r}
+####  Rates Map  ####
+
+# Make Contours if desired
 # rates_contour <-  st_contour(x = rates_stars, na.rm = T, breaks = seq(0.85, 1, by = 0.02))
-ranks_contour <-  st_contour(x = rank_stars, na.rm = T, breaks = seq(0.85, 1, by = 0.02))
+
+# # rates map Original
+# rates_map <- ggplot() +
+#   geom_stars(data = rates_stars) +
+#   geom_sf(data = new_england, fill = "gray90", size = .25) +
+#   geom_sf(data = canada, fill = "gray90", size = .25) +
+#   geom_sf(data = greenland, fill = "gray90", size = .25) +
+#   geom_sf(data = region_extent, 
+#           color = "black", 
+#           fill = "transparent", linetype = 2, size = 0.5) +
+#   scale_fill_viridis_c(option = "plasma", na.value = "transparent") +
+#   map_theme +
+#   coord_sf(xlim = crop_x, 
+#            ylim = crop_y, expand = F) +
+#   guides("fill" = guide_colorbar(
+#     title = "Annual Temperature Change \u00b0C/year",
+#     title.position = "top", 
+#     title.hjust = 0.5,
+#     barwidth = unit(2.5, "in"),
+#     frame.colour = "black",
+#     ticks.colour = "black"))
 
 
-# ranks map
+
+# Look at the spread
+# hist(rates_stars$Annual.Sea.Surface.Temperature.Warming.Rate)
+
+# Reclassify to discrete bins
+rates_reclass <- rates_stars %>% 
+  mutate(
+    warm_rate = Annual.Sea.Surface.Temperature.Warming.Rate,
+    rates_reclass = case_when(
+      warm_rate > .09  ~ "> 0.1", 
+      warm_rate > .08 ~ "0.08 - 0.1", 
+      warm_rate > .06 ~ "0.06 - 0.08", 
+      warm_rate > .04 ~ "0.05 - 0.06", 
+      warm_rate > .04 ~ "0.04 - 0.05", 
+      warm_rate > .02 ~ "0.02 - 0.04", 
+      warm_rate < 0.2 ~ "< 0.02",
+      TRUE ~ "NA"),
+    rates_reclass = factor(rates_reclass, levels = c(
+      "> 0.1", "0.08 - 0.1", 
+      "0.06 - 0.08", "0.05 - 0.06", "0.04 - 0.05", 
+      "0.02 - 0.04", "< 0.02",
+      "Outside Area Measured"))
+  ) %>% select(rates_reclass)
+
+
+# Testing discrete scales
 rates_map <- ggplot() +
-  geom_stars(data = rates_stars) +
-  # geom_sf(data = rates_contour, fill = "transparent", color = "gray25", size = 0.25) +
+  geom_stars(data = rates_reclass) +
   geom_sf(data = new_england, fill = "gray90", size = .25) +
   geom_sf(data = canada, fill = "gray90", size = .25) +
   geom_sf(data = greenland, fill = "gray90", size = .25) +
   geom_sf(data = region_extent, 
           color = "black", 
           fill = "transparent", linetype = 2, size = 0.5) +
-  # scale_fill_viridis_c(option = "plasma", na.value = "transparent") +
-  scale_fill_distiller(palette = "RdBu", na.value = "transparent") +
+  scale_fill_brewer(palette = "YlOrRd", 
+                    na.value = "transparent", 
+                    na.translate = F,
+                    direction = -1) +
   map_theme +
   coord_sf(xlim = crop_x, 
            ylim = crop_y, expand = F) +
-  guides("fill" = guide_colorbar(
+  guides("fill" = guide_legend(
     title = "Annual Temperature Change \u00b0C/year",
     title.position = "top", 
     title.hjust = 0.5,
-    barwidth = unit(2.5, "in"),
-    frame.colour = "black",
-    ticks.colour = "black"))
+    label.position = "bottom", 
+    keywidth = unit(1.5, "cm"),
+    reverse = T,
+    nrow = 1))
 
-# ranks map
+
+rates_map
+grid::grid.raster(lab_logo, x = 0.05, y = 0.03, just = c('left', 'bottom'), width = unit(0.8, 'inches'))
+```
+
+
+```{r}
+####  Warming Ranks Map  ####
+
+# Make Contours if desired
+ranks_contour <-  st_contour(x = rank_stars, na.rm = T, breaks = seq(0.85, 1, by = 0.02))
+
+
+# # Original Map
+# # ranks map
+# ranks_map <- ggplot() +
+#   geom_stars(data = rank_stars) +
+#   geom_sf(data = ranks_contour, fill = "transparent", color = "gray30", size = 0.1) +
+#   geom_sf(data = new_england, fill = "gray90", size = .25) +
+#   geom_sf(data = canada, fill = "gray90", size = .25) +
+#   geom_sf(data = greenland, fill = "gray90", size = .25) +
+#   geom_sf(data = region_extent, 
+#           color = "black", 
+#           fill = "transparent", linetype = 2, size = 0.5) +
+#   scale_fill_viridis_c(option = "plasma",
+#                        na.value = "transparent",
+#                        limit = c(0.85, 1),
+#                        oob = scales::oob_squish) +
+#  map_theme +
+#   coord_sf(xlim = crop_x, 
+#            ylim = crop_y, expand = F) +
+#   guides("fill" = guide_colorbar(
+#     title = "Global Percentile of Warming Rates",
+#     title.position = "top", 
+#     title.hjust = 0.5,
+#     barwidth = unit(2.5, "in"),
+#     frame.colour = "black",
+#     ticks.colour = "black")) +
+#   labs(caption = "Ranking color scale truncated to display ranges of 0.85-1 
+#                   Lower values will display as 0.85 or 85%
+#                   Contour values every 2%")
+
+
+# Look at the spread
+# hist(rank_stars$Annual.Sea.Surface.Temperature.Warming.Rate.Rank)
+
+# reclassify to discrete bins
+ranks_reclass <- rank_stars %>% 
+  mutate(
+    warm_rank = Annual.Sea.Surface.Temperature.Warming.Rate.Rank,
+    ranks_class = case_when(
+      warm_rank > .999  ~ "> 99.9%", 
+      warm_rank > .99  ~ "99 - 99.9%", 
+      warm_rank > .98 ~ "98 - 99%", 
+      warm_rank > .95 ~ "95 - 98%", 
+      warm_rank > .90 ~ "90 - 95%", 
+      warm_rank > .80 ~ "80 - 90%", 
+      warm_rank < .80 ~ "< 80%",
+      TRUE ~ "NA"),
+    ranks_class = factor(ranks_class, levels = c(
+      "> 99.9%", "99 - 99.9%", "98 - 99%", 
+      "95 - 98%", "90 - 95%", 
+      "80 - 90%", "< 80%"))
+  ) %>% select(ranks_class)
+
+
 ranks_map <- ggplot() +
-  geom_stars(data = rank_stars) +
-  geom_sf(data = ranks_contour, fill = "transparent", color = "gray30", size = 0.1) +
+  geom_stars(data = ranks_reclass) +
   geom_sf(data = new_england, fill = "gray90", size = .25) +
   geom_sf(data = canada, fill = "gray90", size = .25) +
   geom_sf(data = greenland, fill = "gray90", size = .25) +
   geom_sf(data = region_extent, 
           color = "black", 
           fill = "transparent", linetype = 2, size = 0.5) +
-  # scale_fill_viridis_c(option = "plasma",
-  #                      na.value = "transparent",
-  #                      limit = c(0.85, 1), 
-  #                      oob = scales::oob_squish) +
-  scale_fill_distiller(palette = "RdBu", na.value = "transparent",
-                       limit = c(0.85, 1), 
-                       oob = scales::oob_squish) +
-  map_theme +
+ scale_fill_brewer(palette = "YlOrRd", 
+                    na.value = "transparent", 
+                    na.translate = F,
+                    direction = -1) +
+ map_theme +
   coord_sf(xlim = crop_x, 
            ylim = crop_y, expand = F) +
-  guides("fill" = guide_colorbar(
+  guides("fill" = guide_legend(
     title = "Global Percentile of Warming Rates",
     title.position = "top", 
     title.hjust = 0.5,
-    barwidth = unit(2.5, "in"),
-    frame.colour = "black",
-    ticks.colour = "black")) +
-  labs(caption = "Ranking color scale truncated to display ranges of 0.85-1 
-                  Lower values will display as 0.85 or 85%
-                  Contour values every 2%")
+    label.position = "bottom", 
+    keywidth = unit(1.5, "cm"),
+    reverse = T,
+    nrow = 1)) +
+  labs(caption = "Pixels ranked globally based on annual warming rate.")
 
 # plot both
-rates_map | ranks_map
+ranks_map
+grid::grid.raster(lab_logo, x = 0.05, y = 0.03, just = c('left', 'bottom'), width = unit(0.8, 'inches'))
 ```
 
 
@@ -1620,11 +1677,11 @@ arrows <-
   tibble(
     x1 = as.Date(c("2000-07-15")),
     x2 = as.Date(c("2000-08-28")),
-    y1 = c(1.4), 
-    y2 = c(1.2)
+    y1 = c(1.25), 
+    y2 = c(1.15)
   )
 
-arrows
+# arrows
 
 
 
@@ -1643,7 +1700,7 @@ heatwaves_91 %>%
     data = arrows, aes(x = x1, y = y1, xend = x2, yend = y2),
     arrow = arrow(length = unit(0.08, "inch")), size = 0.5,
     color = "gray20", curvature = -0.3) +
-  annotate("text", x = as.Date("2000-06-01"), y = 1.4, label = "Fall Extremes\nMore Frequent") +
+  annotate("text", x = as.Date("2000-06-01"), y = 1.225, label = "Fall Extremes\nMore Frequent") +
   labs(x = "", 
        y = "Shift in Expected Temperature \u00b0C",
        color = "") + 
