@@ -584,6 +584,92 @@ ggplot(dat_combined, aes(x = `1982`, xend = `2021`, y = fct_rev(Area))) +
                      labels = number_format(suffix = " \u00b0C"))
 ```
 
+###  Long-Term Trend
+
+Thanks to some long-running temperature monitoring programs we are able to track monthly sea surface temperatures as far back as 1850. The figure below shows how the region's temperatures have fluctuated as measured by the Extended Reconstructed Sea Surface Temperature (ERSST) record. 
+
+Once we hit 1982 the availability of a higher resolution temperature resource becomes available in the form of the Optimum Interpolation Sea Surface Temperature (OISST) record. The ERSST data is of a coarser resolution (monthly measurements at a 0.5 x 0.5 degree grid) and does not capture the warmer inshore dynamics (a bias to show colder temperature), but is within half of a degree of the more modern measurements.
+
+```{r}
+
+# Use function to process heatwave data for plotting
+region_heatwaves <- pull_heatwave_events(region_timeseries, threshold = 90) %>% 
+  mutate(yr = year(time))
+
+```
+
+
+```{r ersst temps}
+#| eval = TRUE,
+#| fig.alt = "Long term temperature record for the Gulf of Maine"
+
+# # Pathto ERSST on box
+# ersst_path <- cs_path("okn", "ersst")
+# 
+# # Load temps and anoms (1982-2011 climatology)
+# ersst_temp <- stack(str_c(ersst_path, "ERSSTv5_merged.nc"))
+# ersst_anom <- stack(str_c(ersst_path, "ERSSTv5_anom.nc"))
+
+
+# Updated 2022-02-4
+ersst_path <- cs_path("res", "ERSSTv5")
+# ersst_temp <- stack(str_c(ersst_path, "sst.mnmean_2022_02_02.nc")) #netcdf
+ersst_tl <- read_csv(str_c(ersst_path, "ERSSTv5_anom_apershing_gulf_of_maine.csv")) 
+
+# format
+ersst_tl <- ersst_tl %>% 
+  rename(Date = time) %>% 
+  mutate(yr = year(Date),
+         sst_clim = sst - sst_anom,
+         area_wtd_clim = area_wtd_sst - area_wtd_sst_anom)
+
+
+# Get Yearly Average
+ersst_yr <- ersst_tl %>% 
+  group_by(yr) %>% 
+  summarise(sst = mean(sst, na.rm = T), 
+            sst_anom = mean(sst_anom, na.rm = T),
+            .groups = "drop") %>% 
+  mutate(yr = as.numeric(yr)) %>% 
+  filter(yr <= 2021) 
+
+
+# Same for OISST
+oisst_yr <- region_heatwaves %>% 
+  filter(between(yr, 1982, 2021)) %>% 
+  group_by(yr) %>% 
+  summarise(sst = mean(sst), .groups = "drop")
+
+# Make Splines
+ersst_smooth <- as.data.frame(spline(ersst_yr$yr, ersst_yr$sst))
+oisst_smooth <- as.data.frame(spline(oisst_yr$yr, oisst_yr$sst))
+
+
+# Plot them
+ggplot() +
+  geom_line(data = ersst_smooth, aes(x, y, color = "ERSSTv5"),
+            group = 1, alpha = 0.4, linetype = 1) +
+  geom_point(data = ersst_yr, aes(yr, sst, color = "ERSSTv5"), 
+             size = 1) +
+ geom_line(data = oisst_smooth, aes(x, y, color = "OISSTv2"),
+            group = 1, alpha = 0.4, linetype = 1) +
+  geom_point(data = oisst_yr, aes(yr, sst, color = "OISSTv2"), 
+             size = 1) +
+  scale_color_gmri() +
+  theme_gmri() +
+  labs(x = "", y = "Sea Surface Temperature", 
+       color = "Temperature Data Record",
+       title = "Long-Term Temperature Record for the Gulf of Maine",
+       subtitle = "Current temperatures above 150-year highs") +
+  scale_y_continuous(sec.axis = sec_axis(trans = ~as_fahrenheit(., data_type = "anomalies"),
+                                         labels =  number_format(suffix = " \u00b0F")),
+                     labels = number_format(suffix = " \u00b0C")) +
+  guides(color = guide_legend(title.position = "top", title.hjust = 0.5)) +
+  facet_zoom(xlim = c(1982, 2021)) +
+  theme(legend.position = "bottom")
+```
+
+
 
 
 ### Marine Heatwaves {.tabset .tabset-pills}
@@ -592,12 +678,7 @@ For the figures below heatwave events were determined using the methods of Hobda
 
 A marine heatwave is defined as a situation when seawater temperatures exceeds a seasonally-varying threshold (usually the 90th percentile) for at least 5 consecutive days. Successive heatwaves with gaps of 2 days or less are considered part of the same event. The heatwave threshold used below was 90%. The heatwave history for `r tidy_name` is displayed below:
 
-```{r}
 
-# Use function to process heatwave data for plotting
-region_heatwaves <- pull_heatwave_events(region_timeseries, threshold = 90) 
-
-```
 
 
 #### Interactive SST Timeline
