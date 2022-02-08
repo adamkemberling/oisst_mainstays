@@ -109,6 +109,16 @@ timeseries_path <- region_paths[["apershing_gulf_of_maine"]][["timeseries_path"]
 
 # Polygon Path
 poly_path <- region_paths[["apershing_gulf_of_maine"]][["shape_path"]]
+
+
+# Function to maska raster with sf
+mask_nc <- function(ras_obj, mask_shape){
+  
+  # Get stats from ranks
+  m1 <- raster::mask(rotate(ras_obj), mask_shape)
+  m1 <- raster::crop(m1, mask_shape)
+  return(m1)
+}
 ```
 
 `r gmRi::use_gmri_style_rmd(css = "gmri_rmarkdown.css")`
@@ -562,7 +572,7 @@ seas_anom <- round(this_seas$mean_anom, 2)
 ```
 
 
-Over the period of 1982-2020 the `r tolower(params$season)`'s in the Gulf of Maine have warmed at a rate of **`r decadal_rate`** $^oC/Decade$, and more recently at a rate of **`r tenyr_decadal`** $^oC/Decade$ over the last ten years (2011-2021). 
+Over the period of 1982-2021, `r tolower(params$season)`'s in the Gulf of Maine have warmed at a rate of **`r decadal_rate`** $^oC/Decade$, and more recently at a rate of **`r tenyr_decadal`** $^oC/Decade$ over the last ten years (2011-2021). 
 
 
 
@@ -787,7 +797,7 @@ current_rank <- seasonal_ranks %>% filter(yr == this_yr) %>% pull(rank)
 ```
 
 
-`r this_yr` is among the warmest years seen in the Gulf of Maine during this 40+ year period. When compared against all previous years (1982-2020), this year ranks **# `r current_rank`** for hottest `r tolower(params$season)` on record.
+`r this_yr` is among the warmest years seen in the Gulf of Maine during this 40+ year period. When compared against all previous years (1982-2021), this year ranks **# `r current_rank`** for hottest `r tolower(params$season)` on record.
 
 
 ```{r, fig.height = 3}
@@ -834,7 +844,7 @@ If we look at the pattern for year-round temperature we can see that the Gulf of
 # Summarize by year to return mean annual anomalies and variance
 annual_summary <- region_timeseries %>% 
   mutate(year = year(time)) %>% 
-  filter(year %in% c(1982:2020)) %>% 
+  filter(year %in% c(1982:2021)) %>% 
   group_by(year) %>% 
   summarise(sst = mean(sst, na.rm = T),
             sst_anom = mean(sst_anom, na.rm = T), 
@@ -869,19 +879,19 @@ global_summary <- global_anoms %>%
 
 # 1. All years 
 lm_all <- lm(area_wtd_sst ~ year, 
-             data = filter(annual_summary, year %in% c(1982:2020))) %>% 
+             data = filter(annual_summary, year %in% c(1982:2021))) %>% 
   coef() %>% 
   round(3)
 
 # 2. Last 10 years
 lm_10  <- lm(area_wtd_sst ~ year, 
-             data = filter(annual_summary, year %in% c(2011:2020))) %>% 
+             data = filter(annual_summary, year %in% c(2011:2021))) %>% 
   coef() %>% 
   round(3)
 
 # 3. Global - Area-weighted
 lm_global <- lm(area_wtd_sst ~ year, 
-                data = filter(global_summary, year %in% c(1982:2020))) %>% 
+                data = filter(global_summary, year %in% c(1982:2021))) %>% 
   coef() %>% 
   round(3)
 
@@ -913,14 +923,14 @@ annual_trend_p <- ggplot(data = annual_summary, aes(yr_as_dtime, area_wtd_anom))
   geom_point(alpha = 0.7, size = 0.75) +
   
   # Add regression lines 
-  geom_smooth(data = filter(global_summary, year <= 2020),
+  geom_smooth(data = filter(global_summary, year <= 2021),
               method = "lm", 
-              aes(color = "1982-2020 Global Trend"),
+              aes(color = "1982-2021 Global Trend"),
               formula = y ~ x, se = F, 
               linetype = 3) +
-  geom_smooth(data = filter(annual_summary, year <= 2020),
+  geom_smooth(data = filter(annual_summary, year <= 2021),
               method = "lm",
-              aes(color = "1982-2020 Regional Trend"),
+              aes(color = "1982-2021 Regional Trend"),
               formula = y ~ x, se = F,
               linetype = 1) +
   # Manually add equations so they show yearly not daily coeff
@@ -936,8 +946,8 @@ annual_trend_p <- ggplot(data = annual_summary, aes(yr_as_dtime, area_wtd_anom))
   
   # Colors
   scale_color_manual(values = c(
-    "1982-2020 Regional Trend" = as.character(gmri_cols("gmri blue")),
-    "1982-2020 Global Trend"   = as.character(gmri_cols("green")))) +
+    "1982-2021 Regional Trend" = as.character(gmri_cols("gmri blue")),
+    "1982-2021 Global Trend"   = as.character(gmri_cols("green")))) +
   
   # labels + theme
   labs(x = "", 
@@ -1115,7 +1125,10 @@ grid_data <- region_hw %>%
 
 
 # Set palette limits to center it on 0 with scale_fill_distiller
-limit <- max(abs(grid_data$sst_anom)) *c(-1,1)
+  # Color limit for palettes
+  temp_limits <- c(-3, 3)
+  temp_breaks <- c(temp_limits[1], temp_limits[1]/2,  0, temp_limits[2]/2, temp_limits[2])
+  temp_labels <- str_c(c(str_c("< ", temp_limits[1]), temp_limits[1]/2, 0, temp_limits[2]/2, str_c("> ", temp_limits[2])), "\u00b0C")
 
 
 # Assemble heatmap plot
@@ -1141,9 +1154,12 @@ heatwave_heatmap <- ggplot(grid_data, aes(x = flat_date, y = yr)) +
        "\nClimate reference period : 1982-2011") +
   
   #scale_fill_gradient2(low = "blue", mid = "white", high = "red") +
-  scale_fill_distiller(palette = "RdYlBu", 
+  scale_fill_distiller(palette = "RdBu", 
                        na.value = "transparent", 
-                       limit = limit) +
+                       limit = temp_limits,
+                       breaks = temp_breaks,
+                       labels = temp_labels, 
+                       oob = oob_squish) +
   
   #5 inches is default rmarkdown height for barheight
   guides("fill" = guide_colorbar(title = guide_lab, 
@@ -1280,7 +1296,7 @@ limit <- c(max_season * -1, max_season)
 Over the course of the `r params$season` season the Gulf of Maine and surrounding areas experienced above average temperatures for much of the area, with particularly warm patches South and Southeast of Georges Banks. The peak daily temperature anomaly was `r max_daily`$^oC$, with a peak seasonal average of `r max_season`$^oC$.
 
 ```{r}
-# Plot Heatwave 1 day at a time as a GIF
+# Make it a stars class to plot with ggplot
 anoms_st <- st_as_stars(season_mean)
 
 #### 1. Map the Anomalies in Space
@@ -1323,17 +1339,15 @@ Average monthly temperature anomalies are displayed below. From these we can see
 ```{r month avgs, eval = TRUE, layout="l-body-outset", fig.width=6, fig.height=4}
 
 
-# Load the monthly average array
-monthly_avgs <- stack(str_c(oisst_path, "monthly_averages/oisst_monthly.nc"), varname = "sst_anom")
-
-# Drop days from name
-monthly_avgs <- setNames(monthly_avgs, str_sub(names(monthly_avgs), 1, -4))
-
-
-# pull months
-display_months <- unstack(monthly_avgs[[season_months]])
-display_months <- setNames(display_months, season_months)
-
+# Get monthly averages
+season_nums <- unique(str_sub(names(season_anoms), 7,8))
+month_names <- month.name[as.numeric(season_nums)]
+display_months <- map(season_nums, function(month_idx){
+  
+  which_dates <- which(str_sub(names(season_anoms), 7,8) == month_idx)
+  month_mean <- mean(season_anoms[[which_dates]], na.rm = T)
+  
+}) %>% setNames(month_names)
 
 
 # Clip to the study expanded area
@@ -1344,30 +1358,26 @@ expanded_area <- structure(c(crop_x, crop_y),
   st_as_sfc() %>% 
   st_as_sf()
 
-# function to mask
-mask_ranks <- function(ras_obj, mask_shape){
-  
-  # Get stats from ranks
-  m1 <- raster::mask(rotate(ras_obj), mask_shape)
-  m1 <- raster::crop(m1, mask_shape)
-  return(m1)
-}
 
 # Perform masking
-months_masked <- map(display_months, mask_ranks, expanded_area)
+months_masked <- map(display_months, mask_nc, expanded_area)
 
 # Make plots for each
 month_plots <- imap(months_masked, function(month_avg_layer, month_id){
   
   
   # Set up text label  
-  month_yr <- str_sub(month_id, 2, 5)
-  month_number <- as.numeric(str_sub(month_id, -2, -1))
-  month_label <- str_c(month.name[month_number], ", ", month_yr)
+  month_yr <- "2021"
+  month_label <- str_c(month_id, ", ", month_yr)
   
   
   # Make stars object for plot
   month_stars <- st_as_stars(month_avg_layer)
+  
+  # Color limit for palettes
+  temp_limits <- c(-5, 5)
+  temp_breaks <- c(temp_limits[1], temp_limits[1]/2,  0, temp_limits[2]/2, temp_limits[2])
+  temp_labels <- str_c(c(str_c("< ", temp_limits[1]), temp_limits[1]/2, 0, temp_limits[2]/2, str_c("> ", temp_limits[2])), "\u00b0C")
   
   # build plot
   month_fig <- ggplot() +
@@ -1380,10 +1390,12 @@ month_plots <- imap(months_masked, function(month_avg_layer, month_id){
             linetype = 2, size = 0.5,
             fill = "transparent") +
     scale_y_continuous(breaks = seq(30, 50, by = 2)) +
-    scale_fill_distiller(palette = "RdYlBu", 
-                         #limit = c(10, 30),
-                         limit = limit,
-                         oob = scales::squish) +
+    scale_fill_distiller(palette = "RdBu", 
+                         na.value = "transparent", 
+                         limit = temp_limits,
+                         oob = scales::squish,
+                         breaks = temp_breaks, 
+                         labels = temp_labels) +
     map_theme +
     theme(title = element_text(hjust = 0.5, size = 8),
           axis.text = element_text(size = 6)) +
@@ -1425,9 +1437,9 @@ This variability reflects the various physical oceanographic drivers influencing
 # 1. Warming Rates and Rankings
 oisst_path <- cs_path("res", "OISST/oisst_mainstays")
 rates_path <- paste0(oisst_path, "warming_rates/annual_warming_rates")
-rates_stack_all <- stack(str_c(rates_path, "1982to2020.nc"), 
+rates_stack_all <- stack(str_c(rates_path, "1982to2021.nc"), 
                          varname = "annual_warming_rate")
-ranks_stack_all <- stack(str_c(rates_path, "1982to2020.nc"), 
+ranks_stack_all <- stack(str_c(rates_path, "1982to2021.nc"), 
                          varname = "rate_percentile")
 
 
@@ -1439,18 +1451,6 @@ sfc <- st_sfc(st_polygon(list(
         c(crop_x[[2]], crop_y[[1]]), 
         c(crop_x[[1]], crop_y[[1]])))))
 sfc <- st_as_sf(sfc)
-```
-
-```{r warming rates masking}
-
-# Clip to the study area
-mask_ranks <- function(stars_obj, mask_shape){
-  
-  # Get stats from ranks
-  m1 <- mask(rotate(stars_obj), mask_shape)
-  m1 <- crop(m1, mask_shape)
-  return(m1)
-}
 
 
 
@@ -1479,14 +1479,13 @@ get_masked_vals <- function(masked_ranks, masked_rates){
   # spit them out
   return(table_out)
 }
-```
 
 
-```{r mask warming rates}
+
 
 # Get the rank information that go with each area
-ranks_masked <- mask_ranks(ranks_stack_all, sfc)
-rates_masked <- mask_ranks(rates_stack_all, sfc)
+ranks_masked <- mask_nc(ranks_stack_all, region_extent)
+rates_masked <- mask_nc(rates_stack_all, region_extent)
 region_ranks <- get_masked_vals(ranks_masked, rates_masked)
 
 # Prep it for text input.
@@ -1498,80 +1497,42 @@ top_rank <- region_ranks$`Max Rank` *100
 top_rank <- ifelse(top_rank == 100, "greater than or equal to 99.5", top_rank)
 top_rate <- region_ranks$`Max Rate`
 
+
+
 ```
 
-Based on data from 1982-2020, the warming rates of Gulf of Maine have been some of the highest in the world. The area as a whole has been increasing at a rate of `r avg_rate`$^{\circ}C/year$ which is faster than `r avg_rank`% of the world's oceans.
+Based on data from 1982-2021, the warming rates of Gulf of Maine have been some of the highest in the world. The area as a whole has been increasing at a rate of `r avg_rate`$^{\circ}C/year$ which is faster than `r avg_rank`% of the world's oceans.
 
 Over that same period locations within the Gulf of Maine have been warming at rates as low as `r low_rate`$^{\circ}C/year$ and as rapidly as `r top_rate`$^{\circ}C/year$, corresponding to ranks as low as `r low_rank`% and as high as `r top_rank`%.
 
-```{r map warming rates, eval = FALSE}
-# # Make stars object
-# rank_stars <- st_as_stars(ranks_masked)
-# 
-# # Make Contours
-# ranks_contour <-  st_contour(x = rank_stars, na.rm = T, breaks = seq(0.85, 1, by = 0.02))
-# 
-# 
-# # ranks map
-# ranks_map <- ggplot() +
-#   geom_stars(data = rank_stars) +
-#   geom_sf(data = ranks_contour, fill = "transparent", color = "gray25", size = 0.25) +
-#   geom_sf(data = new_england, fill = "gray90", size = .25) +
-#   geom_sf(data = canada, fill = "gray90", size = .25) +
-#   geom_sf(data = greenland, fill = "gray90", size = .25) +
-#   geom_sf(data = region_extent,
-#           color = "black",
-#           fill = "transparent", linetype = 2, size = 0.5) +
-#   scale_y_continuous(breaks = seq(-90, 90, by = 2)) +
-#   scale_fill_viridis_c(limit = c(0.95, 1),  #option = "plasma",
-#                        oob = scales::oob_squish, 
-#                        na.value = "transparent") +
-#   map_theme +
-#   coord_sf(
-#     xlim = crop_x,
-#     ylim = crop_y,
-#     expand = F) +
-#   guides("fill" = guide_colorbar(
-#     title = expression("Global Percentile of Warming Rates"),
-#     title.position = "top", 
-#     title.hjust = 0.5,
-#     barwidth = unit(2.5, "in"),
-#     frame.colour = "black",
-#     ticks.colour = "black")) +
-#   labs(caption = "Ranking color scale truncated to display ranges of 0.5-1 
-#                   Contours shown for every 2% change")
-# 
-# # plot map
-# ranks_map
 
-```
+```{r rankings binned, eval = TRUE, layout="l-body-outset", fig.width=6, fig.height=4}
 
-
-```{r highlighting gom warming rate, eval = TRUE, layout="l-body-outset", fig.width=6, fig.height=4}
-# for an expanded view need to use the global ranks
+# Reclassify raster into 5% Bins
 world_rank_stars <- st_as_stars(rotate(ranks_stack_all))
 
+world_ranks_binned <- world_rank_stars %>% 
+  mutate(
+    rank = Annual.Sea.Surface.Temperature.Warming.Rate.Rank,
+    rank_bin = cut(rank, breaks = seq(0.1, 1, by = 0.1))) %>% 
+  select(-c(rank, Annual.Sea.Surface.Temperature.Warming.Rate.Rank))
 
-# ranks map
+
+# Northeast Shelf
 global_ranks_zoom <- ggplot() +
-  geom_stars(data = world_rank_stars) +
-  geom_sf(data = new_england, color = "gray80", fill = "#36454F", size = .075) +
-  geom_sf(data = canada, color = "gray80", fill = "#36454F", size = .075) +
-  geom_sf(data = greenland, color = "gray80", fill = "#36454F", size = .075) +
-  # geom_sf(data = region_extent,
-  #         color = "white",
-  #         fill = "transparent", linetype = 1, size = 0.75) +
+  geom_stars(data = world_ranks_binned) +
+  geom_sf(data = new_england, color = "white", fill = "gray30", size = .075) +
+  geom_sf(data = canada, color = "white", fill = "gray30", size = .075) +
+  geom_sf(data = greenland, color = "white", fill = "gray30", size = .075) +
   scale_y_continuous(breaks = seq(-90, 90, by = 5)) +
-  scale_x_continuous(breaks = seq(-90, 40, by = 10)) +
-  scale_fill_viridis_c(limit = c(0.95, 1),  
-                       option = "inferno",
-                       na.value = "black") +
+  scale_x_continuous(breaks = seq(-180, 180, by = 10))+
+  scale_fill_brewer(palette = "YlOrRd", direction = 1, na.value = "transparent") +
   map_theme +
   coord_sf(
     xlim = c("xmin" = -77, "xmax" = -50),
     ylim = c("ymin" = 32, "ymax" = 48),
     expand = T) +
-  guides("fill" = guide_colorbar(
+  guides("fill" = guide_colorsteps(
     title = expression("Global Percentile of Warming Rates"),
     title.position = "top", 
     title.hjust = 0.5,
@@ -1580,18 +1541,15 @@ global_ranks_zoom <- ggplot() +
     ticks.colour = "black")) 
 
 
-# ranks zoomed_out
+# Global View
 global_ranks <- ggplot() +
-  geom_stars(data = world_rank_stars) +
-  geom_sf(data = world, color = "gray80", fill = "#36454F", size = .1) +
-  scale_fill_viridis_c(limit = c(0.95, 1),  
-                       option = "inferno",
-                       #oob = scales::oob_squish, 
-                       na.value = "black") +
+  geom_stars(data = world_ranks_binned) +
+  geom_sf(data = world, color = "white", fill = "gray30", size = .1) +
+  scale_fill_brewer(palette = "YlOrRd", direction = 1, na.value = "transparent") +
   map_theme +
   coord_sf(expand = F) +
   scale_y_continuous(breaks = seq(-90, 90, by = 30)) +
-  guides("fill" = guide_colorbar(title = expression("Global Percentile of Warming Rates"),
+  guides("fill" = guide_colorsteps(title = expression("Global Percentile of Warming Rates"),
                                  title.position = "top", 
                                  title.hjust = 0.5,
                                  barwidth = unit(2.5, "in"),
@@ -1614,6 +1572,80 @@ ranks_global_vertical <- (global_ranks_zoom / global_ranks ) +
 
 # plot patchwork
 ranks_global_figure
+
+```
+
+
+
+
+
+```{r highlighting gom warming rate, eval = FALSE, layout="l-body-outset", fig.width=6, fig.height=4}
+# # for an expanded view need to use the global ranks
+# world_rank_stars <- st_as_stars(rotate(ranks_stack_all))
+# 
+# 
+# # ranks map
+# global_ranks_zoom <- ggplot() +
+#   geom_stars(data = world_rank_stars) +
+#   geom_sf(data = new_england, color = "gray80", fill = "#36454F", size = .075) +
+#   geom_sf(data = canada, color = "gray80", fill = "#36454F", size = .075) +
+#   geom_sf(data = greenland, color = "gray80", fill = "#36454F", size = .075) +
+#   # geom_sf(data = region_extent,
+#   #         color = "white",
+#   #         fill = "transparent", linetype = 1, size = 0.75) +
+#   scale_y_continuous(breaks = seq(-90, 90, by = 5)) +
+#   scale_x_continuous(breaks = seq(-90, 40, by = 10)) +
+#   scale_fill_viridis_c(limit = c(0.95, 1),  
+#                        option = "inferno",
+#                        na.value = "black") +
+#   map_theme +
+#   coord_sf(
+#     xlim = c("xmin" = -77, "xmax" = -50),
+#     ylim = c("ymin" = 32, "ymax" = 48),
+#     expand = T) +
+#   guides("fill" = guide_colorbar(
+#     title = expression("Global Percentile of Warming Rates"),
+#     title.position = "top", 
+#     title.hjust = 0.5,
+#     barwidth = unit(2.5, "in"),
+#     frame.colour = "black",
+#     ticks.colour = "black")) 
+# 
+# 
+# # ranks zoomed_out
+# global_ranks <- ggplot() +
+#   geom_stars(data = world_rank_stars) +
+#   geom_sf(data = world, color = "gray80", fill = "#36454F", size = .1) +
+#   scale_fill_viridis_c(limit = c(0.95, 1),  
+#                        option = "inferno",
+#                        #oob = scales::oob_squish, 
+#                        na.value = "black") +
+#   map_theme +
+#   coord_sf(expand = F) +
+#   scale_y_continuous(breaks = seq(-90, 90, by = 30)) +
+#   guides("fill" = guide_colorbar(title = expression("Global Percentile of Warming Rates"),
+#                                  title.position = "top", 
+#                                  title.hjust = 0.5,
+#                                  barwidth = unit(2.5, "in"),
+#                                  frame.colour = "black",
+#                                  ticks.colour = "black"))  +
+#   theme(axis.text.x = element_blank(),
+#         axis.ticks.x = element_blank())
+# 
+# 
+# # plot map
+# ranks_global_figure <- (global_ranks_zoom | global_ranks ) + 
+#   plot_layout(guides = "collect") & 
+#   theme(legend.position = "bottom")
+# 
+# 
+# ranks_global_vertical <- (global_ranks_zoom / global_ranks ) + 
+#   plot_layout(guides = "collect") & 
+#   theme(legend.position = "bottom")
+# 
+# 
+# # plot patchwork
+# ranks_global_figure
 
 ```
 
