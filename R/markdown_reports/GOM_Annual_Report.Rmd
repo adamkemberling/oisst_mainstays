@@ -467,9 +467,10 @@ decade_global <- lm_global["year"] * 10
 
 
 # Equation to paste in
-eq_all    <- paste0(decade_all,    "\u00b0", "C / Decade")
-eq_15     <- paste0(decade_15,     "\u00b0", "C / Decade")
-eq_global <- paste0(decade_global, "\u00b0", "C / Decade")
+eq_all    <- paste0("GoM 1982-2021: ", decade_all,    "\u00b0", "C / Decade")
+eq_15     <- paste0("GoM 2007-2021: ", decade_15,     "\u00b0", "C / Decade")
+eq_global <- paste0("World 1982-2021: ", decade_global, "\u00b0", "C / Decade")
+
 
 # Generate a smoothed temperature line using splines
 yearly_temp_smooth <-  as.data.frame(spline(annual_summary$yr_as_dtime, annual_summary$area_wtd_anom)) %>% 
@@ -477,236 +478,138 @@ yearly_temp_smooth <-  as.data.frame(spline(annual_summary$yr_as_dtime, annual_s
 ```
 
 
-```{r, eval = FALSE}
+```{r, eval = TRUE}
 
-# # Too many things on one plot
-# 
-# ####  Annual Trend Plot  ####
-# ggplot(data = annual_summary, aes(yr_as_dtime, area_wtd_anom)) +
-#   
-#   # Overlay yearly means
-#   geom_line(color = "gray10", size = 0.75, linetype = 3) +
-#   geom_point(color = "gray10", size = 1) +
-#   
-#   # Add regression lines
-#   geom_labelsmooth(
-#     data = filter(global_summary, year <= 2021),
-#     method = "lm", 
-#     formula = y ~ x, se = F,
-#     label = "1982-2021 Global",
-#     color = gmri_cols("green"),
-#     linewidth = 1,
-#     size = 3,
-#     label.padding = unit(0.075, "lines"),
-#     linetype = 1, 
-#     hjust = 0.9, alpha = 0.8) +
-#   geom_labelsmooth(
-#     data = filter(annual_summary, year <= 2021),
-#     method = "lm",
-#     formula = y ~ x, se = F,
-#     aes(label = "1982-2021 Gulf of Maine"), #label = "40-Year Trend",
-#     size = 3,
-#     linewidth = 1,
-#     label.padding = unit(0.075, "lines"),
-#     linetype = 1,
-#     color = gmri_cols("gmri blue"),
-#     hjust = 0.9, alpha = 0.8) +
-#   # geom_labelsmooth(
-#   #   data = filter(annual_summary, year %in% c(2007:2021)),
-#   #   method = "lm", 
-#   #   aes(label = "2007-2021 Gulf of Maine"),
-#   #   color = gmri_cols("orange"), 
-#   #   linewidth = 1, 
-#   #   size = 3,
-#   #   label.padding = unit(0.075, "lines"),
-#   #   formula = y ~ x, se = F, 
-#   #   linetype = 1) +
-# 
-#   # Manually add equations so they show yearly not daily coefficients
-#   geom_text(data = data.frame(), 
-#             aes(label = "Warming Rates:", 
-#                 x = min(region_timeseries$time), y = Inf),
-#             hjust = -0.25, vjust = 7, color = "black") +
-#   geom_text(data = data.frame(), 
-#             aes(label = eq_global, x = min(region_timeseries$time), y = Inf),
-#             hjust = -0.25, vjust = 8.5, color = gmri_cols("green")) +
-#   geom_text(data = data.frame(),
-#             aes(label = eq_all, x = min(region_timeseries$time), y = Inf),
-#             hjust = -0.25, vjust = 10, color = gmri_cols("gmri blue")) +
-#   # geom_text(data = data.frame(), 
-#   #           aes(label = eq_15, x = min(region_timeseries$time), y = Inf),
-#   #           hjust = -0.25, vjust = 10, color = gmri_cols("orange")) +
-#   
-#   # Axes
-#   #scale_x_continuous(expand = expansion(add = c(2,10))) +
-#   scale_y_continuous(
-#     sec.axis = sec_axis(trans = ~as_fahrenheit(., data_type = "anomalies"),
-#                         labels =  number_format(suffix = " \u00b0F")),
-#     labels = number_format(suffix = " \u00b0C")) +
-#   
-#   # theme
-#   theme_gmri() +
-#   
-#   # labels + theme
-#   labs(title = "Gulf of Maine: Rapid Recent Warming",
-#        subtitle = "Recent Rate 4 x Global Average",
-#        x = "", 
-#        y = "Sea Surface Temperature Anomaly",
-#        caption = paste0("Anomalies calculated using 1982-2011 reference period."))
+# Line color formatting
+line_colors <- setNames(
+  as.character(c(
+    gmri_cols("gmri blue"), 
+    #gmri_cols("orange"),
+    gmri_cols("green"))),  
+  c(eq_all, 
+    #eq_15, 
+    eq_global))
+
+
+
+# Single Line Plot
+(temp_simplified <- ggplot(data = annual_summary, aes(year, area_wtd_anom)) +
+
+  # Overlay yearly means
+  geom_line(color = "gray10", size = 0.75, linetype = 1) +
+  geom_point(color = "gray10", size = 1) +
+  geom_smooth(
+     data = mutate(global_summary, `Warming Rate` = eq_global),
+    method = "lm",
+    formula = y ~ x, se = F,
+    aes(color = `Warming Rate`),
+    alpha = 0.90,
+    size = 1,
+    linetype = 1) +
+  geom_smooth(
+    data = annual_summary %>% 
+      mutate(`Warming Rate` = eq_all),
+    method = "lm",
+    formula = y ~ x, se = F,
+    aes(color = `Warming Rate`),
+    color = gmri_cols("gmri blue"),
+    alpha = 0.90,
+    size = 1,
+    linetype = 1) + 
+   scale_color_manual(values = line_colors) +
+   scale_y_continuous(
+     labels = number_format(suffix = " \u00b0C")) +
+   labs(title = "Gulf of Maine:",
+        subtitle = "Annual Sea Surface Temperature Anomalies",
+        x = "Year", y = "Sea surface Temperature Anomaly",
+        caption = "Anomalies calculated using 1982-2011 reference period.") +
+   theme(legend.position = c(0.85, 0.125))
+
+)
+
+
 ```
 
 
-```{r gom full warming}
-# New Plot
+```{r gom full warming, eval = T}
+
+# Line color formatting
+line_colors <- setNames(
+  as.character(c(
+    gmri_cols("gmri blue"), 
+    gmri_cols("orange"))),  
+  c(eq_all, 
+    eq_15))
+
+
 # Gulf of Maine Warming
-gom_all_trend <- ggplot(data = annual_summary, aes(year, area_wtd_anom)) +
-  
-  # Overlay yearly means
-  geom_line(color = "gray10", size = 0.75, linetype = 3) +
+gom_all_trend <- annual_summary %>%
+  ggplot(aes(year, area_wtd_anom)) +
+  geom_line(color = "gray10", size = 0.75, linetype = 1) +
   geom_point(color = "gray10", size = 1) +
-  
   # Add regression lines
-  geom_labelsmooth(
-    data = filter(annual_summary, year <= 2021),
+  geom_smooth(
+    data = annual_summary %>%
+      mutate(`Warming Rate` = eq_all),
     method = "lm",
     formula = y ~ x, se = F,
-    aes(label = "1982-2021 Gulf of Maine"), #label = "40-Year Trend",
-    size = 3,
-    linewidth = 1,
-    label.padding = unit(0.075, "lines"),
-    linetype = 1,
-    color = gmri_cols("gmri blue"),
-    hjust = 0.5) +
-  
-  # Manually add equations so they show yearly not daily coefficients
-  geom_text(data = data.frame(), 
-            aes(label = "Warming Rate:", 
-                x = 1982, y = Inf),
-            hjust = -0.25, vjust = 2.25, color = "black") +
-  geom_text(data = data.frame(),
-            aes(label = eq_all, x = 1982, y = Inf),
-            hjust = -0.25, vjust = 3.75, color = gmri_cols("gmri blue")) +
-  
+    aes(color = `Warming Rate`),
+    alpha = 0.90,
+    size = 1,
+    linetype = 1) +
   # Axes
-  #scale_x_continuous(expand = expansion(add = c(2,10))) +
   scale_y_continuous(
     limits = c(-1, 3),
     sec.axis = sec_axis(trans = ~as_fahrenheit(., data_type = "anomalies"),
                         labels =  number_format(suffix = " \u00b0F")),
     labels = number_format(suffix = " \u00b0C")) +
-  
-  # theme
-  theme_gmri() +
-  
+  scale_color_manual(values = line_colors) +
+
   # labels + theme
   labs(title = "Gulf of Maine: Long-Term Warming Trend",
-       x = "", 
+       x = "",
        y = "SST Anomaly",
        caption = "")
-```
 
 
-```{r gom recent warming}
-# New Plot
-# Gulf of Maine Warming
-gom_recent_trend <- ggplot(data = annual_summary, aes(year, area_wtd_anom)) +
-  
-  # Overlay yearly means
-  geom_line(color = "gray10", size = 0.75, linetype = 3, group = 1) +
+# Gulf of Maine Warming - last 15 years
+gom_recent_trend <- annual_summary %>% 
+  ggplot(aes(year, area_wtd_anom)) +
+  geom_line(color = "gray10", size = 0.75, linetype = 1) +
   geom_point(color = "gray10", size = 1) +
-  
   # Add regression lines
-  geom_labelsmooth(
-    data = filter(annual_summary, year %in% c(2007:2021)),
+  geom_smooth(
+    data = filter(annual_summary, year %in% c(2007:2021)) %>% 
+      mutate(`Warming Rate` = eq_15),
     method = "lm",
-    aes(label = "2007-2021 Gulf of Maine"),
-    color = gmri_cols("orange"),
-    linewidth = 1,
-    size = 3,
-    label.padding = unit(0.075, "lines"),
     formula = y ~ x, se = F,
+    aes(color = `Warming Rate`),
+    alpha = 0.90,
+    size = 1,
     linetype = 1) +
-
-  # Manually add equations so they show yearly not daily coefficients
-  geom_text(data = data.frame(), 
-            aes(label = "Warming Rate:", 
-                x = 1982, y = Inf),
-            hjust = -0.25, vjust = 2.25, color = "black") +
-  geom_text(data = data.frame(),
-            aes(label = eq_15, x = 1982, y = Inf),
-            hjust = -0.25, vjust = 3.75, color = gmri_cols("orange")) +
   
   # Axes
-  #scale_x_continuous(expand = expansion(add = c(2,10))) +
   scale_y_continuous(
     limits = c(-1, 3),
     sec.axis = sec_axis(trans = ~as_fahrenheit(., data_type = "anomalies"),
                         labels =  number_format(suffix = " \u00b0F")),
     labels = number_format(suffix = " \u00b0C")) +
-  
-  # theme
-  theme_gmri() +
+  scale_color_manual(values = line_colors) +
   
   # labels + theme
   labs(title = "Gulf of Maine: Rapid Recent Warming",
        x = "", 
        y = "SST Anomaly",
-       caption = "")
-```
-
-
-```{r earth warming}
-# Global Warming
-
-# Overlay yearly means
-glob_trend <- ggplot(data = filter(global_summary, between(year, 1982, 2021)), 
-       aes(year, area_wtd_anom)) +
-  geom_line(color = "gray10", size = 0.75, linetype = 3) +
-  geom_point(color = "gray10", size = 1) +
-  # Add regression lines
-  geom_smooth(
-    method = "lm", 
-    formula = y ~ x, se = F,
-    #label = "1982-2021 Global",
-    color = gmri_cols("green"),
-    #linewidth = 1,
-    size = 1,
-    #vjust = -3,
-    #label.padding = unit(0.075, "lines"),
-    linetype = 1) +
-  # Manually add equations so they show yearly not daily coefficients
-  geom_text(data = data.frame(), 
-            aes(label = "Warming Rate:", 
-                x = 1982, y = Inf),
-            hjust = -0.25, vjust = 2.25, color = "black") +
-  geom_text(data = data.frame(), 
-            aes(label = eq_global, x = 1982, y = Inf),
-            hjust = -0.25, vjust = 3.75, color = gmri_cols("green")) +
-  
-  # Axes
-  #scale_x_continuous(expand = expansion(add = c(2,10))) +
-  scale_y_continuous(
-    #limits = c(-1, 3),
-    sec.axis = sec_axis(trans = ~as_fahrenheit(., data_type = "anomalies"),
-                        labels =  number_format(suffix = " \u00b0F")),
-    labels = number_format(suffix = " \u00b0C")) +
-  
-  # theme
-  theme_gmri() +
-  # labels + theme
-  labs(title = "Global Oceans: Long-Term Warming Trend",
-       x = "Year", 
-       y = "SST Anomaly",
        caption = paste0("Anomalies calculated using 1982-2011 reference period."))
 
 
-```
 
 
-
-```{r, fig.height=10}
-# Put all three together
-gom_all_trend / gom_recent_trend / glob_trend
+# Put them together
+(gom_all_trend / gom_recent_trend ) + 
+  plot_layout(guides = "collect")  & 
+  theme(legend.position = "right") &
+  guides(color = guide_legend(title.position = "top", ncol = 1, title.hjust = 0.5))
 ```
 
 
@@ -873,7 +776,7 @@ hw_temp_p / hw_anom_p
 
 
 
-## 2021 Heatwave Events
+### 2021: Heatwave Events
 
 ```{r}
 
@@ -899,7 +802,7 @@ avg_duration <- round(days_hw / events_num, digits = 0)
 During 2021 there were `r events_num` marine heatwave events,  lasting a total of `r days_hw`. These events include one that carried over from the previous year and another that has persisted into 2022. The average duration for these events was `r avg_duration` days (excluding days in 2020 & 2022).
 
 
-## Record Daily Temperatures
+### 2021: Record Daily Temperatures
 
 To add context on the severity of these sustained heatwaves, many of the individual daily temperatures throughout 2021 were themselves the hottest days on record.
 
@@ -1230,9 +1133,16 @@ grid::grid.raster(lab_logo, x = 0.08, y = 0.04, just = c('left', 'bottom'), widt
 ```
 
 
-## Characteristics of the Hottest Years
+## Characterizing the Hottest Years
 
-Multivariate figure comparing characteristics of both years: 2012 & 2021
+There are a number of ways one might try to describe the extent and severity of temperature extremes. Aside from overall average temperatures there may be acute temperature surges that may have a larger impact than a prolonged warm period. To  look more closely at these differences ranked each year on the following characteristics:   
+ - Average overall temperature   
+ - The average temperature above normal   
+ - The cumulative degrees above normal   
+ - The average heatwave length   
+ 
+ 
+ 
 
 
 ```{r}
@@ -1797,7 +1707,7 @@ ggplot() +
  
 
 
-## Warming Rate Ranking
+## Warming Rate Rankings
 
 If we look at the rates of change for each grid cell on Earth’s surface, rather than a plot of SST over time, it is possible to rank how each location on Earth is warming relative to others. By ranking those warming rates, and then taking the average ranking across the Gulf of Maine, we can obtain the average warming rank for our area compared to the rest of the globe.
 
@@ -1891,26 +1801,31 @@ world_rank_stars <- st_as_stars(rotate(ranks_nc))
 world_ranks_binned <- world_rank_stars %>% 
   mutate(
     rank = Annual.Sea.Surface.Temperature.Warming.Rate.Rank,
-    rank_bin = cut(rank, breaks = seq(0.1, 1, by = 0.1))) %>% 
+    rank_bin = cut(rank, breaks = seq(0, 1, by = 0.1))) %>% 
   select(-c(rank, Annual.Sea.Surface.Temperature.Warming.Rate.Rank))
+
+# # Define the number of colors you want
+# nb.cols <- 10
+# mycolors <- RColorBrewer::brewer.pal(n = 10, "Reds")
 
 
 # Northeast Shelf
 global_ranks_zoom <- ggplot() +
   geom_stars(data = world_ranks_binned) +
-  geom_sf(data = new_england, color = "white", fill = "gray30", size = .075) +
-  geom_sf(data = canada, color = "white", fill = "gray30", size = .075) +
-  geom_sf(data = greenland, color = "white", fill = "gray30", size = .075) +
+  geom_sf(data = new_england, color = "white", fill = "gray30", size = .05) +
+  geom_sf(data = canada, color = "white", fill = "gray30", size = .05) +
+  geom_sf(data = greenland, color = "white", fill = "gray30", size = .05) +
   scale_y_continuous(breaks = seq(-90, 90, by = 5)) +
   scale_x_continuous(breaks = seq(-180, 180, by = 10))+
-  scale_fill_brewer(palette = "YlOrRd", direction = 1, na.value = "transparent") +
+  scale_fill_brewer(palette = "Spectral", direction = -1, na.value = "transparent") +
+  # scale_fill_viridis_d(option = "viridis", direction = 1, na.value = "transparent", na.translate = FALSE) +
   map_theme +
   coord_sf(
     xlim = c("xmin" = -77, "xmax" = -50),
     ylim = c("ymin" = 32, "ymax" = 48),
     expand = T) +
   guides("fill" = guide_colorsteps(
-    title = expression("Global Percentile of Warming Rates"),
+    title = "Warming Rate Percentile: 1982-2021",
     title.position = "top", 
     title.hjust = 0.5,
     barwidth = unit(2.5, "in"),
@@ -1922,11 +1837,12 @@ global_ranks_zoom <- ggplot() +
 global_ranks <- ggplot() +
   geom_stars(data = world_ranks_binned) +
   geom_sf(data = world_sf, color = "white", fill = "gray30", size = .1) +
-  scale_fill_brewer(palette = "YlOrRd", direction = 1, na.value = "transparent") +
+  scale_fill_brewer(palette = "Spectral", direction = -1, na.value = "transparent") +
+  # scale_fill_viridis_d(option = "viridis", direction = 1, na.value = "transparent", na.translate = FALSE) +
   map_theme +
   coord_sf(expand = F) +
   scale_y_continuous(breaks = seq(-90, 90, by = 30)) +
-  guides("fill" = guide_colorsteps(title = expression("Global Percentile of Warming Rates"),
+  guides("fill" = guide_colorsteps(title = "Warming Rate Percentile: 1982-2021",
                                  title.position = "top", 
                                  title.hjust = 0.5,
                                  barwidth = unit(2.5, "in"),
@@ -1946,6 +1862,88 @@ ranks_global_figure <- (global_ranks_zoom | global_ranks ) +
 ranks_global_figure
 
 ```
+
+
+
+## Fastest Warming Regions
+
+To get a better look at extremes we can mask values below the 80th percentile and look more closely at the differences among the fastest warming areas on Earth. Below only the fastest 20% of locations are shown, to  show more detail among the fastest warming areas.
+
+
+```{r}
+
+# Mask out where its under .8
+ranks_top20 <- ranks_nc
+ranks_top20[ranks_top20 < 0.8] <- NA
+
+
+# Make stars, bin by .25
+ranks_top_stars <- st_as_stars(rotate(ranks_top20))
+
+ranks_top_binned <- ranks_top_stars %>% 
+  mutate(
+    rank = Annual.Sea.Surface.Temperature.Warming.Rate.Rank,
+    rank_bin = cut(rank, breaks = seq(0.8, 1, by = 0.025))) %>% 
+  select(-c(rank, Annual.Sea.Surface.Temperature.Warming.Rate.Rank))
+
+# Remake maps
+
+
+# Northeast Shelf
+top_ranks_zoom <- ggplot() +
+  geom_stars(data = ranks_top_binned) +
+  geom_sf(data = new_england, color = "white", fill = "gray30", size = .05) +
+  geom_sf(data = canada, color = "white", fill = "gray30", size = .05) +
+  geom_sf(data = greenland, color = "white", fill = "gray30", size = .05) +
+  scale_y_continuous(breaks = seq(-90, 90, by = 5)) +
+  scale_x_continuous(breaks = seq(-180, 180, by = 10))+
+  scale_fill_viridis_d(option = "plasma", direction = 1, na.value = "gray10") +
+  map_theme +
+  coord_sf(
+    xlim = crop_x_expanded,
+    ylim = crop_y_expanded,
+    # xlim = c("xmin" = -75, "xmax" = -60),
+    # ylim = c("ymin" = 38, "ymax" = 48),
+    expand = T) +
+  guides("fill" = guide_colorsteps(
+    title = "Warming Rate Percentile: 1982-2021",
+    title.position = "top", 
+    title.hjust = 0.5,
+    barwidth = unit(2.5, "in"),
+    frame.colour = "black",
+    ticks.colour = "black")) 
+
+
+# Global View
+top_ranks <- ggplot() +
+  geom_stars(data = ranks_top_binned) +
+  geom_sf(data = world_sf, color = "white", fill = "gray30", size = .1) +
+   scale_fill_viridis_d(option = "plasma", direction = 1, na.value = "gray10") +
+  map_theme +
+  coord_sf(expand = F) +
+  scale_y_continuous(breaks = seq(-90, 90, by = 30)) +
+  guides("fill" = guide_colorsteps(title = "Warming Rate Percentile: 1982-2021",
+                                 title.position = "top", 
+                                 title.hjust = 0.5,
+                                 barwidth = unit(2.5, "in"),
+                                 frame.colour = "black",
+                                 ticks.colour = "black"))  +
+  theme(axis.text.x = element_blank(),
+        axis.ticks.x = element_blank())
+
+
+# plot map
+top_ranks_figure <- (top_ranks_zoom | top_ranks ) + 
+  plot_layout(guides = "collect") & 
+  theme(legend.position = "bottom")
+
+
+# plot patchwork
+top_ranks_figure
+
+
+```
+
 
 
 
