@@ -96,7 +96,7 @@ map_theme <- list(
 # Polygons for mapping
 new_england <- ne_states("united states of america", returnclass = "sf")
 canada      <- ne_states("canada", returnclass = "sf")
-world       <- ne_countries(returnclass = "sf")
+world_sf       <- ne_countries(returnclass = "sf")
 greenland   <- ne_states(country = "greenland", returnclass = "sf")
 
 
@@ -1115,7 +1115,7 @@ Perhaps a clearer way to see the progression away from the temperature regime of
 ```{r}
 
 # Prep the legend title
-guide_lab <- expression("Sea Surface Temperature Anomaly"~degree*C)
+guide_lab <- expression("Sea Surface Temperature Anomaly")
 
 # Set new axis dimensions, y = year, x = day within year
 # use a flate_date so that they don't stair step
@@ -1165,7 +1165,7 @@ heatwave_heatmap <- ggplot(grid_data, aes(x = flat_date, y = yr)) +
   guides("fill" = guide_colorbar(title = guide_lab, 
                                  title.position = "right", 
                                  title.hjust = 0.5,
-                                 barheight = unit(4, "inches"), 
+                                 barheight = unit(3.5, "inches"), 
                                  frame.colour = "black", 
                                  ticks.colour = "black")) +  
   theme(legend.position = "right",
@@ -1526,7 +1526,7 @@ global_ranks_zoom <- ggplot() +
   geom_sf(data = greenland, color = "white", fill = "gray30", size = .075) +
   scale_y_continuous(breaks = seq(-90, 90, by = 5)) +
   scale_x_continuous(breaks = seq(-180, 180, by = 10))+
-  scale_fill_brewer(palette = "YlOrRd", direction = 1, na.value = "transparent") +
+  scale_fill_brewer(palette = "Spectral", direction = 1, na.value = "transparent") +
   map_theme +
   coord_sf(
     xlim = c("xmin" = -77, "xmax" = -50),
@@ -1544,8 +1544,8 @@ global_ranks_zoom <- ggplot() +
 # Global View
 global_ranks <- ggplot() +
   geom_stars(data = world_ranks_binned) +
-  geom_sf(data = world, color = "white", fill = "gray30", size = .1) +
-  scale_fill_brewer(palette = "YlOrRd", direction = 1, na.value = "transparent") +
+  geom_sf(data = world_sf, color = "white", fill = "gray30", size = .1) +
+  scale_fill_brewer(palette = "Spectral", direction = 1, na.value = "transparent") +
   map_theme +
   coord_sf(expand = F) +
   scale_y_continuous(breaks = seq(-90, 90, by = 30)) +
@@ -1615,7 +1615,7 @@ ranks_global_figure
 # # ranks zoomed_out
 # global_ranks <- ggplot() +
 #   geom_stars(data = world_rank_stars) +
-#   geom_sf(data = world, color = "gray80", fill = "#36454F", size = .1) +
+#   geom_sf(data = world_sf, color = "gray80", fill = "#36454F", size = .1) +
 #   scale_fill_viridis_c(limit = c(0.95, 1),  
 #                        option = "inferno",
 #                        #oob = scales::oob_squish, 
