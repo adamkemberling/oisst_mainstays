@@ -81,7 +81,6 @@ world_sf       <- ne_countries(returnclass = "sf")
 greenland   <- ne_states(country = "greenland", returnclass = "sf")
 
 
-# Masking Function
 # Masking Function to clip to the study area
 mask_nc <- function(ras_obj, mask_shape){
   
@@ -90,6 +89,11 @@ mask_nc <- function(ras_obj, mask_shape){
   m1 <- crop(m1, mask_shape)
   return(m1)
 }
+
+
+
+# Box Location to save hi-res images
+save_location <- cs_path("root", "GoM Seasonal Climate Update/annual_update_figures")
 ```
 
 `r gmRi::use_gmri_style_rmd(css = "gmri_rmarkdown.css")`
@@ -314,7 +318,7 @@ ersst_smooth <- as.data.frame(spline(ersst_yr$yr, ersst_yr$sst))
 
 
 # Plot them
-ggplot(data = ersst_yr) +
+ersst_long_term_p <- ggplot(data = ersst_yr) +
   geom_line(aes(yr, sst),
             group = 1, alpha = 0.4, linetype = 1, color = gmri_cols("gmri blue")) +
   geom_point(aes(yr, sst), 
@@ -342,6 +346,10 @@ ggplot(data = ersst_yr) +
        title = "Long-Term Temperature Record for the Gulf of Maine",
        subtitle = "Current temperatures above 150-year highs",
        caption = "Data Source: ERSSTv5 Monthly Sea Surface Temperature")
+
+
+
+ersst_long_term_p
 ```
 
 ## Newer Technology: Higher-Quality Data
@@ -371,7 +379,7 @@ oisst_smooth <- as.data.frame(spline(oisst_yr$yr, oisst_yr$sst))
 
 
 # Plot them
-ggplot() +
+ersst_v_oisst <- ggplot() +
   geom_line(data = ersst_smooth, aes(x, y, color = "ERSSTv5"),
             group = 1, alpha = 0.4, linetype = 1) +
   geom_point(data = ersst_yr, aes(yr, sst, color = "ERSSTv5"), 
@@ -392,6 +400,10 @@ ggplot() +
        color = "Temperature Data Source",
        title = "Long-Term Temperature Record for the Gulf of Maine",
        subtitle = "OISSTv2 Data Availability Overlap with ERSSTv5")
+
+
+
+ersst_v_oisst
 ```
 
 
@@ -518,12 +530,14 @@ line_colors <- setNames(
     linetype = 1) + 
    scale_color_manual(values = line_colors) +
    scale_y_continuous(
+     sec.axis = sec_axis(trans = ~as_fahrenheit(., data_type = "anomalies"),
+                        labels =  number_format(suffix = " \u00b0F")),
      labels = number_format(suffix = " \u00b0C")) +
    labs(title = "Gulf of Maine:",
         subtitle = "Annual Sea Surface Temperature Anomalies",
         x = "Year", y = "Sea surface Temperature Anomaly",
         caption = "Anomalies calculated using 1982-2011 reference period.") +
-   theme(legend.position = c(0.85, 0.125))
+   theme(legend.position = c(0.825, 0.125))
 
 )
 
@@ -606,10 +620,10 @@ gom_recent_trend <- annual_summary %>%
 
 
 # Put them together
-(gom_all_trend / gom_recent_trend ) + 
+(gom_recent_warming <- (gom_all_trend / gom_recent_trend ) + 
   plot_layout(guides = "collect")  & 
   theme(legend.position = "right") &
-  guides(color = guide_legend(title.position = "top", ncol = 1, title.hjust = 0.5))
+  guides(color = guide_legend(title.position = "top", ncol = 1, title.hjust = 0.5)))
 ```
 
 
@@ -624,7 +638,7 @@ These relative contribution of these two impacts may vary through time, but the 
 
 ```{r}
 ####  Annual Trend Plot  ####
-annual_summary %>% 
+gom_anomaly_bars <- annual_summary %>% 
   mutate(anom_direction = ifelse(area_wtd_anom > 0, "hot", "cold")) %>% 
   ggplot(aes(yr_as_dtime, area_wtd_anom)) +
   
@@ -654,6 +668,9 @@ annual_summary %>%
        y = "Sea Surface Temperature Anomaly",
        caption = paste0("Anomalies calculated using 1982-2011 reference period."))
 
+
+
+gom_anomaly_bars
 
 ```
 
@@ -711,8 +728,6 @@ hw_temp_p <- ggplot(this_yr, aes(x = time)) +
     geom_line(aes(y = sst, color = "Sea Surface Temperature")) +
     geom_line(aes(y = hwe, color = "Heatwave Event")) +
     geom_line(aes(y = mhw_thresh, color = "MHW Threshold"), lty = 3, size = .5) +
-    # geom_textpath(aes(y = mhw_thresh,  color = "MHW Threshold"), label = "Heatwave Threshold", hjust = 0.8, lty = 3) +
-    #geom_line(aes(y = seas, color = "Daily Climatology"), lty = 2, size = .5) +
     geom_textpath(aes(y = seas,  color = "Daily Climatology"), label = "Climatology Mean", hjust = 0.5, lty = 2) +
     scale_color_manual(values = color_vals) +
     scale_x_date(date_labels = "%b", date_breaks = "1 month", expand = expansion(mult = c(0,0))) +
@@ -753,9 +768,7 @@ ggplot(aes(x = time)) +
     geom_line(aes(y = anom_hwe, color = "Heatwave Event")) +
     geom_line(aes(y = anom_thresh, color = "MHW Threshold"), lty = 3, size = .5) +
     geom_line(aes(y = 0, color = "Daily Climatology"), lty = 2, size = .5) +
-    # geom_textpath(aes(y = 0,  color = "Daily Climatology"), 
-    #               label = "Climatology Mean", hjust = 0.5, lty = 2, show.legend = FALSE) +
-    scale_color_manual(values = color_vals) +
+   scale_color_manual(values = color_vals) +
     scale_linetype_manual(values = linetype_key, guide = "none") +
     scale_x_date(date_labels = "%b", date_breaks = "1 month", expand = expansion(mult = c(0,0))) +
     guides(color = guide_legend(override.aes = list(linetype = linetype_key), nrow = 2)) +
@@ -770,7 +783,7 @@ ggplot(aes(x = time)) +
 
 
 # Show figure
-hw_temp_p / hw_anom_p
+(year_timeline <- hw_temp_p / hw_anom_p)
 
 ```
 
@@ -844,9 +857,6 @@ grid_data <- region_hw %>%
 # Prep the legend title
 guide_lab <- "Sea Surface Temperature Anomaly \u00b0C"
 
-# Set palette limits to center it on 0 with scale_fill_distiller
-#limit <- max(abs(grid_data$sst_anom)) * c(-1, 1)
-
 # Color limit for palettes
 temp_limits <- c(-3, 3)
 temp_breaks <- c(temp_limits[1], temp_limits[1]/2,  0, temp_limits[2]/2, temp_limits[2])
@@ -869,9 +879,6 @@ heatwave_heatmap <- ggplot(grid_data, aes(x = flat_date, y = year)) +
              aes(x = flat_date, y = year), size = .25)  +
   scale_x_date(date_labels = "%b", date_breaks = "1 month", expand = c(0,0)) +
   scale_y_continuous(limits = c(1980.5, 2021.5), expand = c(0,0)) +
-  #scale_fill_gradient2(low = "blue", mid = "white", high = "red") +
-  # scale_fill_distiller(palette = "RdYlBu", na.value = "transparent", 
-  #                      limit = limit) +
   scale_fill_distiller(palette = "RdBu", 
                      na.value = "transparent", 
                      limit = temp_limits, 
@@ -970,13 +977,16 @@ anom_horizon_plot <- function(hori_data, origin = ori, scale_cutpoints = sca, la
 
 
 # Plot Horizon Plot Using All Years
-anom_horizon_plot(hori_data = filter(hori_data, yr <= 2021), 
+gom_annual_horizons <- anom_horizon_plot(hori_data = filter(hori_data, yr <= 2021), 
                   origin = ori, 
                   scale_cutpoints = sca) +
   labs(title = "Temperature Anomaly Horizons",
        subtitle = "How deviation from the norm has become the new-normal",
        caption = "Climatatological Reference Period: 1982-2011")
 
+
+# Plot it
+gom_annual_horizons
 grid::grid.raster(lab_logo, x = 0.05, y = 0.03, just = c('left', 'bottom'), width = unit(0.8, 'inches'))
 ```
 
@@ -1023,7 +1033,7 @@ hori_2021 <- hori_data %>% filter(year == "2021") %>%
 comparison_horizons <- hori_2012 / hori_2021 + plot_layout(guides = "collect")
 
 # Do a bunch of formatting
-comparison_horizons &
+comparison_horizons <-comparison_horizons &
   theme(
     #Legend
     legend.position = "top",
@@ -1037,7 +1047,13 @@ comparison_horizons &
                               byrow = T, reverse = T)) &
   plot_annotation(title = "Comparing the Gulf of Maine's Two Hottest Years", 
                   subtitle = "Duration of temperature anomaly horizons, colored by their strength")
-  grid::grid.raster(lab_logo, x = 0.08, y = 0.04, just = c('left', 'bottom'), width = unit(0.8, 'inches'))
+
+
+
+
+# Plot it
+comparison_horizons
+grid::grid.raster(lab_logo, x = 0.08, y = 0.04, just = c('left', 'bottom'), width = unit(0.8, 'inches'))
   
 ```
 
@@ -1089,7 +1105,6 @@ day_types <- region_hw %>%
 # Plot the Streamplot
 hw_streamplot <- ggplot(day_types, aes(yr, y = day_total, fill = `Anomaly Strength`)) +
   geom_stream(type = "proportion") +
-  #geom_segment(y = .5, yend = 0.5, linetype = 3, color = "gray50", x = 1981, xend = 2021, size = 0.25) +
   scale_x_continuous(breaks = seq(1980,2030, by = 10), 
                      minor_breaks = seq(1975, 2030, by = 5), 
                      expand = c(.03,0)) +
@@ -1181,7 +1196,7 @@ year_met_ranks <- year_mets %>%
     year = reorder_within(year, Metric, Var)) 
 
 # Plot the rankings
-year_met_ranks %>% 
+hottest_yr_panels <- year_met_ranks %>% 
   ggplot(aes(year, Metric, color = yr_focus)) +
     geom_col(aes(fill = yr_focus), show.legend = F) +
     geom_label(aes(label = Metric),  show.legend = FALSE) +
@@ -1200,6 +1215,9 @@ year_met_ranks %>%
         panel.grid.major.x = element_blank(),
         panel.grid.minor.x = element_blank(),
         panel.grid.major. = element_line(linetype = 3, color = "gray50"))
+
+
+hottest_yr_panels
 grid::grid.raster(lab_logo, x = 0.84, y = 0.94, just = c('left', 'bottom'), width = unit(0.8, 'inches'))
 
 ```
@@ -1265,7 +1283,7 @@ ranks_st <- ranks_st %>%
   select(-X2021) 
 
 
-# Make Map
+# Make map
 ranks_map <- ggplot() +
   geom_stars(data = ranks_st) +
   geom_sf(data = world_sf, size = .25) +
@@ -1278,11 +1296,12 @@ ranks_map <- ggplot() +
        fill = "",
        caption = "Temperature rankings cover period of 1982-2021") +
   map_theme +
-  theme(axis.text.x = element_blank(), axis.ticks.x = element_blank())
+  theme(axis.text.x = element_blank(), axis.ticks.x = element_blank()) 
   
 ranks_map
 grid::grid.raster(lab_logo, x = 0.08, y = 0.16, just = c('left', 'bottom'), width = unit(0.8, 'inches'))
 ```
+
 
 
 ```{r, eval = TRUE}
@@ -1307,245 +1326,6 @@ grid::grid.raster(lab_logo, x = 0.08, y = 0.02, just = c('left', 'bottom'), widt
 ```
 
 
-
-
-```{r orth testing, eval = FALSE, echo = FALSE}
-# Mapping in orthographic projection:
-
-# Function for making a bounding box
-make_bbox <- function(xlim = c(-75, -60), ylim = c(32, 46), crs =  4326){
- # Build bbox to crop with
-  crop_bbox <- st_bbox(
-    c(xmin = xlim[1],
-      ymin = ylim[1],
-      xmax = xlim[2],
-      ymax = ylim[2]),
-   crs = st_crs(crs))
-  return(crop_bbox)
-}
-
-
-#zoom_bbox in different CRS
-make_bbox() %>% 
-  st_transform(ortho)
-
-
-
-# # Issues: The warping step  is having issues, try cropping first
-# crop_grid_bydim <- function(in_ras, xlim = c(-80, -50), ylim = c(20, 60), crs = crs){
-#   
-#   
-#   
-#   st_crop(in_ras, crop_bbox)
-# }
-# 
-# 
-# # Warp it to orthographic projection
-# warp_to_ortho <- function(in_grid_st, ortho_lat = 25, ortho_lon = -50){
-#   # orthographic projection
-#   lat <- ortho_lon
-#   lon <- ortho_lon
-#   ortho <- paste0('+proj=ortho +lat_0=', lat, ' +lon_0=', lon, ' +x_0=0 +y_0=0 +a=6371000 +b=6371000 +units=m +no_defs')
-#   
-#   # Build grid in the crs you wish to warp to
-#   projection_grid <- in_grid_st %>% 
-#     st_transform(crs = ortho) %>% 
-#     st_bbox() %>%
-#     st_as_stars()
-#   
-#   # Warp to projection grid of chosen CRS
-#   region_warp_ras <- in_grid_st %>% 
-#     st_warp(projection_grid) 
-#   
-#   return(region_warp_ras)
-#   
-# }
-# 
-# 
-# # Crop it down to a manageable area
-# ranks_cropped <- crop_grid_bydim(in_ras = st_as_stars(rotate(ranks_21)), crs = 4326)
-# 
-# # use warping function:
-# ranks_ortho <- warp_to_ortho(in_grid_st = ranks_cropped)
-
-
-# source:
-# https://gist.github.com/rafapereirabr/26965dd851debad32ad2e659024ba451
-
-
-# Orthographic projection
-ortho_lat <- 25
-ortho_lon <- -60
-ortho <- paste0('+proj=ortho +lat_0=', ortho_lat, ' +lon_0=', ortho_lon, ' +x_0=0 +y_0=0 +a=6371000 +b=6371000 +units=m +no_defs')
-
-
-# Can we just project the original?
-ranks_ortho <- projectRaster(rotate(ranks_21), crs = ortho)
-ortho_st <- st_as_stars(ranks_ortho) %>% 
-  mutate(
-    temp_rank = case_when(
-      X2021 == 1 ~ "Coldest",
-      X2021 == 2 ~ "2nd Coldest",
-      X2021 == 3 ~ "3rd Coldest",
-      X2021 == 4 ~ "4th Coldest",
-      X2021 == 5 ~ "5th Coldest",
-      X2021 == 36 ~ "5th Warmest",
-      X2021 == 37 ~ "4th Warmest",
-      X2021 == 38 ~ "3rd Warmest",
-      X2021 == 39 ~ "2nd Warmest",
-      X2021 == 40 ~ "Warmest",
-      TRUE ~ "Not a Record Year"),
-    temp_rank = fct_drop(temp_rank),
-    temp_rank = factor(temp_rank, levels = c(
-      "Warmest", "2nd Warmest", "3rd Warmest", "4th Warmest", "5th Warmest",
-      "Not a Record Year",
-      "5th Coldest", "4th Coldest", "3rd Coldest", "2nd Coldest", "Coldest")))
-
-
-# Try to:
-# Fix polygons so they don't get cut in ortho projection
-world <- rnaturalearth::ne_countries(scale = 'small', returnclass = 'sf')
-world_ortho <- st_cast(world, 'MULTILINESTRING') %>%
-  st_cast('LINESTRING', do_split=TRUE) %>%
-  mutate(npts = mapview::npts(geometry, by_feature = TRUE)) %>%
-  st_cast('POLYGON') %>% 
-  st_transform(ortho) %>% 
-  filter( is.na(st_dimension(.)) == FALSE )
-
-
-
-# and map
-ggplot() +
-  geom_stars(data = select(ortho_st, -X2021)) +
-  scale_fill_brewer(palette = "RdBu",  na.value = "gray50") +
-  coord_sf(crs = ortho, expand = F) +
-  map_theme
-
-
-```
-
-
-
-```{r, eval = F, echo = F}
-# Preserving polygons in ortho view:
-# https://gist.github.com/fzenoni/ef23faf6d1ada5e4a91c9ef23b0ba2c1
-
-# checking geometries https://r-spatial.org/r/2017/03/19/invalid.html#empty-geometries
-
-# Define the orthographic projection
-# Choose lat_0 with -90 <= lat_0 <= 90 and lon_0 with -180 <= lon_0 <= 180
-lat <- 45
-lon <- -65
-ortho <- paste0('+proj=ortho +lat_0=', lat, ' +lon_0=', lon, ' +x_0=0 +y_0=0 +a=6371000 +b=6371000 +units=m +no_defs')
-
-
-# Load the world outlines
-world <- ne_states(returnclass = "sf")
-
-
-
-# Define the polygon that will help you finding the "blade"
-# to split what lies within and without your projection
-circle <- st_point(x = c(0,0)) %>% 
-                   st_buffer(dist = 6371000) %>% 
-                   st_sfc(crs = ortho)
-  
-# Project this polygon in lat-lon
-circle_longlat <- circle %>% st_transform(crs = 4326)
-
-# circle_longlat cannot be used as it is
-# You must decompose it into a string with ordered longitudes
-# Then complete the polygon definition to cover the hemisphere
-if(lat != 0) {
-    circle_longlat <- st_boundary(circle_longlat)
-    
-    circle_coords <- st_coordinates(circle_longlat)[, c(1,2)]
-    circle_coords <- circle_coords[order(circle_coords[, 1]),]
-    circle_coords <- circle_coords[!duplicated(circle_coords),]
-    
-    # Rebuild line
-    circle_longlat <- st_linestring(circle_coords) %>% st_sfc(crs = 4326)
-    
-    if(lat > 0) {
-      rectangle <- list(rbind(circle_coords,
-                              c(X = 180, circle_coords[nrow(circle_coords), 'Y']),
-                              c(X = 180, Y = 90),
-                              c(X = -180, Y = 90),
-                              c(X = -180, circle_coords[1, 'Y']),
-                              circle_coords[1, c('X','Y')])) %>% 
-        st_polygon() %>% st_sfc(crs = 4326)
-    } else {
-      rectangle <- list(rbind(circle_coords,
-                              c(X = 180, circle_coords[nrow(circle_coords), 'Y']),
-                              c(X = 180, Y = -90),
-                              c(X = -180, Y = -90),
-                              c(X = -180, circle_coords[1, 'Y']),
-                              circle_coords[1, c('X','Y')])) %>% 
-        st_polygon() %>% st_sfc(crs = 4326)
-    }
-    
-    circle_longlat <- st_union(st_make_valid(circle_longlat), st_make_valid(rectangle))
-  }
-  
-# This visualization shows the visible emisphere in red
-ggplot() +
-    geom_sf(data = world) +
-    geom_sf(data = circle_longlat, color = 'red', fill = 'red', alpha = 0.3)
-  
-
-
-# A small negative buffer is necessary to avoid polygons still disappearing in a few pathological cases
-# I should not change the shapes too much
-  visible <- st_intersection(st_make_valid(world),   
-                             st_buffer(circle_longlat, -0.09)) %>%
-    st_transform(crs = ortho)
-
-# DISCLAIMER: This section is the outcome of trial-and-error and I don't claim it is the best approach 
-# Resulting polygons are often broken and they need to be fixed
-# Get reason why they're broken
-broken_reason <- st_is_valid(visible, reason = TRUE)
-  
-# First fix NA's by decomposing them
-# Remove them from visible for now
-na_visible <- visible[is.na(broken_reason),]
-visible <- visible[!is.na(broken_reason),]
-  
-# Open and close polygons
-na_visible <- st_cast(na_visible, 'MULTILINESTRING') %>% 
-    st_cast('LINESTRING', do_split=TRUE)
-na_visible <- na_visible %>% 
-  mutate(npts = mapview::npts(geometry, by_feature = TRUE))
-
-# Exclude polygons with less than 4 points
-na_visible <- na_visible %>%
-    filter(npts >=4) %>%
-    select(-npts) %>%
-    st_cast('POLYGON')
-
-# Fix other broken polygons
-broken <- which(!st_is_valid(visible))
-for(land in broken) {
-    result = tryCatch({
-    # visible[land,] <- st_buffer(visible[land,], 0) # Sometimes useful sometimes not
-    visible[land,] <- st_make_valid(visible[land,]) %>% 
-        st_collection_extract()  
-    }, error = function(e) {
-      visible[land,] <<- st_buffer(visible[land,], 0)
-    })
-}
-
-# Bind together the two tables
-visible <- rbind(visible, na_visible)
-
-# Final plot
-ggplot() +
-  geom_sf(data = circle,
-        #fill = 'aliceblue') + # if you like the color
-        fill = NA) +
-    geom_sf(data = st_collection_extract(visible)) +
-    coord_sf(crs = ortho)
-
-```
 
 
 ## Comparing Regions
@@ -1602,7 +1382,7 @@ rates_ordered <- lme_rates %>%
 
 ```{r lme rank table}
 # Make table of top 10*
-rates_ordered %>% 
+lme_rank_table <- rates_ordered %>% 
   slice(1:10) %>% 
   mutate(across(where(is.numeric), round, 3)) %>% 
   gt(rowname_col = "Region") %>% 
@@ -1627,6 +1407,10 @@ rates_ordered %>%
     footnote = "Gulf of Maine not a true large marine ecosystem",
     locations = cells_stub(rows = which(rates_ordered$Region == "Gulf Of Maine")) 
   )
+
+
+# show table
+lme_rank_table
 ```
  
  
@@ -1707,7 +1491,8 @@ ggplot() +
  
 
 
-## Warming Rate Rankings
+## Worldwide Temperature Changes
+
 
 If we look at the rates of change for each grid cell on Earth’s surface, rather than a plot of SST over time, it is possible to rank how each location on Earth is warming relative to others. By ranking those warming rates, and then taking the average ranking across the Gulf of Maine, we can obtain the average warming rank for our area compared to the rest of the globe.
 
@@ -1718,6 +1503,7 @@ Over a longer reference period, from 1982 to 2021, the warming rate of the Gulf 
 However there can be significant spatial variability in this “ranked warming rate” across the Gulf of Maine. Warming rates across the region range from 0.014 °C per year to as high as 0.097 °C per year, meaning some locations over this longer time frame are still warming faster than 99.5% of the world’s oceans.
 
 This variability reflects the various physical oceanographic drivers influencing SST in the region, and in particular the [significant interannual variability in the Gulf Stream’s influence on Georges Bank](https://eos.org/features/why-is-the-gulf-of-maine-warming-faster-than-99-of-the-ocean).
+
 
 ```{r load warming rates, eval = T}
 
@@ -1788,6 +1574,95 @@ top_rate <- region_ranks$`Max Rate`
 
 ```
 
+
+
+```{r mapping warming rates, layout="l-body-outset", fig.width=6, fig.height=4}
+# for an expanded view need to use the global rates
+world_rate_stars <- st_as_stars(rotate(rates_nc))
+
+# Reclassify raster into 10% Bins
+world_rates_binned <- world_rate_stars %>% 
+  mutate(
+    rate = Annual.Sea.Surface.Temperature.Warming.Rate,
+    rate_bin = cut(rate, breaks = seq(0, 1, by = 0.1))) %>% 
+  select(-c(rate, Annual.Sea.Surface.Temperature.Warming.Rate))
+
+
+# Color limit for palettes
+temp_limits <- c(-.08, .08)
+temp_breaks <- c(temp_limits[1], temp_limits[1]/2,  0, temp_limits[2]/2, temp_limits[2])
+temp_labels <- str_c(c(str_c("< ", temp_limits[1]), temp_limits[1]/2, 0, temp_limits[2]/2, str_c("> ", temp_limits[2])), "\u00b0C")
+
+
+# Northeast Shelf
+global_rates_zoom <- ggplot() +
+  geom_stars(data = world_rate_stars) +
+  geom_sf(data = new_england, color = "white", fill = "gray30", size = .05) +
+  geom_sf(data = canada, color = "white", fill = "gray30", size = .05) +
+  geom_sf(data = greenland, color = "white", fill = "gray30", size = .05) +
+  scale_y_continuous(breaks = seq(-90, 90, by = 5)) +
+  scale_x_continuous(breaks = seq(-180, 180, by = 10))+
+  scale_fill_distiller(palette = "RdBu", 
+                       na.value = "transparent", 
+                       limit = temp_limits, 
+                       breaks = temp_breaks, 
+                       labels = temp_labels,
+                       oob = oob_squish) +
+  map_theme +
+  coord_sf(
+    xlim = c("xmin" = -77, "xmax" = -50),
+    ylim = c("ymin" = 32, "ymax" = 48),
+    expand = T) +
+  guides("fill" = guide_colorbar(
+    title = "Annual Warming Rate: 1982-2021",
+    title.position = "top", 
+    title.hjust = 0.5,
+    barwidth = unit(2.5, "in"),
+    frame.colour = "black",
+    ticks.colour = "black")) 
+
+
+# Global View
+global_rates <- ggplot() +
+  geom_stars(data = world_rate_stars) +
+  geom_sf(data = world_sf, color = "white", fill = "gray30", size = .1) +
+  scale_fill_distiller(palette = "RdBu", 
+                       na.value = "transparent", 
+                       limit = temp_limits, 
+                       breaks = temp_breaks, 
+                       labels = temp_labels,
+                       oob = oob_squish) +
+  map_theme +
+  coord_sf(expand = F) +
+  scale_y_continuous(breaks = seq(-90, 90, by = 30)) +
+  guides("fill" = guide_colorbar(title = "Annual Warming Rate: 1982-2021",
+                                 title.position = "top", 
+                                 title.hjust = 0.5,
+                                 barwidth = unit(2.5, "in"),
+                                 frame.colour = "black",
+                                 ticks.colour = "black"))  +
+  theme(axis.text.x = element_blank(),
+        axis.ticks.x = element_blank())
+
+
+# plot map
+rates_global_figure <- (global_rates_zoom | global_rates ) + 
+  plot_annotation(title = "Global SST Change", 
+                  caption = "Data Source: OISSTv2") +
+  plot_layout(guides = "collect") & 
+  theme(legend.position = "bottom")
+
+
+# plot patchwork
+rates_global_figure
+```
+
+
+
+
+### Warming Rate Rankings
+
+
 Based on data from 1982-2021, the warming rates of Gulf of Maine have been some of the highest in the world. The area as a whole has been increasing at a rate of `r avg_rate`$^{\circ}C/year$ which is faster than `r avg_rank`% of the world's oceans.
 
 Over that same period locations within the Gulf of Maine have been warming at rates as low as `r low_rate`$^{\circ}C/year$ and as rapidly as `r top_rate`$^{\circ}C/year$, corresponding to ranks as low as `r low_rank`% and as high as `r top_rank`%.
@@ -1854,6 +1729,8 @@ global_ranks <- ggplot() +
 
 # plot map
 ranks_global_figure <- (global_ranks_zoom | global_ranks ) + 
+  plot_annotation(title = "Global SST Change Rankings", 
+                  caption = "Data Source: OISSTv2") +
   plot_layout(guides = "collect") & 
   theme(legend.position = "bottom")
 
@@ -1934,6 +1811,8 @@ top_ranks <- ggplot() +
 
 # plot map
 top_ranks_figure <- (top_ranks_zoom | top_ranks ) + 
+  plot_annotation(title = "Earth's Fastest Warming Ocean Regions", 
+                  caption = "Data Source: OISSTv2, rankings below 80th percentile masked.") +
   plot_layout(guides = "collect") & 
   theme(legend.position = "bottom")
 
@@ -1953,6 +1832,65 @@ top_ranks_figure
 NOAA_ERSST_V5 data provided by the NOAA/OAR/ESRL PSL, Boulder, Colorado, USA, from their Web site at https://psl.noaa.gov/data/gridded/data.noaa.ersst.v5.html.
 
 NOAA High Resolution SST data provided by the NOAA/OAR/ESRL PSL, Boulder, Colorado, USA, from their Web site at https://psl.noaa.gov/data/gridded/data.noaa.oisst.v2.highres.html. 
+
+
+
+```{r, eval = TRUE}
+
+
+####  Saving Figures  ####
+ggsave(plot = ersst_long_term_p, filename = str_c(save_location, "ersst_long_term_temps.png"),
+       dpi = "retina", bg = "white")
+
+ggsave(plot = ersst_v_oisst, filename = str_c(save_location, "ersst_and_oisst_temps.png"),
+       dpi = "retina", bg = "white")
+
+ggsave(plot = temp_simplified, filename = str_c(save_location, "oisst_simple_trends.png"),
+       dpi = "retina", bg = "white")
+
+ggsave(plot = gom_recent_warming, filename = str_c(save_location, "oisst_recent_gomwarming.png"),
+       dpi = "retina", bg = "white")
+
+ggsave(plot = gom_anomaly_bars, filename = str_c(save_location, "oisst_gom_anom_bars.png"),
+       dpi = "retina", bg = "white")
+
+ggsave(plot = year_timeline, filename = str_c(save_location, "oisst_lastyr_timeline.png"),
+       dpi = "retina", bg = "white")
+
+ggsave(plot = heatwave_heatmap, filename = str_c(save_location, "oisst_gom_heatmap.png"),
+       dpi = "retina", bg = "white")
+
+ggsave(plot = gom_annual_horizons, filename = str_c(save_location, "oisst_gom_horizons.png"),
+       dpi = "retina", bg = "white")
+
+ggsave(plot = comparison_horizons, filename = str_c(save_location, "gom_hottest_horizons.png"),
+       dpi = "retina", bg = "white")
+
+ggsave(plot = hw_streamplot, filename = str_c(save_location, "gom_anomaly_streamplot.png"),
+       dpi = "retina", bg = "white")
+
+ggsave(plot = hottest_yr_panels, filename = str_c(save_location, "gom_hottest_year_panels.png"),
+       dpi = "retina", bg = "white")
+
+# Weekly Report Table
+gtsave(data = lme_rank_table, filename = str_c(save_location, "lme_warming_table.png"))
+
+ggsave(plot = rates_global_figure, filename = str_c(save_location, "global_rates_map.png"),
+       dpi = "retina", bg = "white")
+
+ggsave(plot = ranks_global_figure, filename = str_c(save_location, "global_ranks_map.png"),
+       dpi = "retina", bg = "white")
+
+ggsave(plot = top_ranks_figure, filename = str_c(save_location, "ranks_top20.png"),
+       dpi = "retina", bg = "white")
+
+
+
+  
+```
+
+
+
 
 
 `r insert_gmri_footer()`
