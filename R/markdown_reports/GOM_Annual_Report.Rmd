@@ -47,7 +47,7 @@ library(ggstream)
 library(ggforce)
 library(geomtextpath)
 library(ggHoriPlot)
-library(directlabels)
+#library(directlabels)
 library(tidytext)
 
 # Support Functions
@@ -246,7 +246,12 @@ region_hw <- pull_heatwave_events(
 
 # Format dates and seasons and heatwave outcomes
 region_hw <- region_hw %>% 
-  mutate(time = as.Date(time),
+  mutate(sst_f = as_fahrenheit(sst, "temperature"),
+         seas_f = as_fahrenheit(seas, "temperature"),
+         anom_f = as_fahrenheit(sst_anom, "anomalies"),
+         hwe_f = as_fahrenheit(hwe, "temperature"),
+         mhw_thresh_f = as_fahrenheit(mhw_thresh, "temperature"),
+         time = as.Date(time),
          yr = year(time),
          month_num = month(time),
          month = month(time, label = T, abbr = T),
@@ -261,7 +266,7 @@ region_hw <- region_hw %>%
          #Set up correct year for winters, they carry across into next year
          season_yr = ifelse(
            (season_eng == "Winter" & month_num %in% c(1,2)), yr - 1, yr)
-         )
+  )
 
 ```
 
@@ -279,18 +284,16 @@ Thanks to some long-running temperature monitoring programs we are able to track
 #| eval = TRUE,
 #| fig.alt = "Long term temperature record for the Gulf of Maine"
 
-# # Pathto ERSST on box
-# ersst_path <- cs_path("okn", "ersst")
-# 
-# # Load temps and anoms (1982-2011 climatology)
-# ersst_temp <- stack(str_c(ersst_path, "ERSSTv5_merged.nc"))
-# ersst_anom <- stack(str_c(ersst_path, "ERSSTv5_anom.nc"))
-
 
 # Updated 2022-02-4
 ersst_path <- cs_path("res", "ERSSTv5")
+
+# The raster stack
 # ersst_temp <- stack(str_c(ersst_path, "sst.mnmean_2022_02_02.nc")) #netcdf
-ersst_tl <- read_csv(str_c(ersst_path, "ERSSTv5_anom_apershing_gulf_of_maine.csv")) 
+
+# Timeseries for GOM
+ersst_tl <- read_csv(str_c(ersst_path, "ERSSTv5_anom_apershing_gulf_of_maine.csv"),
+                     guess_max = 1e6, col_types = cols()) 
 
 # format
 ersst_tl <- ersst_tl %>% 
@@ -305,40 +308,40 @@ ersst_yr <- ersst_tl %>%
   group_by(yr) %>% 
   summarise(sst = mean(sst, na.rm = T), 
             sst_anom = mean(sst_anom, na.rm = T),
+            sst_f = as_fahrenheit(sst, "temperature"),
+            anom_f = as_fahrenheit(sst_anom, "anomalies"),
             .groups = "drop") %>% 
   mutate(yr = as.numeric(yr)) %>% 
   filter(yr <= 2021) 
 
-# Benchmark the averags temp and maximum temps
+# Benchmark the averages temp and maximum temps
 long_avg <- mean( filter(ersst_yr, between(yr, 1860, 2000)) %>% pull(sst) , na.rm = T)
 long_max <- max( filter(ersst_yr, between(yr, 1860, 2000)) %>% pull(sst) , na.rm = T)
 
 # Make Splines
 ersst_smooth <- as.data.frame(spline(ersst_yr$yr, ersst_yr$sst))
+ersst_smooth_f <- as.data.frame(spline(ersst_yr$yr, ersst_yr$sst_f))
 
 
-# Plot them
-ersst_long_term_p <- ggplot(data = ersst_yr) +
-  geom_line(aes(yr, sst),
-            group = 1, alpha = 0.4, linetype = 1, color = gmri_cols("gmri blue")) +
-  geom_point(aes(yr, sst), 
-             size = 1, color = gmri_cols("gmri blue")) +
-  geom_point(data = filter(ersst_yr, sst > long_max), aes(yr, sst), color = "darkred", size = 1.5) +
-  geom_mark_ellipse(aes(yr, sst, filter = sst > long_max,
+# Fahrenheit Plot
+ersst_long_term_p <- ggplot(data = ersst_yr, aes(yr, sst_f)) +
+  geom_line(group = 1, alpha = 0.4, linetype = 1, color = gmri_cols("gmri blue")) +
+  geom_point(size = 1, color = gmri_cols("gmri blue")) +
+  geom_point(data = filter(ersst_yr, sst > long_max), aes(yr, sst_f), color = "darkred", size = 1.5) +
+  geom_mark_ellipse(aes(yr, sst_f, filter = sst > long_max,
                         description = "Temperatures in 6 of the 10 Last Years Above 1951 Record",
                         label = "Recent Extremes"), label.fontsize = 9,
                     color = "darkred", label.fill = "white", label.colour = "black", con.colour = "black") +
-  geom_mark_ellipse(aes(yr, sst, filter = sst == long_max, label = yr, description = "Former Hottest Temperature on Record"), 
+  geom_mark_ellipse(aes(yr, sst_f, filter = sst == long_max, 
+                        label = str_c(yr,": ", round(sst_f, 2), " \u00b0F"), 
+                        description = "Former Hottest Temperature on Record"), 
                     label.fontsize = 9,  label.buffer = unit(0.25, "lines"),
                     color = "darkred", linetype = 2) +
   scale_color_gmri() +
   theme_gmri() +
   scale_x_continuous(expand = expansion(add = c(2,10))) +
-  scale_y_continuous(expand = expansion(add = c(0.5,3)),
-    limits = c(),
-    sec.axis = sec_axis(trans = ~as_fahrenheit(., data_type = "temperature"),
-                        labels =  number_format(suffix = " \u00b0F")),
-    labels = number_format(suffix = " \u00b0C")) +
+  scale_y_continuous(expand = expansion(add = c(0.5,5)),
+    labels = number_format(suffix = " \u00b0F")) +
   guides(color = guide_legend(title.position = "top", title.hjust = 0.5))  +
   theme(legend.position = "bottom") +
   labs(x = "", y = "Sea Surface Temperature", 
@@ -363,36 +366,49 @@ In 1981 the availability of a higher resolution temperature resource became avai
 oisst_yr <- region_hw %>% 
   filter(between(yr, 1982, 2021)) %>% 
   group_by(yr) %>% 
-  summarise(sst = mean(sst), .groups = "drop")
+  summarise(sst = mean(sst), 
+            sst_anom = mean(sst_anom, na.rm = T),
+            sst_f = as_fahrenheit(sst, "temperature"),
+            anom_f = as_fahrenheit(sst_anom, "anomalies"),
+            .groups = "drop")
 
 # Average Distance between OISST and ERSST in GOM
-temp_difference <- ersst_yr %>% 
+temp_diffs <- ersst_yr %>% 
   rename(ersst_sst = sst,
-         ersst_anom = sst_anom) %>% 
+         ersst_sst_f = sst_f,
+         ersst_anom = sst_anom,
+         ersst_anom_f = anom_f) %>% 
   inner_join(oisst_yr, by = "yr") %>% 
-  mutate(temp_diff = ersst_sst - sst) %>% 
-  pull(temp_diff) %>% mean()
+  mutate(temp_diff = ersst_sst - sst,
+         temp_diff_f = ersst_sst_f -sst_f)
+
+# Get temperature differences
+temp_difference <- temp_diffs %>% 
+  pull(temp_diff) %>% mean() %>% round(2)
+temp_difference_f <- temp_diffs %>% 
+  pull(temp_diff_f) %>% mean() %>% round(2)
 
 
 # Make Splines
 oisst_smooth <- as.data.frame(spline(oisst_yr$yr, oisst_yr$sst))
+oisst_smooth_f <- as.data.frame(spline(oisst_yr$yr, oisst_yr$sst_f))
 
 
-# Plot them
+# Degrees F
 ersst_v_oisst <- ggplot() +
-  geom_line(data = ersst_smooth, aes(x, y, color = "ERSSTv5"),
+  geom_line(data = ersst_smooth_f, aes(x, y, color = "ERSSTv5"),
             group = 1, alpha = 0.4, linetype = 1) +
-  geom_point(data = ersst_yr, aes(yr, sst, color = "ERSSTv5"), 
+  geom_point(data = ersst_yr, aes(yr, sst_f, color = "ERSSTv5"), 
              size = 1) +
- geom_line(data = oisst_smooth, aes(x, y, color = "OISSTv2"),
+ geom_line(data = oisst_smooth_f, aes(x, y, color = "OISSTv2"),
             group = 1, alpha = 0.4, linetype = 1) +
-  geom_point(data = oisst_yr, aes(yr, sst, color = "OISSTv2"), 
+  geom_point(data = oisst_yr, aes(yr, sst_f, color = "OISSTv2"), 
              size = 1) +
   scale_color_gmri() +
   theme_gmri() +
-  scale_y_continuous(sec.axis = sec_axis(trans = ~as_fahrenheit(., data_type = "temperature"),
-                                         labels =  number_format(suffix = " \u00b0F")),
-                     labels = number_format(suffix = " \u00b0C")) +
+   scale_y_continuous(
+     #expand = expansion(add = c(0.5,5)),
+     labels = number_format(suffix = " \u00b0F")) +
   guides(color = guide_legend(title.position = "top", title.hjust = 0.5)) +
   facet_zoom(xlim = c(1982, 2021)) +
   theme(legend.position = "bottom")  +
@@ -408,7 +424,7 @@ ersst_v_oisst
 
 
 
-Because the ERSST data is of a coarser resolution (monthly measurements at a 0.5 x 0.5 degree grid) and does not capture the warmer inshore dynamics (a bias to show colder temperature). The OISSTv2 temperatures in this area are on average warmer. **Across the years where data from both sources is available, ERSSTv5 is on average `r round(temp_difference,2)`$^oC$ Colder than OISSTv2 data.** 
+Because the ERSST data is of a coarser resolution (monthly measurements at a 0.5 x 0.5 degree grid) and does not capture the warmer inshore dynamics (a bias to show colder temperature). The OISSTv2 temperatures in this area are on average warmer. **Across the years where data from both sources is available, ERSSTv5 is on average `r temp_difference`$^oC$ or `r temp_difference_f`$^oF$ Colder than OISSTv2 data.** 
 
 
 ## Warming Relative to the World
@@ -424,8 +440,12 @@ annual_summary <- region_timeseries %>%
   group_by(year) %>% 
   summarise(sst = mean(sst, na.rm = T),
             sst_anom = mean(sst_anom, na.rm = T), 
+            sst_f = as_fahrenheit(sst, "temperature"),
+            anom_f = as_fahrenheit(sst_anom, "anomalies"),
             area_wtd_sst = mean(area_wtd_sst, na.rm = T),
             area_wtd_anom = mean(area_wtd_anom, na.rm = T),
+            area_wtd_f = as_fahrenheit(area_wtd_sst, "temperature"),
+            area_wtd_anom_f = as_fahrenheit(area_wtd_anom, "anomalies"),
             .groups = "drop") %>% 
   mutate(yr_as_dtime = as.Date(paste0(year, "-07-02")))
 
@@ -442,8 +462,12 @@ global_summary <- global_anoms %>%
   group_by(year) %>% 
   summarise(sst = mean(sst, na.rm = T), 
             sst_anom = mean(sst_anom, na.rm = T),
+            sst_f = as_fahrenheit(sst, "temperature"),
+            anom_f = as_fahrenheit(sst_anom, "anomalies"),
             area_wtd_sst = mean(area_wtd_sst, na.rm = T),
             area_wtd_anom = mean(area_wtd_anom, na.rm = T),
+            area_wtd_f = as_fahrenheit(area_wtd_sst, "temperature"),
+            area_wtd_anom_f = as_fahrenheit(area_wtd_anom, "anomalies"),
             .groups = "drop") %>% 
   mutate(yr_as_dtime = as.Date(paste0(year, "-07-02")))
 
@@ -453,44 +477,46 @@ global_summary <- global_anoms %>%
 
 # Build Regression Equation Labels
 
+# This should all be a function:
+decadal_rates <- function(temp_df, temp_col, year_lim = c(19823:2021)){}
+# End function
+
+  
+  
+  
 # 1. All years 
-lm_all <- lm(area_wtd_sst ~ year, 
+lm_all <- lm(area_wtd_f ~ year, 
              data = filter(annual_summary, year %in% c(1982:2021))) %>% 
   coef() %>% 
   round(3)
 
 # 2. Last 15 years
-lm_15  <- lm(area_wtd_sst ~ year, 
+lm_15  <- lm(area_wtd_f ~ year, 
              data = filter(annual_summary, year %in% c(2007:2021))) %>% 
   coef() %>% 
   round(3)
 
 # 3. Global - Area-weighted
-lm_global <- lm(area_wtd_sst ~ year, 
+lm_global <- lm(area_wtd_f ~ year, 
                 data = filter(global_summary, year %in% c(1982:2021))) %>% 
   coef() %>% 
   round(3)
-
 
 # Convert yearly rate to decadal
 decade_all    <- lm_all['year'] * 10
 decade_15     <- lm_15['year'] * 10
 decade_global <- lm_global["year"] * 10
 
-
-# Equation to paste in
-eq_all    <- paste0("GoM 1982-2021: ", decade_all,    "\u00b0", "C / Decade")
-eq_15     <- paste0("GoM 2007-2021: ", decade_15,     "\u00b0", "C / Decade")
-eq_global <- paste0("World 1982-2021: ", decade_global, "\u00b0", "C / Decade")
+# Fahrenheit equations
+eq_all    <- paste0("GoM 1982-2021: ", decade_all,    "\u00b0", "F / Decade")
+eq_15     <- paste0("GoM 2007-2021: ", decade_15,     "\u00b0", "F / Decade")
+eq_global <- paste0("World 1982-2021: ", decade_global, "\u00b0", "F / Decade")
 
 
 # Generate a smoothed temperature line using splines
-yearly_temp_smooth <-  as.data.frame(spline(annual_summary$yr_as_dtime, annual_summary$area_wtd_anom)) %>% 
+yearly_temp_smooth <-  as.data.frame(spline(annual_summary$yr_as_dtime, annual_summary$area_wtd_f)) %>% 
   mutate(x = as.Date(x, origin = "1970-01-01"))
-```
 
-
-```{r, eval = TRUE}
 
 # Line color formatting
 line_colors <- setNames(
@@ -505,16 +531,16 @@ line_colors <- setNames(
 
 
 # Single Line Plot
-(temp_simplified <- ggplot(data = annual_summary, aes(year, area_wtd_anom)) +
+(temp_simplified <- ggplot(data = annual_summary, aes(year, area_wtd_anom_f)) +
 
   # Overlay yearly means
   geom_line(color = "gray10", size = 0.75, linetype = 1) +
   geom_point(color = "gray10", size = 1) +
   geom_smooth(
      data = mutate(global_summary, `Warming Rate` = eq_global),
+     aes(color = `Warming Rate`),
     method = "lm",
     formula = y ~ x, se = F,
-    aes(color = `Warming Rate`),
     alpha = 0.90,
     size = 1,
     linetype = 1) +
@@ -529,10 +555,7 @@ line_colors <- setNames(
     size = 1,
     linetype = 1) + 
    scale_color_manual(values = line_colors) +
-   scale_y_continuous(
-     sec.axis = sec_axis(trans = ~as_fahrenheit(., data_type = "anomalies"),
-                        labels =  number_format(suffix = " \u00b0F")),
-     labels = number_format(suffix = " \u00b0C")) +
+   scale_y_continuous(labels =  number_format(suffix = " \u00b0F")) +
    labs(title = "Gulf of Maine:",
         subtitle = "Annual Sea Surface Temperature Anomalies",
         x = "Year", y = "Sea surface Temperature Anomaly",
@@ -544,6 +567,13 @@ line_colors <- setNames(
 
 ```
 
+## Warming at an Accelerated Pace
+
+In recent years we've seen temperatures in the Gulf of Maine (and adjacent waters) to accelerate rapidly. Scientists believe this is partly due to changes in the behavior of the Gulf Stream Current which brings warm, salty water from the Gulf of Mexico & Florida Northward along the east coast of the US and eventually flowing Northeast past Nova Scotia.
+
+Scientists believe a regime shift has occurred in the Northwest Atlantic as a result of a Northward shift in the Gulf Stream, and a general weakening in the Atlantic Meridional Overturning Circulation Pattern (AMOC). This Northward shift in the Gulf stream does two things: 1) It brings more warm/salty water into the Gulf of Maine, & 2) It obstructs the flow of cold and relatively fresh water from entering the Gulf of Maine from the Labrador current and Scotian Shelf Water (SSW).
+
+These relative contribution of these two impacts may vary through time, but the result (in surface temperature terms) is similar: **a warmer Gulf of Maine.**
 
 ```{r gom full warming, eval = T}
 
@@ -558,7 +588,7 @@ line_colors <- setNames(
 
 # Gulf of Maine Warming
 gom_all_trend <- annual_summary %>%
-  ggplot(aes(year, area_wtd_anom)) +
+  ggplot(aes(year, area_wtd_anom_f)) +
   geom_line(color = "gray10", size = 0.75, linetype = 1) +
   geom_point(color = "gray10", size = 1) +
   # Add regression lines
@@ -572,11 +602,7 @@ gom_all_trend <- annual_summary %>%
     size = 1,
     linetype = 1) +
   # Axes
-  scale_y_continuous(
-    limits = c(-1, 3),
-    sec.axis = sec_axis(trans = ~as_fahrenheit(., data_type = "anomalies"),
-                        labels =  number_format(suffix = " \u00b0F")),
-    labels = number_format(suffix = " \u00b0C")) +
+  scale_y_continuous(labels =  number_format(suffix = " \u00b0F")) +
   scale_color_manual(values = line_colors) +
 
   # labels + theme
@@ -588,7 +614,7 @@ gom_all_trend <- annual_summary %>%
 
 # Gulf of Maine Warming - last 15 years
 gom_recent_trend <- annual_summary %>% 
-  ggplot(aes(year, area_wtd_anom)) +
+  ggplot(aes(year, area_wtd_anom_f)) +
   geom_line(color = "gray10", size = 0.75, linetype = 1) +
   geom_point(color = "gray10", size = 1) +
   # Add regression lines
@@ -603,11 +629,7 @@ gom_recent_trend <- annual_summary %>%
     linetype = 1) +
   
   # Axes
-  scale_y_continuous(
-    limits = c(-1, 3),
-    sec.axis = sec_axis(trans = ~as_fahrenheit(., data_type = "anomalies"),
-                        labels =  number_format(suffix = " \u00b0F")),
-    labels = number_format(suffix = " \u00b0C")) +
+  scale_y_continuous(labels =  number_format(suffix = " \u00b0F")) +
   scale_color_manual(values = line_colors) +
   
   # labels + theme
@@ -629,30 +651,22 @@ gom_recent_trend <- annual_summary %>%
 
 ## Concerning Temperatures in Recent Years
 
-In recent years we've seen temperatures in the Gulf of Maine (and adjacent waters) to accelerate rapidly. Scientists believe this is partly due to changes in the behavior of the Gulf Stream Current which brings warm, salty water from the Gulf of Mexico & Florida Northward along the east coast of the US and eventually flowing Northeast past Nova Scotia.
 
-Scientists believe a regime shift has occurred in the Northwest Atlantic as a result of a Northward shift in the Gulf Stream, and a general weakening in the Atlantic Meridional Overturning Circulation Pattern (AMOC). This Northward shift in the Gulf stream does two things: 1) It brings more warm/salty water into the Gulf of Maine, & 2) It obstructs the flow of cold and relatively fresh water from entering the Gulf of Maine from the Labrador current and Scotian Shelf Water (SSW).
-
-These relative contribution of these two impacts may vary through time, but the result (in surface temperature terms) is similar: **a warmer Gulf of Maine.**
 
 
 ```{r}
 ####  Annual Trend Plot  ####
 gom_anomaly_bars <- annual_summary %>% 
-  mutate(anom_direction = ifelse(area_wtd_anom > 0, "hot", "cold")) %>% 
-  ggplot(aes(yr_as_dtime, area_wtd_anom)) +
+  mutate(anom_direction = ifelse(area_wtd_anom > 0, "Hot", "Cold")) %>% 
+  ggplot(aes(yr_as_dtime, area_wtd_anom_f)) +
   
   # Underlying anomaly data
   
   # Yearly Bars
   geom_col(aes(fill = anom_direction), color = "black", size = 0.25, alpha = 0.9) +
-  scale_fill_manual(values = c("hot" = "#CA0020", "cold" = "#0571B0")) +
+  scale_fill_manual(values = c("Hot" = "#CA0020", "Cold" = "#0571B0")) +
   # Axes
-   scale_y_continuous(
-     limits = c(-1, 3),
-     sec.axis = sec_axis(trans = ~as_fahrenheit(., data_type = "anomalies"),
-                         labels =  number_format(suffix = " \u00b0F")),
-     labels = number_format(suffix = " \u00b0C")) +
+   scale_y_continuous(labels =  number_format(suffix = " \u00b0F")) +
 
   # theme
   theme_gmri() +
@@ -677,14 +691,12 @@ gom_anomaly_bars
 
 
 
-
-
 ## 2021: Daily Temperatures and Heatwave Status
 
 ```{r}
  # Last Calendar Year
 this_yr <- region_hw %>% 
-  filter(year(time) == 2021) 
+  filter(year(time) == 2021)
 
 #min/max of climate and min/max of 2021
 clim_range <- round(range(this_yr$seas), 2)
@@ -698,9 +710,9 @@ anom_diff <- round(diff(anom_range), 2)
 ```
 
 
-The Gulf of Maine has a seasonal temperature cycle that experiences its lowest temperatures around March, and its peak summer highs in August. The difference between these two seasons is typically `r as_fahrenheit(clim_diff, "anomalies")`$^oF$ or `r clim_diff`$^oC$. In 2021 the temperature range was `r temp_range[1]`-`r temp_range[2]`$^oC$ or `r temp_diff`$^oC$, with temperature anomaly values ranging from `r anom_range[1]`-`r anom_range[2]`$^oC$.
+The Gulf of Maine has a seasonal temperature cycle that experiences its lowest temperatures around March, and its peak summer highs in August. The difference between these two seasons is typically `r round(as_fahrenheit(clim_diff, "anomalies"), 2)`$^oF$ or `r clim_diff`$^oC$. In 2021 the temperature range was `r temp_range[1]`-`r temp_range[2]`$^oC$ or `r temp_diff`$^oC$, with temperature anomaly values ranging from `r anom_range[1]`-`r anom_range[2]`$^oC$.
 
-The highest temperatures anomalies spiked in the last days of June, capping off an already warm start to the year. A very-warm August and steady, above-average temperatures from early September through the end of the year helped solidifify 2021 as the hottest year on record for the Gulf of Maine.
+The highest temperatures anomalies spiked in the last days of June, capping off an already warm start to the year. A very-warm August and steady, above-average temperatures from early September through the end of the year helped solidify 2021 as the hottest year on record for the Gulf of Maine.
 
 ```{r single year lineplot}
 #| fig.alt = "Timelines of observed temperature and observed temperature anomalies for the year of 2021, and how they compare to the mean and 90th percentile of the climate reference period"
@@ -709,7 +721,7 @@ The highest temperatures anomalies spiked in the last days of June, capping off 
 # Set colors by name
 color_vals <- c(
   "Sea Surface Temperature" = "#0571B0",
-  "Heatwave Event"          = "#CA0020",
+  "Heatwave Event"          = "darkred",
   "MHW Threshold"           = "coral3",
   "Daily Climatology"       = "gray30")
 
@@ -721,19 +733,19 @@ ylab <- "Sea Surface Temperature"
 
 # Plot the last 365 days
 hw_temp_p <- ggplot(this_yr, aes(x = time)) +
-    geom_segment(aes(x = time, xend = time, y = seas, yend = sst), 
+    geom_segment(aes(x = time, xend = time, 
+                     y = seas_f, yend = sst_f), 
                  color = "#0571B0", alpha = 0.25) +
-    geom_segment(aes(x = time, xend = time, y = mhw_thresh, yend = hwe), 
-                 color = "#CA0020", alpha = 0.25) +
-    geom_line(aes(y = sst, color = "Sea Surface Temperature")) +
-    geom_line(aes(y = hwe, color = "Heatwave Event")) +
-    geom_line(aes(y = mhw_thresh, color = "MHW Threshold"), lty = 3, size = .5) +
-    geom_textpath(aes(y = seas,  color = "Daily Climatology"), label = "Climatology Mean", hjust = 0.5, lty = 2) +
+    geom_segment(aes(x = time, xend = time, 
+                     y = mhw_thresh_f, yend = hwe_f), 
+                 color = "darkred", alpha = 0.25) +
+    geom_line(aes(y = sst_f, color = "Sea Surface Temperature")) +
+    geom_line(aes(y = hwe_f, color = "Heatwave Event")) +
+    geom_line(aes(y = mhw_thresh_f, color = "MHW Threshold"), lty = 3, size = .5) +
+    geom_textpath(aes(y = seas_f,  color = "Daily Climatology"), label = "Climatology Mean", hjust = 0.5, lty = 2) +
     scale_color_manual(values = color_vals) +
     scale_x_date(date_labels = "%b", date_breaks = "1 month", expand = expansion(mult = c(0,0))) +
-    scale_y_continuous(sec.axis = sec_axis(trans = ~as_fahrenheit(., data_type = "temperature"),
-                                         labels =  number_format(suffix = " \u00b0F")),
-                     labels = number_format(suffix = " \u00b0C")) +
+    scale_y_continuous(labels =  number_format(suffix = " \u00b0F")) +
     theme(legend.title = element_blank(),
           legend.position = "none") +
     labs(x = "", 
@@ -751,22 +763,20 @@ linetype_key <- c(
 # Same Plot as Anomalies
 hw_anom_p <- this_yr %>% 
   mutate(
-    sst = sst,
-    seas = seas,
-    sst_anom = sst_anom,
-    mhw_thresh = mhw_thresh,
     anom_thresh = mhw_thresh - seas,
-    anom_hwe = hwe - seas) %>% 
+    anom_thresh_f = mhw_thresh_f - seas_f,
+    anom_hwe = hwe - seas,
+    anom_hwe_f = hwe_f - seas_f) %>% 
 ggplot(aes(x = time)) +
     geom_segment(aes(x = time, xend = time, 
-                     y = 0, yend = sst_anom), 
+                     y = 0, yend = anom_f), 
                  color = "#0571B0", alpha = 0.25) +
     geom_segment(aes(x = time, xend = time, 
-                       y = anom_thresh, yend = anom_hwe), 
-                 color = "#CA0020", alpha = 0.25) +
-    geom_line(aes(y = sst_anom, color = "Sea Surface Temperature Anomaly")) +
-    geom_line(aes(y = anom_hwe, color = "Heatwave Event")) +
-    geom_line(aes(y = anom_thresh, color = "MHW Threshold"), lty = 3, size = .5) +
+                       y = anom_thresh_f, yend = anom_hwe_f), 
+                 color = "darkred", alpha = 0.25) +
+    geom_line(aes(y = anom_f, color = "Sea Surface Temperature Anomaly")) +
+    geom_line(aes(y = anom_hwe_f, color = "Heatwave Event")) +
+    geom_line(aes(y = anom_thresh_f, color = "MHW Threshold"), lty = 3, size = .5) +
     geom_line(aes(y = 0, color = "Daily Climatology"), lty = 2, size = .5) +
    scale_color_manual(values = color_vals) +
     scale_linetype_manual(values = linetype_key, guide = "none") +
@@ -774,9 +784,7 @@ ggplot(aes(x = time)) +
     guides(color = guide_legend(override.aes = list(linetype = linetype_key), nrow = 2)) +
     theme(legend.title = element_blank(),
           legend.position = "top") +
-    scale_y_continuous(sec.axis = sec_axis(trans = ~as_fahrenheit(., data_type = "anomalies"),
-                                           labels =  number_format(suffix = " \u00b0F")),
-                       labels = number_format(suffix = " \u00b0C")) +
+    scale_y_continuous(labels =  number_format(suffix = " \u00b0F")) +
     labs(x = "", 
          y = "Temperature Anomaly", 
          caption = paste0("Climate reference period :  1982-2011"))
@@ -832,8 +840,6 @@ hottest_2021 <- hottest_days %>%
   filter(yr == "2021") %>% 
   pull(n)
 
-# hottest_days %>% 
-#   count(yr) %>% arrange(desc(n))
 ```
 
 Of the 365 days in a year, 2021 set a new record temperature on `r hottest_2021` or `r round((hottest_2021/365) * 100, 2)`% of the year.
@@ -858,9 +864,9 @@ grid_data <- region_hw %>%
 guide_lab <- "Sea Surface Temperature Anomaly \u00b0C"
 
 # Color limit for palettes
-temp_limits <- c(-3, 3)
+temp_limits <- c(-5, 5)
 temp_breaks <- c(temp_limits[1], temp_limits[1]/2,  0, temp_limits[2]/2, temp_limits[2])
-temp_labels <- str_c(c(str_c("< ", temp_limits[1]), temp_limits[1]/2, 0, temp_limits[2]/2, str_c("> ", temp_limits[2])), "\u00b0C")
+temp_labels <- str_c(c(str_c("< ", temp_limits[1]), temp_limits[1]/2, 0, temp_limits[2]/2, str_c("> ", temp_limits[2])), "\u00b0F")
 
 
 # Assemble heatmap plot
@@ -872,8 +878,7 @@ heatwave_heatmap <- ggplot(grid_data, aes(x = flat_date, y = year)) +
             fill = "gray75", color = "transparent") +
   
   # tile for sst colors
-  geom_tile(aes(fill = sst_anom)) +
-  
+  geom_tile(aes(fill = anom_f)) +
   # points for heatwave events
   geom_point(data = filter(grid_data, mhw_event == TRUE),
              aes(x = flat_date, y = year), size = .25)  +
@@ -964,8 +969,7 @@ anom_horizon_plot <- function(hori_data, origin = ori, scale_cutpoints = sca, la
     axis.title.y = element_blank(),
     axis.ticks.y = element_blank(),
     panel.border = element_blank(),
-    legend.position = "left"
-    ) +
+    legend.position = "left") +
   scale_x_date(expand=c(0,0), 
                date_breaks = "1 month", 
                date_labels = "%b") +
@@ -1157,15 +1161,11 @@ There are a number of ways one might try to describe the extent and severity of 
  - The average heatwave length   
  
  
- 
-
 
 ```{r}
 #| fig.alt = "4-panel plot comparing different features of hot years ranked by different metrics"
 
 # Use all years so they can be ranked independently
-
-# Metrics?
 year_mets <- hori_data %>% 
   filter(year != "2022") %>% 
   group_by(year) %>% 
@@ -1207,6 +1207,7 @@ hottest_yr_panels <- year_met_ranks %>%
     labs(y = "",
          x = NULL,
          title = "How 2021 Stacks Up:",
+         caption = "Temperature statistics in degrees Celsius",
          subtitle = "Ranking Characteristics of Acute and Prolonged Warming Events") +
   theme(plot.title = element_text(hjust = 0)) + 
   scale_color_gmri() +
@@ -1311,7 +1312,7 @@ canada      <- ne_states("canada", returnclass = "sf")
 
 
 
-ggplot() +
+(northeast_records <- ggplot() +
   geom_stars(data = ranks_st) +
   geom_sf(data = new_england, size = .25) +
   geom_sf(data = canada, size = .25) +
@@ -1321,7 +1322,8 @@ ggplot() +
        title = "Record Warm Temperatures",
        subtitle = "From North Carolina to Newfoundland",
        caption = "Temperature rankings cover period of 1982-2021")  +
-  map_theme
+  map_theme)
+
 grid::grid.raster(lab_logo, x = 0.08, y = 0.02, just = c('left', 'bottom'), width = unit(0.8, 'inches'))
 ```
 
@@ -1835,52 +1837,93 @@ NOAA High Resolution SST data provided by the NOAA/OAR/ESRL PSL, Boulder, Colora
 
 
 
-```{r, eval = TRUE}
+```{r}
 
 
 ####  Saving Figures  ####
+
+
+# ERSST timeline
 ggsave(plot = ersst_long_term_p, filename = str_c(save_location, "ersst_long_term_temps.png"),
        dpi = "retina", bg = "white")
 
+
+# How ERSSt and OISST are different
 ggsave(plot = ersst_v_oisst, filename = str_c(save_location, "ersst_and_oisst_temps.png"),
        dpi = "retina", bg = "white")
 
+
+# simplified temperature plot
 ggsave(plot = temp_simplified, filename = str_c(save_location, "oisst_simple_trends.png"),
        dpi = "retina", bg = "white")
 
+# accelerating warming plot
 ggsave(plot = gom_recent_warming, filename = str_c(save_location, "oisst_recent_gomwarming.png"),
        dpi = "retina", bg = "white")
 
+
+# 2021 anomaly bar chart
 ggsave(plot = gom_anomaly_bars, filename = str_c(save_location, "oisst_gom_anom_bars.png"),
        dpi = "retina", bg = "white")
 
+
+# Full year timeline of temps and anomalies
 ggsave(plot = year_timeline, filename = str_c(save_location, "oisst_lastyr_timeline.png"),
        dpi = "retina", bg = "white")
 
+
+# Heatwave status heatmap
 ggsave(plot = heatwave_heatmap, filename = str_c(save_location, "oisst_gom_heatmap.png"),
        dpi = "retina", bg = "white")
 
+
+
+# All year temperature horizons
 ggsave(plot = gom_annual_horizons, filename = str_c(save_location, "oisst_gom_horizons.png"),
        dpi = "retina", bg = "white")
 
+
+# 2021 | 2012 horizons
 ggsave(plot = comparison_horizons, filename = str_c(save_location, "gom_hottest_horizons.png"),
        dpi = "retina", bg = "white")
 
+
+# streamplot
 ggsave(plot = hw_streamplot, filename = str_c(save_location, "gom_anomaly_streamplot.png"),
        dpi = "retina", bg = "white")
 
-ggsave(plot = hottest_yr_panels, filename = str_c(save_location, "gom_hottest_year_panels.png"),
+
+# record years panels
+ggsave(plot = hottest_yr_panels, 
+       filename = str_c(save_location, "gom_hottest_year_panels.png"),
        dpi = "retina", bg = "white")
 
-# Weekly Report Table
-gtsave(data = lme_rank_table, filename = str_c(save_location, "lme_warming_table.png"))
 
+# Weekly Report Table
+gtsave(data = lme_rank_table, 
+       filename = str_c(save_location, "lme_warming_table.png"))
+
+
+# Ranks maps
+ggsave(plot = ranks_map, filename = str_c(save_location, "record_years_map.png"),
+       dpi = "retina", bg = "white")
+
+
+# northeast warmest years
+ggsave(plot = northeast_records, filename = str_c(save_location, "record_years_ne_map.png"),
+       dpi = "retina", bg = "white")
+
+
+# Global warming rates
 ggsave(plot = rates_global_figure, filename = str_c(save_location, "global_rates_map.png"),
        dpi = "retina", bg = "white")
 
+
+# global warming rankings
 ggsave(plot = ranks_global_figure, filename = str_c(save_location, "global_ranks_map.png"),
        dpi = "retina", bg = "white")
 
+# top 20% rankings
 ggsave(plot = top_ranks_figure, filename = str_c(save_location, "ranks_top20.png"),
        dpi = "retina", bg = "white")
 
