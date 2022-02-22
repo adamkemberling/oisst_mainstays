@@ -19,6 +19,7 @@ output:
 ---
 
 ```{r setup, include=FALSE}
+
 # knitr options
 knitr::opts_chunk$set(echo = FALSE, 
                       message = F, 
@@ -77,134 +78,14 @@ lab_logo <- magick::image_read(logo_path)
 # Coastline Shapes
 new_england <- ne_states("united states of america", returnclass = "sf")
 canada      <- ne_states("canada", returnclass = "sf")
-world_sf       <- ne_countries(returnclass = "sf")
+world_sf    <- ne_countries(returnclass = "sf")
 greenland   <- ne_states(country = "greenland", returnclass = "sf")
-
-
-# Masking Function to clip to the study area
-mask_nc <- function(ras_obj, mask_shape){
-  
-  # Get stats from ranks
-  m1 <- mask(rotate(ras_obj), mask_shape)
-  m1 <- crop(m1, mask_shape)
-  return(m1)
-}
-
-
 
 # Box Location to save hi-res images
 save_location <- cs_path("root", "GoM Seasonal Climate Update/annual_update_figures")
 ```
 
 `r gmRi::use_gmri_style_rmd(css = "gmri_rmarkdown.css")`
-
-```{r gmri themes, echo = FALSE}
-
-# Set ggplot theme for figures
-theme_set(theme_bw() + 
-            theme(
-              # Titles
-              plot.title = element_text(hjust = 0, face = "bold", size = 14),
-              plot.subtitle = element_text(size = 9),
-              plot.caption = element_text(size = 7.2, margin = margin(t = 20), color = "gray40"),
-              legend.title = element_text(size = 9),
-              legend.text = element_text(size = 7.5),
-              # Axes
-              axis.line.y = element_line(color = "black"),
-              axis.ticks.y = element_line(), 
-              axis.line.x = element_line(color = "black"),
-              axis.ticks.x = element_line(), 
-              axis.text = element_text(size = 11),
-              rect = element_rect(fill = "transparent", color = "black"),
-              # Facets
-              strip.text = element_text(color = "white", 
-                                        face = "bold",
-                                        size = 11),
-              strip.background = element_rect(
-                color = "#00736D", 
-                fill = "#00736D", 
-                size = 1, 
-                linetype="solid"))
-          )
-
-
-
-# Building a GMRI theme based on Wall street Journal and NYTimes theme
-# base settings from {ggthemes}
-theme_gmri <- function(base_size = 10, 
-                       bg_color = "lightblue", 
-                       base_family = "sans", 
-                       title_family = "sans",
-                       facet_color = "teal") {
-    # Color from gmRi palette, sets background color
-    #colorhex <- gmRi::gmri_cols()[bg_color]
-    facet_hex <- gmri_cols()[facet_color]
-    
-    # Set up theme
-    theme_foundation(
-      base_size = base_size, 
-      base_family = base_family) + 
-        theme(
-          
-          # Major Elements
-          line = element_line(linetype = 1, colour = "black"), 
-          rect = element_rect(fill = "transparent", 
-                              linetype = 0, 
-                              colour = NA), 
-          text = element_text(colour = "black"), 
-          title = element_text(family = title_family, size = 12), 
-          
-          # Axis elements
-          axis.text.x = element_text(colour = NULL), 
-          axis.text.y = element_text(colour = NULL), 
-          axis.ticks = element_line(colour = NULL), 
-          axis.ticks.y = element_blank(), 
-          axis.ticks.x = element_line(colour = NULL), 
-          axis.line = element_line(), 
-          axis.line.y = element_blank(), 
-          axis.text = element_text(size = 11),
-          
-          # Legend Elements
-          legend.background = element_rect(), 
-          legend.position = "top", 
-          legend.direction = "horizontal", 
-          legend.box = "vertical", 
-          legend.title = element_text(size = 9),
-          legend.text = element_text(size = 7.5),
-          
-          # Panel/Grid Setup
-          panel.grid = element_line(colour = NULL, linetype = 3, color = "gray70"), 
-          panel.grid.major = element_line(colour = "black"), 
-          panel.grid.major.x = element_blank(), 
-          panel.grid.minor = element_blank(), 
-          
-          # Title and Caption Details
-          plot.title = element_text(hjust = 0, face = "bold", size = 14),
-          plot.subtitle = element_text(size = 9),
-          plot.caption = element_text(size = 7.2, margin = margin(t = 20), color = "gray40"),
-          plot.margin = unit(c(1, 1, 1, 1), "lines"), 
-          
-          # Facet Details
-          strip.text = element_text(color = "white", face = "bold", size = 11),
-          strip.background = element_rect(
-            color = "white", 
-            fill = facet_hex, 
-            size = 1, 
-            linetype="solid"))
-}
-
-
-
-# Set theme up for maps
-map_theme <- list(
-  theme(
-    panel.border       = element_rect(color = "black", fill = NA),
-    plot.background    = element_rect(color = "transparent", fill = "transparent"),
-    line               = element_blank(),
-    axis.title.x       = element_blank(), # turn off titles
-    axis.title.y       = element_blank(),
-    legend.title.align = 0.5))
-```
 
 
 # 2021 Sea Surface Temperature
@@ -217,56 +98,28 @@ map_theme <- list(
 # Load the timeseries
 region_timeseries <- read_csv(timeseries_path, col_types = cols(), guess_max = 1e6)
 
-
 # Clean up the data - add labels
 region_timeseries <- region_timeseries %>% 
   distinct(time, .keep_all = T) %>% 
-  mutate(time = as.Date(time),
-         yr = year(time),
-         month_num = month(time),
-         month = month(time, label = T, abbr = T),
-         week = lubridate::week(time),
-         doy = yday(time),
-         season = metR::season(month_num, lang = "en"),
-         #Set up correct year for winters, they carry across into next year
-         season_eng = case_when(
-           season == "SON" ~ "Fall",
-           season == "DJF" ~ "Winter",
-           season == "MAM" ~ "Spring",
-           season == "JJA" ~ "Summer"),
-         season_yr = ifelse( (season_eng == "Winter" & month_num %in% c(1,2)), yr - 1, yr)
-         )
+  supplement_season_info() %>% 
+  filter(year %in% c(1982:2021))
+
+
+# Summarize by year to return mean annual anomalies and variance
+annual_summary <- region_timeseries %>% 
+  group_by(year) %>% 
+  temperature_summaries() %>% 
+  mutate(yr_as_dtime = as.Date(paste0(year, "-07-02")),
+         anom_direction = ifelse(area_wtd_anom > 0, "Hot", "Cold"))
+
 
 # Get heatwave statuses for each day:
 # Uses area weighted sst by default
 region_hw <- pull_heatwave_events(
   temperature_timeseries = region_timeseries, 
   threshold = 90, 
-  clim_ref_period = c("1982-01-01", "2011-12-31"))
-
-# Format dates and seasons and heatwave outcomes
-region_hw <- region_hw %>% 
-  mutate(sst_f = as_fahrenheit(sst, "temperature"),
-         seas_f = as_fahrenheit(seas, "temperature"),
-         anom_f = as_fahrenheit(sst_anom, "anomalies"),
-         hwe_f = as_fahrenheit(hwe, "temperature"),
-         mhw_thresh_f = as_fahrenheit(mhw_thresh, "temperature"),
-         time = as.Date(time),
-         yr = year(time),
-         month_num = month(time),
-         month = month(time, label = T, abbr = T),
-         week = lubridate::week(time),
-         doy = yday(time),
-         season = metR::season(month_num, lang = "en"),
-         season_eng = case_when(
-           season == "SON" ~ "Fall",
-           season == "DJF" ~ "Winter",
-           season == "MAM" ~ "Spring",
-           season == "JJA" ~ "Summer"),
-         #Set up correct year for winters, they carry across into next year
-         season_yr = ifelse(
-           (season_eng == "Winter" & month_num %in% c(1,2)), yr - 1, yr)
-  )
+  clim_ref_period = c("1982-01-01", "2011-12-31")) %>% 
+  supplement_hw_data()
 
 ```
 
@@ -284,35 +137,8 @@ Thanks to some long-running temperature monitoring programs we are able to track
 #| eval = TRUE,
 #| fig.alt = "Long term temperature record for the Gulf of Maine"
 
-
-# Updated 2022-02-4
-ersst_path <- cs_path("res", "ERSSTv5")
-
-# The raster stack
-# ersst_temp <- stack(str_c(ersst_path, "sst.mnmean_2022_02_02.nc")) #netcdf
-
-# Timeseries for GOM
-ersst_tl <- read_csv(str_c(ersst_path, "ERSSTv5_anom_apershing_gulf_of_maine.csv"),
-                     guess_max = 1e6, col_types = cols()) 
-
-# format
-ersst_tl <- ersst_tl %>% 
-  rename(Date = time) %>% 
-  mutate(yr = year(Date),
-         sst_clim = sst - sst_anom,
-         area_wtd_clim = area_wtd_sst - area_wtd_sst_anom)
-
-
-# Get Yearly Average
-ersst_yr <- ersst_tl %>% 
-  group_by(yr) %>% 
-  summarise(sst = mean(sst, na.rm = T), 
-            sst_anom = mean(sst_anom, na.rm = T),
-            sst_f = as_fahrenheit(sst, "temperature"),
-            anom_f = as_fahrenheit(sst_anom, "anomalies"),
-            .groups = "drop") %>% 
-  mutate(yr = as.numeric(yr)) %>% 
-  filter(yr <= 2021) 
+# From temp_report_support.R
+ersst_yr <- load_annual_ersst()
 
 # Benchmark the averages temp and maximum temps
 long_avg <- mean( filter(ersst_yr, between(yr, 1860, 2000)) %>% pull(sst) , na.rm = T)
@@ -432,23 +258,7 @@ Because the ERSST data is of a coarser resolution (monthly measurements at a 0.5
 While this report focuses on the Gulf of Maine, there is a recognition that this region is not unique in the fact that its temperatures are rising. The Earth as a whole is warming, and that change is being driven by anthropogenic influences to our atmosphere. The impacts of these changes however are not distributed evenly, and there are regions like ours that are warming at rates above the global average.
 
 
-```{r yearly summaries}
-# Summarize by year to return mean annual anomalies and variance
-annual_summary <- region_timeseries %>% 
-  mutate(year = year(time)) %>% 
-  filter(year %in% c(1982:2021)) %>% 
-  group_by(year) %>% 
-  summarise(sst = mean(sst, na.rm = T),
-            sst_anom = mean(sst_anom, na.rm = T), 
-            sst_f = as_fahrenheit(sst, "temperature"),
-            anom_f = as_fahrenheit(sst_anom, "anomalies"),
-            area_wtd_sst = mean(area_wtd_sst, na.rm = T),
-            area_wtd_anom = mean(area_wtd_anom, na.rm = T),
-            area_wtd_f = as_fahrenheit(area_wtd_sst, "temperature"),
-            area_wtd_anom_f = as_fahrenheit(area_wtd_anom, "anomalies"),
-            .groups = "drop") %>% 
-  mutate(yr_as_dtime = as.Date(paste0(year, "-07-02")))
-
+```{r global yearly summaries}
 
 # # Global Temperature Anomaly Rates
 global_anoms <- read_csv(
@@ -460,73 +270,56 @@ global_anoms <- read_csv(
 # summarize by year again
 global_summary <- global_anoms %>% 
   group_by(year) %>% 
-  summarise(sst = mean(sst, na.rm = T), 
-            sst_anom = mean(sst_anom, na.rm = T),
-            sst_f = as_fahrenheit(sst, "temperature"),
-            anom_f = as_fahrenheit(sst_anom, "anomalies"),
-            area_wtd_sst = mean(area_wtd_sst, na.rm = T),
-            area_wtd_anom = mean(area_wtd_anom, na.rm = T),
-            area_wtd_f = as_fahrenheit(area_wtd_sst, "temperature"),
-            area_wtd_anom_f = as_fahrenheit(area_wtd_anom, "anomalies"),
-            .groups = "drop") %>% 
-  mutate(yr_as_dtime = as.Date(paste0(year, "-07-02")))
+  temperature_summaries() %>% 
+  mutate(yr_as_dtime = as.Date(paste0(year, "-07-02")),
+         anom_direction = ifelse(area_wtd_anom > 0, "Hot", "Cold"))
+```
 
 
+```{r warming rates info}
+####  Run Warming Rate regressions  ####
+rate_data <- list(
+  "GoM All F" = get_decadal_rates(temp_df = annual_summary, 
+                                temp_col = "area_wtd_f", 
+                                year_col = "year", 
+                                year_lim = c(1982, 2021), 
+                                area_name = "GoM", 
+                                degree_c = F),
+  "GoM All C" = get_decadal_rates(temp_df = annual_summary, 
+                                temp_col = "area_wtd_sst", 
+                                year_col = "year", 
+                                year_lim = c(1982, 2021), 
+                                area_name = "GoM", 
+                                degree_c = T),
+  "GoM 15" = get_decadal_rates(temp_df = annual_summary, 
+                                temp_col = "area_wtd_f", 
+                                year_col = "year", 
+                                year_lim = c(2007, 2021), 
+                                area_name = "GoM", 
+                                degree_c = F),
+  "Global All" = get_decadal_rates(temp_df = global_summary, 
+                                temp_col = "area_wtd_f", 
+                                year_col = "year", 
+                                year_lim = c(1982, 2021), 
+                                area_name = "Global", 
+                                degree_c = F))
 
 
 
 # Build Regression Equation Labels
+eq_all_c  <- rate_data[["GoM All C"]][["eq_label"]]
+eq_all    <- rate_data[["GoM All F"]][["eq_label"]]
+eq_15     <- rate_data[["GoM 15"]][["eq_label"]]
+eq_global <- rate_data[["Global All"]][["eq_label"]]
 
-# This should all be a function:
-decadal_rates <- function(temp_df, temp_col, year_lim = c(19823:2021)){}
-# End function
-
-  
-  
-  
-# 1. All years 
-lm_all <- lm(area_wtd_f ~ year, 
-             data = filter(annual_summary, year %in% c(1982:2021))) %>% 
-  coef() %>% 
-  round(3)
-
-# 2. Last 15 years
-lm_15  <- lm(area_wtd_f ~ year, 
-             data = filter(annual_summary, year %in% c(2007:2021))) %>% 
-  coef() %>% 
-  round(3)
-
-# 3. Global - Area-weighted
-lm_global <- lm(area_wtd_f ~ year, 
-                data = filter(global_summary, year %in% c(1982:2021))) %>% 
-  coef() %>% 
-  round(3)
-
-# Convert yearly rate to decadal
-decade_all    <- lm_all['year'] * 10
-decade_15     <- lm_15['year'] * 10
-decade_global <- lm_global["year"] * 10
-
-# Fahrenheit equations
-eq_all    <- paste0("GoM 1982-2021: ", decade_all,    "\u00b0", "F / Decade")
-eq_15     <- paste0("GoM 2007-2021: ", decade_15,     "\u00b0", "F / Decade")
-eq_global <- paste0("World 1982-2021: ", decade_global, "\u00b0", "F / Decade")
-
-
-# Generate a smoothed temperature line using splines
-yearly_temp_smooth <-  as.data.frame(spline(annual_summary$yr_as_dtime, annual_summary$area_wtd_f)) %>% 
-  mutate(x = as.Date(x, origin = "1970-01-01"))
 
 
 # Line color formatting
 line_colors <- setNames(
   as.character(c(
     gmri_cols("gmri blue"), 
-    #gmri_cols("orange"),
     gmri_cols("green"))),  
-  c(eq_all, 
-    #eq_15, 
-    eq_global))
+  c(eq_all, eq_global))
 
 
 
@@ -558,7 +351,7 @@ line_colors <- setNames(
    scale_y_continuous(labels =  number_format(suffix = " \u00b0F")) +
    labs(title = "Gulf of Maine:",
         subtitle = "Annual Sea Surface Temperature Anomalies",
-        x = "Year", y = "Sea surface Temperature Anomaly",
+        x = "Year", y = "Sea Surface Temperature Anomaly",
         caption = "Anomalies calculated using 1982-2011 reference period.") +
    theme(legend.position = c(0.825, 0.125))
 
@@ -566,6 +359,67 @@ line_colors <- setNames(
 
 
 ```
+
+```{r just gom temps, eval = F}
+
+# Fahrenheit
+(gom_f <- ggplot(data = annual_summary, aes(year, area_wtd_anom_f)) +
+
+  # Overlay yearly means
+  geom_line(color = "gray10", size = 0.75, linetype = 1) +
+  geom_point(color = "gray10", size = 1) +
+  geom_smooth(
+    data = annual_summary %>% 
+      mutate(`Warming Rate` = eq_all),
+    method = "lm",
+    formula = y ~ x, se = F,
+    aes(color = `Warming Rate`),
+    alpha = 0.90,
+    size = 1,
+    linetype = 1) + 
+   scale_color_gmri() +
+   scale_y_continuous(labels =  number_format(suffix = " \u00b0F")) +
+   labs(title = "Gulf of Maine:",
+        subtitle = "Annual Sea Surface Temperature Anomalies",
+        x = "Year", y = "Sea Surface Temperature Anomaly",
+        caption = "Anomalies calculated using 1982-2011 reference period.") +
+   theme(legend.position = c(0.825, 0.125)))
+
+
+# Celsius
+(gom_c <- ggplot(data = annual_summary, aes(year, area_wtd_anom)) +
+
+  # Overlay yearly means
+  geom_line(color = "gray10", size = 0.75, linetype = 1) +
+  geom_point(color = "gray10", size = 1) +
+  geom_smooth(
+    data = annual_summary %>% 
+      mutate(`Warming Rate` = eq_all_c),
+    method = "lm",
+    formula = y ~ x, se = F,
+    aes(color = `Warming Rate`),
+    alpha = 0.90,
+    size = 1,
+    linetype = 1) + 
+   scale_color_gmri() +
+   scale_y_continuous(labels =  number_format(suffix = " \u00b0C")) +
+   labs(title = "Gulf of Maine:",
+        subtitle = "Annual Sea Surface Temperature Anomalies",
+        x = "Year", y = "Sea Surface Temperature Anomaly",
+        caption = "Anomalies calculated using 1982-2011 reference period.") +
+   theme(legend.position = c(0.825, 0.125)))
+
+
+
+ggsave(plot = gom_f, filename = str_c(save_location, "gom_annual_f.png"),
+       dpi = "retina", bg = "white")
+
+# top 20% rankings
+ggsave(plot = gom_c, filename = str_c(save_location, "gom_annual_c.png"),
+       dpi = "retina", bg = "white")
+```
+
+
 
 ## Warming at an Accelerated Pace
 
@@ -591,7 +445,6 @@ gom_all_trend <- annual_summary %>%
   ggplot(aes(year, area_wtd_anom_f)) +
   geom_line(color = "gray10", size = 0.75, linetype = 1) +
   geom_point(color = "gray10", size = 1) +
-  # Add regression lines
   geom_smooth(
     data = annual_summary %>%
       mutate(`Warming Rate` = eq_all),
@@ -601,11 +454,8 @@ gom_all_trend <- annual_summary %>%
     alpha = 0.90,
     size = 1,
     linetype = 1) +
-  # Axes
   scale_y_continuous(labels =  number_format(suffix = " \u00b0F")) +
   scale_color_manual(values = line_colors) +
-
-  # labels + theme
   labs(title = "Gulf of Maine: Long-Term Warming Trend",
        x = "",
        y = "SST Anomaly",
@@ -627,12 +477,8 @@ gom_recent_trend <- annual_summary %>%
     alpha = 0.90,
     size = 1,
     linetype = 1) +
-  
-  # Axes
   scale_y_continuous(labels =  number_format(suffix = " \u00b0F")) +
   scale_color_manual(values = line_colors) +
-  
-  # labels + theme
   labs(title = "Gulf of Maine: Rapid Recent Warming",
        x = "", 
        y = "SST Anomaly",
@@ -657,30 +503,19 @@ gom_recent_trend <- annual_summary %>%
 ```{r}
 ####  Annual Trend Plot  ####
 gom_anomaly_bars <- annual_summary %>% 
-  mutate(anom_direction = ifelse(area_wtd_anom > 0, "Hot", "Cold")) %>% 
   ggplot(aes(yr_as_dtime, area_wtd_anom_f)) +
-  
-  # Underlying anomaly data
-  
-  # Yearly Bars
-  geom_col(aes(fill = anom_direction), color = "black", size = 0.25, alpha = 0.9) +
-  scale_fill_manual(values = c("Hot" = "#CA0020", "Cold" = "#0571B0")) +
-  # Axes
-   scale_y_continuous(labels =  number_format(suffix = " \u00b0F")) +
-
-  # theme
-  theme_gmri() +
-  theme(#legend.title = element_blank(),
-        legend.position = c(0.85, .125),
-        legend.background = element_rect(fill = "white"), 
-        legend.key = element_rect(fill = "transparent", color = "transparent")) +
-   # labels
-  labs(title = "Gulf of Maine: Rapid Recent Warming",
-       subtitle = "Recent Rate More Than Double the 40-Year Average",
-       fill = "Anomaly Type",
-       x = "", 
-       y = "Sea Surface Temperature Anomaly",
-       caption = paste0("Anomalies calculated using 1982-2011 reference period."))
+    geom_col(aes(fill = anom_direction), color = "black", size = 0.25, alpha = 0.9) +
+    scale_fill_manual(values = c("Hot" = "#CA0020", "Cold" = "#0571B0")) +
+    theme_gmri() +
+    theme(legend.position = c(0.85, .125),
+          legend.background = element_rect(fill = "white"), 
+          legend.key = element_rect(fill = "transparent", color = "transparent")) +
+    labs(title = "Gulf of Maine: Rapid Recent Warming",
+         subtitle = "Recent Rate More Than Double the 40-Year Average",
+         fill = "Anomaly Type",
+         x = "", 
+         y = "Sea Surface Temperature Anomaly",
+         caption = paste0("Anomalies calculated using 1982-2011 reference period."))
 
 
 
@@ -858,7 +693,9 @@ base_date <- as.Date("2000-01-01")
 grid_data <- region_hw %>% 
   mutate(year = year(time),
          yday = yday(time),
-         flat_date = as.Date(yday-1, origin = base_date))
+         flat_date = as.Date(yday-1, origin = base_date),
+         yr_rev = factor(year),
+         yr_rev = fct_rev(yr_rev))
 
 # Prep the legend title
 guide_lab <- "Sea Surface Temperature Anomaly \u00b0C"
@@ -900,7 +737,7 @@ heatwave_heatmap <- ggplot(grid_data, aes(x = flat_date, y = year)) +
                                  ticks.colour = "black")) +  
   theme(legend.title = element_text(angle = 90)) +
   labs(title = "Temperature Regime Shift",
-       subtitle = "Marine Heatwave Events Lasting Months Now Frequent",
+       subtitle = "Marine Heatwave Events Lasting Months Common Since 2010",
        x = "", 
        y = "",
        "\nClimate reference period : 1982-2011",
@@ -919,40 +756,36 @@ grid::grid.raster(lab_logo, x = 0.05, y = 0.03, just = c('left', 'bottom'), widt
 
 One way to think about the severity of these changes is to think about temperature horizons. A temperature horizon captures how long temperatures remain above certain thresholds. Each threshold is designated its own temperature, and in this way we can see how long within a year temperatures remained: 1 to 2 or as much as 4$^oC$ above normal.  
 
-```{r}
+
+
+```{r horizons f, eval = T}
 #| fig.alt = "Horizon plot of all years and their temperature anomaly horizons"
 
-# make slight modification to grid_data
-hori_data <- grid_data %>% 
-  mutate(year = factor(year),
-         year = fct_rev(year))
-
-
-# cut out outliers and set cutpoints
-cutpoints <- hori_data %>% 
+# Filter outliers beyond 25th and 75th quantile
+cutpoints <- grid_data %>% 
   mutate(
     outlier = between(
-      sst_anom,
-      quantile(sst_anom, 0.25, na.rm=T)-
-        1.5*IQR(sst_anom, na.rm=T),
-      quantile(sst_anom, 0.75, na.rm=T)+
-        1.5*IQR(sst_anom, na.rm=T))) %>% 
+      anom_f,
+      quantile(anom_f, 0.25, na.rm = T)-
+        1.5 * IQR(anom_f, na.rm = T),
+      quantile(anom_f, 0.75, na.rm = T)+
+        1.5 * IQR(anom_f, na.rm = T))) %>% 
   filter(outlier)
 
 # Set origin
 ori <- 0
 
 # Manually pick cut points
-sca <- seq(-4, 4, length.out = 9)
+sca <- seq(-5, 5, length.out = 9)
 
-sca_bins <- str_c(sca[1:(length(sca)-1)], " to ", sca[2:length(sca)], "\u00b0C")
+sca_bins <- str_c(sca[1:(length(sca)-1)], " to ", sca[2:length(sca)], "\u00b0F")
 sca_labels <- rev(sca_bins)
 
 
 # Function to plot one or more years
-anom_horizon_plot <- function(hori_data, origin = ori, scale_cutpoints = sca, labels = sca_labels){
+anom_horizon_plot <- function(grid_data, origin = ori, scale_cutpoints = sca, labels = sca_labels){
   
-   ggplot(hori_data) +
+   ggplot(grid_data) +
   geom_horizon(aes(flat_date, 
                    sst_anom,
                    fill = ..Cutpoints..), 
@@ -974,14 +807,14 @@ anom_horizon_plot <- function(hori_data, origin = ori, scale_cutpoints = sca, la
                date_breaks = "1 month", 
                date_labels = "%b") +
   labs(x = '', 
-       fill = "Temperature Anomaly \u00b0C") 
+       fill = "Temperature Anomaly") 
   
   
 }
 
 
 # Plot Horizon Plot Using All Years
-gom_annual_horizons <- anom_horizon_plot(hori_data = filter(hori_data, yr <= 2021), 
+gom_annual_horizons <- anom_horizon_plot(grid_data = filter(grid_data, yr <= 2021), 
                   origin = ori, 
                   scale_cutpoints = sca) +
   labs(title = "Temperature Anomaly Horizons",
@@ -992,6 +825,7 @@ gom_annual_horizons <- anom_horizon_plot(hori_data = filter(hori_data, yr <= 202
 # Plot it
 gom_annual_horizons
 grid::grid.raster(lab_logo, x = 0.05, y = 0.03, just = c('left', 'bottom'), width = unit(0.8, 'inches'))
+
 ```
 
 ## Comparing the Gulf's Two Hottest Years
@@ -1000,34 +834,32 @@ If we pull the horizons of our two hottest years on record it makes it easier to
 
 Early into 2021 it was apparent that the year was on-par with the previous title-holder for warmest year on record.
 
-*Could have more text here*
 
-```{r}
+```{r hottest two years f, eval = T}
 #| fig.alt = "Single year horizon plots comparing 2012 and 2022"
 
-# Reset the outliers
 # cut out outliers and set cutpoints
-cutpoints_2 <- hori_data %>% 
+cutpoints_2 <- grid_data %>% 
   filter(year %in% c("2012", "2021")) %>% 
   mutate(
     outlier = between(
-      sst_anom,
-      quantile(sst_anom, 0.25, na.rm=T)-
-        1.5*IQR(sst_anom, na.rm=T),
-      quantile(sst_anom, 0.75, na.rm=T)+
-        1.5*IQR(sst_anom, na.rm=T))) %>% 
+      anom_f,
+      quantile(anom_f, 0.25, na.rm=T)-
+        1.5*IQR(anom_f, na.rm=T),
+      quantile(anom_f, 0.75, na.rm=T)+
+        1.5*IQR(anom_f, na.rm=T))) %>% 
   filter(outlier)
 
 
 
 # 2012
-hori_2012 <- hori_data %>% 
+hori_2012 <- grid_data %>% 
   filter(year == "2012") %>% 
   anom_horizon_plot(scale_cutpoints = cutpoints_2) +
   facet_wrap(~year, strip.position = "top")
   
 # 2021
-hori_2021 <- hori_data %>% filter(year == "2021") %>% 
+hori_2021 <- grid_data %>% filter(year == "2021") %>% 
   anom_horizon_plot(scale_cutpoints = cutpoints_2) +
   facet_wrap(~year, strip.position = "top") +
   theme(plot.caption = element_text(colour = "gray25", size = 6)) +
@@ -1068,17 +900,18 @@ Another way to visualize the climate transition that we are observing is by look
 
 What we have been seeing in the Gulf of Maine recently has lost that sense of balance. Larger fractions of the year are shared by above average temperatures & cold spell events are becoming vanishingly rare.
 
-```{r}
+
+```{r stream F, eval = T}
 #| fig.alt = "Streamplot tracking fraction of each year spent in varying degrees of temperature anomalies"
 
 
 # Set Factor Order for Bins
 bin_order <- c(
-  "Less than -1", 
-  "-1 to -0.5",
-  "Within 0.5",
-  "0.5 to 1", 
-  "Greater than 1")
+  "Less than -2", 
+  "-2 to -1",
+  "Within 1",
+  "1 to 2", 
+  "Greater than 2")
 
 # Set Colors
 bin_colors <- RColorBrewer::brewer.pal(n = length(bin_order), 
@@ -1088,22 +921,29 @@ bin_colors <- rev(bin_colors)
 # Count Days in Bins
 day_types <- region_hw %>% 
   mutate(
-    `Less than -1`   = if_else(sst_anom <= -1, TRUE, FALSE),
-    `-1 to -0.5`     = if_else(between(sst_anom, -1, -0.5), TRUE, FALSE),
-    `Within 0.5`     = if_else(between(sst_anom, -0.5, 0.5), TRUE, FALSE),
-    `0.5 to 1`       = if_else(between(sst_anom, 0.5, 1), TRUE, FALSE),
-    `Greater than 1` = if_else(sst_anom >= 1, TRUE, FALSE)) %>% 
+    `Less than -2`   = if_else(anom_f <= -2, TRUE, FALSE),
+    `-2 to -1`     = if_else(between(anom_f, -2, -1), TRUE, FALSE),
+    `Within 1`     = if_else(between(anom_f, -1, 1), TRUE, FALSE),
+    `1 to 2`       = if_else(between(anom_f, 1, 2), TRUE, FALSE),
+    `Greater than 2` = if_else(anom_f >= 2, TRUE, FALSE)) %>% 
   group_by(yr) %>% 
   summarise(
-    `Less than -1`   = sum(`Less than -1`, na.rm = T),
-     `-1 to -0.5`    = sum(`-1 to -0.5`, na.rm = T),
-    `Within 0.5`     = sum(`Within 0.5`, na.rm = T),
-    `0.5 to 1`       = sum(`0.5 to 1`, na.rm = T),
-    `Greater than 1` = sum(`Greater than 1`, na.rm = T),
+    `Less than -2`   = sum(`Less than -2`, na.rm = T),
+     `-2 to -1`    = sum(`-2 to -1`, na.rm = T),
+    `Within 1`     = sum(`Within 1`, na.rm = T),
+    `1 to 2`       = sum(`1 to 2`, na.rm = T),
+    `Greater than 2` = sum(`Greater than 2`, na.rm = T),
     .groups = "drop") %>% 
-  pivot_longer(cols = "Less than -1":"Greater than 1", names_to = "Anomaly Strength", values_to = "day_total", values_drop_na = FALSE) %>% 
+  pivot_longer(cols = "Less than -2":"Greater than 2", 
+               names_to = "Anomaly Strength", 
+               values_to = "day_total", 
+               values_drop_na = FALSE) %>% 
   mutate(day_total = if_else(is.na(day_total), 0L, day_total),
          `Anomaly Strength` = factor(`Anomaly Strength`, levels = bin_order))
+
+
+
+
 
 
 # Plot the Streamplot
@@ -1138,7 +978,7 @@ hw_streamplot <- ggplot(day_types, aes(yr, y = day_total, fill = `Anomaly Streng
     legend.text = element_text(size = 7.5),
     legend.margin = margin(c(7,0,0,0)),
     legend.justification = "center") +
-   guides(fill = guide_legend(title = "Anomaly Strength \u00b0C",
+   guides(fill = guide_legend(title = "Anomaly Strength \u00b0F",
                              title.hjust = 0.5, 
                              title.position = "left",
                              label.position = "bottom", 
@@ -1160,28 +1000,27 @@ There are a number of ways one might try to describe the extent and severity of 
  - The cumulative degrees above normal   
  - The average heatwave length   
  
- 
 
-```{r}
+
+```{r year panels f, eval = T}
 #| fig.alt = "4-panel plot comparing different features of hot years ranked by different metrics"
 
 # Use all years so they can be ranked independently
-year_mets <- hori_data %>% 
+year_mets <- grid_data %>% 
   filter(year != "2022") %>% 
   group_by(year) %>% 
   summarise(
     total_days                         = n(),
-    `Average Temperature`              = round(mean(sst, na.rm = T), 2),
-    `Temperature Above Average`        = round(mean(sst_anom, na.rm = T), 2),
-    `Cumulative Degrees Above Average` = round(sum(sst_anom, na.rm = T), 0),
+    `Average Temperature`              = round(mean(sst_f, na.rm = T), 2),
+    `Temperature Above Average`        = round(mean(anom_f, na.rm = T), 2),
+    `Cumulative Degrees Above Average` = round(sum(anom_f, na.rm = T), 0),
     hw_days                            = sum(mhw_event, na.rm = T),
     hw_events                          = n_distinct(mhw_event_no),
-    peak_temp                          = max(sst),
-    peak_anom                          = max(sst_anom)) %>% 
+    peak_temp                          = max(sst_f),
+    peak_anom                          = max(anom_f)) %>% 
   mutate(
     hw_day_pct = round((hw_days/total_days) * 100, 2),
-    `Average Heatwave Length` = round(hw_days/hw_events,  1)
-  ) %>% 
+    `Average Heatwave Length` = round(hw_days/hw_events,  1)) %>% 
   pivot_longer(names_to = "Var", values_to = "Metric", cols = `Average Temperature`:`Average Heatwave Length`)
 
 
@@ -1207,7 +1046,7 @@ hottest_yr_panels <- year_met_ranks %>%
     labs(y = "",
          x = NULL,
          title = "How 2021 Stacks Up:",
-         caption = "Temperature statistics in degrees Celsius",
+         caption = "Temperature statistics in degrees Fahrenheit",
          subtitle = "Ranking Characteristics of Acute and Prolonged Warming Events") +
   theme(plot.title = element_text(hjust = 0)) + 
   scale_color_gmri() +
@@ -1250,7 +1089,7 @@ reclass_df <- c(
   37.1, 38, 3, # Third Warmest
   38.1, 39, 2, # Second Warmest
   39.1, 40, 1  # Warmest
-)
+  )
 
 # make reclassification matrix
 reclass_m <- matrix(reclass_df, ncol = 3, byrow = TRUE)
@@ -1303,6 +1142,7 @@ ranks_map
 grid::grid.raster(lab_logo, x = 0.08, y = 0.16, just = c('left', 'bottom'), width = unit(0.8, 'inches'))
 ```
 
+If we look more closely at the Northeast US we can see that 2021 was an exceptional year for the area, with record temperatures covering a large portion of the area:
 
 
 ```{r, eval = TRUE}
@@ -1370,7 +1210,7 @@ lme_rates <- map_dfr(lme_8221, function(lme_data){
   arrange(desc(annual_warming_rate_C))
 
 
-# Pull out the top 13
+# Pull out the top x
 rates_ordered <- lme_rates %>% 
   mutate(`Warming Rank` = row_number(),
          `Warming Rate F` = as_fahrenheit(annual_warming_rate_C, data_type = "anomalies"),
@@ -1378,11 +1218,7 @@ rates_ordered <- lme_rates %>%
          Region = str_to_title(Region)) %>% 
   select(Region, `Warming Rank`, `Warming Rate C` = annual_warming_rate_C, `Warming Rate F`) 
 
-# symbol for degree: \u00b0
-```
 
-
-```{r lme rank table}
 # Make table of top 10*
 lme_rank_table <- rates_ordered %>% 
   slice(1:10) %>% 
@@ -1416,7 +1252,9 @@ lme_rank_table
 ```
  
  
-```{r rates netcdf, eval = FALSE}
+ 
+ 
+```{r mapping lme rates, eval = FALSE}
 
 # Netcdf of warming rates
 rates_path <- str_c(oisst_path, "warming_rates/annual_warming_rates1982to2021.nc")
@@ -1510,7 +1348,6 @@ This variability reflects the various physical oceanographic drivers influencing
 ```{r load warming rates, eval = T}
 
 # # 1. Warming Rates and Rankings
-# Netcdf of warming rates
 rates_path <- str_c(oisst_path, "warming_rates/annual_warming_rates1982to2021.nc")
 rates_nc <- stack(rates_path, varname = "annual_warming_rate")
 ranks_nc <- stack(rates_path, varname = "rate_percentile")
@@ -1533,44 +1370,22 @@ sfc <- st_sfc(st_polygon(list(
 sfc <- st_as_sf(sfc)
 
 
-# Get the average warming rates for each area
-get_masked_vals <- function(masked_ranks, masked_rates){
-  m1 <- masked_ranks
-  rank_mean <- cellStats(m1, mean)
-  rank_min <- cellStats(m1, min)
-  rank_max <- cellStats(m1, max)
-  
-  # Get stats from rates
-  m2 <- masked_rates
-  rate_mean <- cellStats(m2, mean)
-  rate_min <- cellStats(m2, min)
-  rate_max <- cellStats(m2, max)
-  
-  # put in table
-  table_out <- tibble("Mean Rank" = rank_mean,
-                "Min Rank"  = rank_min,
-                "Max Rank"  = rank_max,
-                "Mean Rate" = rate_mean,
-                "Min Rate"  = rate_min,
-                "Max Rate"  = rate_max) %>% 
-    mutate_all(round, 3)
-  
-  # spit them out
-  return(table_out)
-}
 
 
 # Get the rank information that go with each area
 ranks_masked <- mask_nc(ranks_nc, region_extent)
 rates_masked <- mask_nc(rates_nc, region_extent)
-region_ranks <- get_masked_vals(ranks_masked, rates_masked)
+region_ranks <- get_masked_vals(masked_ranks = ranks_masked, 
+                                masked_rates = rates_masked, 
+                                in_fahrenheit = T)
+
 
 # Prep it for text input.
-avg_rank <- region_ranks$`Mean Rank` *100
+avg_rank <- region_ranks$`Mean Rank` * 100
 avg_rate <- region_ranks$`Mean Rate`
-low_rank <- region_ranks$`Min Rank` *100
+low_rank <- region_ranks$`Min Rank` * 100
 low_rate <- region_ranks$`Min Rate`
-top_rank <- region_ranks$`Max Rank` *100
+top_rank <- region_ranks$`Max Rank` * 100
 top_rank <- ifelse(top_rank == 100, "greater than or equal to 99.5", top_rank)
 top_rate <- region_ranks$`Max Rate`
 
@@ -1578,24 +1393,20 @@ top_rate <- region_ranks$`Max Rate`
 
 
 
-```{r mapping warming rates, layout="l-body-outset", fig.width=6, fig.height=4}
-# for an expanded view need to use the global rates
-world_rate_stars <- st_as_stars(rotate(rates_nc))
 
-# Reclassify raster into 10% Bins
-world_rates_binned <- world_rate_stars %>% 
-  mutate(
-    rate = Annual.Sea.Surface.Temperature.Warming.Rate,
-    rate_bin = cut(rate, breaks = seq(0, 1, by = 0.1))) %>% 
-  select(-c(rate, Annual.Sea.Surface.Temperature.Warming.Rate))
+```{r warming rates Fahrenheit, layout="l-body-outset", fig.width=6, fig.height=4}
+
+# Change to F
+world_rate_stars <- calc(rotate(rates_nc), function(x) as_fahrenheit(x, data_type = "anomalies")) %>% 
+  st_as_stars()
 
 
 # Color limit for palettes
-temp_limits <- c(-.08, .08)
+temp_limits <- c(-.1, .1)
 temp_breaks <- c(temp_limits[1], temp_limits[1]/2,  0, temp_limits[2]/2, temp_limits[2])
-temp_labels <- str_c(c(str_c("< ", temp_limits[1]), temp_limits[1]/2, 0, temp_limits[2]/2, str_c("> ", temp_limits[2])), "\u00b0C")
+temp_labels <- str_c(c(str_c("< ", temp_limits[1]), temp_limits[1]/2, 0, temp_limits[2]/2, str_c("> ", temp_limits[2])), "\u00b0F")
 
-
+                     
 # Northeast Shelf
 global_rates_zoom <- ggplot() +
   geom_stars(data = world_rate_stars) +
@@ -1660,14 +1471,12 @@ rates_global_figure
 ```
 
 
-
-
 ### Warming Rate Rankings
 
 
-Based on data from 1982-2021, the warming rates of Gulf of Maine have been some of the highest in the world. The area as a whole has been increasing at a rate of `r avg_rate`$^{\circ}C/year$ which is faster than `r avg_rank`% of the world's oceans.
+Based on data from 1982-2021, the warming rates of Gulf of Maine have been some of the highest in the world. The area as a whole has been increasing at a rate of `r avg_rate`$^{\circ}F/year$ which is faster than `r avg_rank`% of the world's oceans.
 
-Over that same period locations within the Gulf of Maine have been warming at rates as low as `r low_rate`$^{\circ}C/year$ and as rapidly as `r top_rate`$^{\circ}C/year$, corresponding to ranks as low as `r low_rank`% and as high as `r top_rank`%.
+Over that same period locations within the Gulf of Maine have been warming at rates as low as `r low_rate`$^{\circ}F/year$ and as rapidly as `r top_rate`$^{\circ}F/year$, corresponding to ranks as low as `r low_rank`% and as high as `r top_rank`%.
 
 
 ```{r highlighting gom warming rate, eval = TRUE, layout="l-body-outset", fig.width=6, fig.height=4}
