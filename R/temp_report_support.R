@@ -90,7 +90,7 @@ theme_gmri <- function(base_size = 10,
       legend.text = element_text(size = 7.5),
       
       # Panel/Grid Setup
-      panel.grid = element_line(colour = NULL, linetype = 3, color = "gray70"), 
+      panel.grid = element_line(colour = NULL, linetype = 3, color = "gray80"), 
       panel.grid.major = element_line(colour = "black"), 
       panel.grid.major.x = element_blank(), 
       panel.grid.minor = element_blank(), 
