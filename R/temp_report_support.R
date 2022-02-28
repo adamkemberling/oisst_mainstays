@@ -24,15 +24,16 @@ theme_set(theme_bw() +
               # Titles
               plot.title = element_text(hjust = 0, face = "bold", size = 14),
               plot.subtitle = element_text(size = 9),
-              plot.caption = element_text(size = 7.2, margin = margin(t = 20), color = "gray40"),
+              plot.caption = element_text(size = 8, margin = margin(t = 20), color = "gray40"),
               legend.title = element_text(size = 9),
-              legend.text = element_text(size = 7.5),
+              legend.text = element_text(size = 9),
               # Axes
               axis.line.y = element_line(color = "black"),
               axis.ticks.y = element_line(), 
               axis.line.x = element_line(color = "black"),
               axis.ticks.x = element_line(), 
               axis.text = element_text(size = 11),
+              axis.title = element_text(size = 12),
               rect = element_rect(fill = "transparent", color = "black"),
               # Facets
               strip.text = element_text(color = "white", 
@@ -80,6 +81,7 @@ theme_gmri <- function(base_size = 10,
       axis.line = element_line(), 
       axis.line.y = element_blank(), 
       axis.text = element_text(size = 11),
+      axis.title = element_text(size = 12),
       
       # Legend Elements
       legend.background = element_rect(), 
@@ -87,7 +89,7 @@ theme_gmri <- function(base_size = 10,
       legend.direction = "horizontal", 
       legend.box = "vertical", 
       legend.title = element_text(size = 9),
-      legend.text = element_text(size = 7.5),
+      legend.text = element_text(size = 9),
       
       # Panel/Grid Setup
       panel.grid = element_line(colour = NULL, linetype = 3, color = "gray80"), 
