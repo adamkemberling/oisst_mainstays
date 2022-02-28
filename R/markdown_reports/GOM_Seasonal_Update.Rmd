@@ -53,46 +53,6 @@ source(here("R/temp_report_support.R"), verbose = FALSE)
 oisst_path <- cs_path("res", "OISST/oisst_mainstays")
 
 
-theme_set(theme_bw() + 
-            theme(
-              # Titles
-              plot.title = element_text(hjust = 0, face = "bold", size = 14),
-              plot.subtitle = element_text(size = 9),
-              plot.caption = element_text(size = 7.2, margin = margin(t = 20), color = "gray40"),
-              legend.title = element_text(size = 9),
-              legend.text = element_text(size = 7.5),
-              # Axes
-              axis.line.y = element_line(),
-              axis.ticks.y = element_line(), 
-              axis.line.x = element_line(),
-              axis.ticks.x = element_line(), 
-              axis.text = element_text(size = 11),
-              # Facets
-              strip.text = element_text(color = "white", 
-                                        face = "bold",
-                                        size = 11),
-              strip.background = element_rect(
-                color = "white", 
-                fill = "#00736D", 
-                size = 1, 
-                linetype="solid")))
-
-
-
-
-# Set theme up for maps
-map_theme <- list(
-  theme(
-    panel.border       = element_rect(color = "black", fill = NA),
-    plot.background    = element_rect(color = "transparent", fill = "transparent"),
-    line               = element_blank(),
-    axis.ticks         = element_line(size = 0.25),
-    axis.title.x       = element_blank(), # turn off titles
-    axis.title.y       = element_blank(),
-    legend.position    = "bottom", 
-    legend.title.align = 0.5))
-
-
 # Polygons for mapping
 new_england <- ne_states("united states of america", returnclass = "sf")
 canada      <- ne_states("canada", returnclass = "sf")
@@ -111,14 +71,6 @@ timeseries_path <- region_paths[["apershing_gulf_of_maine"]][["timeseries_path"]
 poly_path <- region_paths[["apershing_gulf_of_maine"]][["shape_path"]]
 
 
-# Function to maska raster with sf
-mask_nc <- function(ras_obj, mask_shape){
-  
-  # Get stats from ranks
-  m1 <- raster::mask(rotate(ras_obj), mask_shape)
-  m1 <- raster::crop(m1, mask_shape)
-  return(m1)
-}
 ```
 
 `r gmRi::use_gmri_style_rmd(css = "gmri_rmarkdown.css")`
