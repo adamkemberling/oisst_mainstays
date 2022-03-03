@@ -322,7 +322,12 @@ def build_annual_from_cache(last_month, this_month, workspace = "local", verbose
     """
     Assemble OISSTv2 Annual File Using Monthly Caches:
       
-    Should be run after the current and last month have had their caches updated.
+    Should be run after the current and last month have had their caches updated. Takes
+    all daily netcdf files from the current month and all previous months and loads the
+    data as one xarray dataset.
+    
+    Improvements: handling preliminary and duplicate dates is potentially buggy in how
+    duplicate dates are handled.
 
     Args:
         last_month (str): Previous Month's data to assemble from cache
@@ -378,7 +383,7 @@ def build_annual_from_cache(last_month, this_month, workspace = "local", verbose
     ####  Clean up Dataset structure  ####
     
     # Get all dates where the time indexes are not (~) duplicated
-    oisst_noreps = oisst_update.sel(time = ~oisst_update.get_index("time").duplicated())
+    oisst_noreps = oisst_update.sel(time = ~oisst_update.get_index("time").duplicated(keep = 'first'))
     
     # Select just sst and drop Zlev coordinate from the Array
     norep_sst = oisst_noreps["sst"][:, 0, :, :].drop("zlev")
@@ -397,10 +402,7 @@ def build_annual_from_cache(last_month, this_month, workspace = "local", verbose
     
     
     ####  Add Attributes Back  ####
-    
-    # # NOTE: added to oisstools.py as a function
-    
-    
+  
     # Load the full year into memory
     oisst_combined = oisst_combined.load()
     
