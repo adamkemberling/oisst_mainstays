@@ -296,10 +296,11 @@ ersst_v_oisst <- ggplot() +
   geom_point(data = oisst_yr, aes(yr, sst_f, color = "OISSTv2"), 
              size = 1) +
   scale_color_gmri() +
-  theme_gmri() +
-   scale_y_continuous(
+  scale_x_continuous(expand = expansion(add = c(2,10))) +
+  scale_y_continuous(
      #expand = expansion(add = c(0.5,5)),
      labels = number_format(suffix = " \u00b0F")) +
+  theme_gmri() +
   guides(color = guide_legend(title.position = "top", title.hjust = 0.5)) +
   facet_zoom(xlim = c(1982, 2021)) +
   theme(legend.position = "bottom")  +
@@ -753,6 +754,10 @@ Six months in 2021 had record setting temperatures on atleast 50% of the days in
  # Last Calendar Year
 this_yr <- region_hw %>% 
   filter(year(time) == 2021)
+
+# Dates of highest/lowest temp
+min_temp_date <- this_yr$time[which(this_yr$sst == min(this_yr$sst))]
+max_temp_date <- this_yr$time[which(this_yr$sst == max(this_yr$sst))]
 
 #min/max of climate and min/max of 2021
 ranges_c <- list(
