@@ -82,7 +82,7 @@ poly_path <- region_paths[["apershing_gulf_of_maine"]][["shape_path"]]
 params <- list(
   season = "Winter",
   `Save Data` = FALSE,
-  `Save Figures` = TRUE)
+  `Save Figures` = FALSE)
 
 
 # Current date checking:
@@ -187,7 +187,7 @@ gom_extent_p <- ggplot() +
           fill = gmri_cols("gmri blue"), alpha = 0.2, linetype = 2, size = 0.5) +
   coord_sf(xlim = crop_x, 
            ylim = crop_y, expand = T) +
-  map_theme
+  map_theme()
 
 
 # Show figure
@@ -533,8 +533,8 @@ Over the period of 1982-2021, `r tolower(params$season)`'s in the Gulf of Maine 
 
 # Seasonal Temperature Trend Plot:
 seasonal_temp_p <- ggplot(seasonal_avgs, aes(yr, mean_temp)) +
-  # geom_line(color = "gray20", linetype = 1, size = 0.5, alpha = 0.8) +
-  geom_line(data = season_temp_smooth, aes(x = x, y = y), linetype = 3, size = 0.5, alpha = 0.5) +
+  geom_line(color = "gray20", linetype = 3, size = 0.5, alpha = 0.5) +
+  #geom_line(data = season_temp_smooth, aes(x = x, y = y), linetype = 3, size = 0.5, alpha = 0.5) +
   geom_point(color = "gray20", size = 1, alpha = 0.8) +
   geom_hline(data = all_year_season_avg, aes(yintercept = avg_temp_c), color = "darkblue", linetype = 2) + 
   geom_mark_ellipse(data = data.frame(x = 2016, y = all_year_season_avg$avg_temp_c),
@@ -551,7 +551,7 @@ seasonal_temp_p <- ggplot(seasonal_avgs, aes(yr, mean_temp)) +
               method = "lm", 
               color = "darkred", 
               se = FALSE) +
-  geom_mark_ellipse(aes(filter = yr == 1995, 
+  geom_mark_ellipse(aes(filter = yr == 1994, 
                         label = str_c(decadal_rate, " \u00b0C / Decade")), 
                     color = "transparent", 
                     description = str_c("40-Year ", params$season, " Warming Trend"), 
@@ -570,9 +570,11 @@ seasonal_temp_p <- ggplot(seasonal_avgs, aes(yr, mean_temp)) +
                     label.fill = "transparent", 
                     label.buffer = unit(0.15, "cm"), 
                     label.fontsize = 8) +
-  scale_y_continuous(limits = c(12, 16.5),
-                     sec.axis = sec_axis(trans = ~ as_fahrenheit(.), labels =  number_format(suffix = " \u00b0F")),
-                     labels = number_format(suffix = " \u00b0C")) +
+  scale_y_continuous(
+    #limits = c(12, 16.5),
+    sec.axis = sec_axis(trans = ~ as_fahrenheit(.), 
+                        labels =  number_format(suffix = " \u00b0F")),
+    labels = number_format(suffix = " \u00b0C")) +
   scale_x_continuous(limits = c(1981, this_yr+3)) +
   labs(x = "",
        y = str_c(params$season, " Sea Surface Temperature")) 
@@ -600,14 +602,14 @@ climate_baseline <- seasonal_avgs$mean_clim[1]
 # Plot the summers, use box plots for yearly distribution
 seasonal_temp_dist <- ggplot(
   data = filter(region_timeseries, season_eng == params$season), 
-  aes(yr, area_wtd_sst, group = yr)) +
+  aes(season_yr, area_wtd_sst, group = season_yr)) +
   geom_boxplot(color = "gray70") + 
   geom_boxplot(data = filter(region_timeseries, season_eng == params$season, 
                              season_yr >= 2010), color = "gray40") + 
-  geom_segment(x = 1982, xend = 2011, y = 20.5, yend = 20.5, color = "black") +
-  geom_segment(x = 1982, xend = 1982, y = 20, yend = 21, color = "black") +
-  geom_segment(x = 2011, xend = 2011, y = 20, yend = 21, color = "black") +
-  annotate(x = 1997, y = 21.25, label = "Climate-Reference Period", geom = "text", size = 3) +
+  geom_segment(x = 1982, xend = 2011, y = 12.5, yend = 12.5, color = "black") +
+  geom_segment(x = 1982, xend = 1982, y = 12, yend = 13, color = "black") +
+  geom_segment(x = 2011, xend = 2011, y = 12, yend = 13, color = "black") +
+  annotate(x = 1997, y = 13.25, label = "Climate-Reference Period", geom = "text", size = 3) +
   geom_hline(linetype = 1, size = 0.75, aes(yintercept = climate_baseline, color = "30-Year Climate Average")) + 
   scale_y_continuous(sec.axis = sec_axis(trans = ~ as_fahrenheit(.), 
                                          labels =  number_format(suffix = " \u00b0F")), 
@@ -722,9 +724,7 @@ daily_peak <- region_timeseries %>%
     clim_f = as_fahrenheit(sst_clim),
     area_wtd_clim_f = as_fahrenheit(area_wtd_clim),
     anom_f = as_fahrenheit(sst_anom, data_type = "anomalies"),
-    area_wtd_anom_f = as_fahrenheit(area_wtd_anom, data_type = "anomalies")
-    
-  ) %>% 
+    area_wtd_anom_f = as_fahrenheit(area_wtd_anom, data_type = "anomalies")) %>% 
   mutate(across(where(is.numeric), .fns = round, 2))
 ```
 
@@ -1176,34 +1176,20 @@ day_types <- region_hw %>%
 # Plot the Streamplot
 hw_streamplot <- ggplot(day_types, aes(yr, y = day_total, fill = `Anomaly Strength`)) +
   geom_stream(type = "proportion") +
-  #geom_segment(y = .5, yend = 0.5, linetype = 3, color = "gray50", x = 1981, xend = 2021, size = 0.25) +
   scale_x_continuous(breaks = seq(1980,2030, by = 10), 
-                     minor_breaks = seq(1975, 2030, by = 5), 
-                     expand = c(.03,0)) +
-  scale_y_continuous(labels = scales::percent_format(), expand = c(0,0)) + 
+                     minor_breaks = seq(1975, 2030, by = 5), expand = expansion(add = c(0,0))) +
+  scale_y_continuous(labels = scales::percent_format(), expand = expansion(add = c(0,0))) + 
   scale_fill_manual(values = setNames(bin_colors, bin_order)) + 
   labs(y = "", x = "", fill = "", 
        title = "A Warmer Gulf of Maine",
        subtitle = "Fractions of Each Year Experienced as Hot/Cold Anomalies",
-       caption = "1981 & 2021 not complete years in the data*") +
-  theme_minimal(base_size = 10) +
+       caption = "Anomalies calculated using 1982-2011 climatology.") +
   theme(
-    axis.line.x = element_line(),
-    axis.ticks.x = element_line(),
-    axis.line.y = element_line(),
-    axis.ticks.y = element_line(),
     legend.position = "top",
     legend.key.height = unit(.5, "lines"),
     legend.key.width = unit(3.75, "lines"),
-    panel.grid.minor = element_blank(),
-    panel.grid = element_line(size = 0.2),
     plot.margin = unit(c(.5,1,.3,.5), "cm"),
     plot.title.position = "plot",
-    plot.title = element_text(face = "bold", size = 14),
-    plot.subtitle = element_text(size = 9),
-    plot.caption = element_text(size = 7.2, margin = margin(t = 20)),
-    legend.title = element_text(size = 9),
-    legend.text = element_text(size = 7.5),
     legend.margin = margin(c(7,0,0,0)),
     legend.justification = "center") +
    guides(fill = guide_legend(title = "Anomaly Strength \u00b0C",
@@ -1266,7 +1252,7 @@ season_map <- ggplot() +
                        na.value = "transparent", 
                        limit = limit, 
                        oob = scales::oob_squish) +
-  map_theme +
+  map_theme(legend.position = "bottom") +
   coord_sf(xlim = crop_x, 
            ylim = crop_y, 
            expand = T) +
@@ -1348,9 +1334,9 @@ month_plots <- imap(months_masked, function(month_avg_layer, month_id){
                          oob = scales::squish,
                          breaks = temp_breaks, 
                          labels = temp_labels) +
-    map_theme +
-    theme(title = element_text(hjust = 0.5, size = 8),
-          axis.text = element_text(size = 6)) +
+    map_theme(
+      title = element_text(hjust = 0.5, size = 8),
+      axis.text = element_text(size = 6)) +
     coord_sf(xlim = crop_x, 
              ylim = crop_y, 
              expand = F) +
@@ -1406,35 +1392,6 @@ sfc <- st_as_sf(sfc)
 
 
 
-# Get the average warming rates for each area
-get_masked_vals <- function(masked_ranks, masked_rates){
-  m1 <- masked_ranks
-  rank_mean <- cellStats(m1, mean)
-  rank_min <- cellStats(m1, min)
-  rank_max <- cellStats(m1, max)
-  
-  # Get stats from rates
-  m2 <- masked_rates
-  rate_mean <- cellStats(m2, mean)
-  rate_min <- cellStats(m2, min)
-  rate_max <- cellStats(m2, max)
-  
-  # put in table
-  table_out <- tibble("Mean Rank" = rank_mean,
-                "Min Rank"  = rank_min,
-                "Max Rank"  = rank_max,
-                "Mean Rate" = rate_mean,
-                "Min Rate"  = rate_min,
-                "Max Rate"  = rate_max) %>% 
-    mutate_all(round, 3)
-  
-  # spit them out
-  return(table_out)
-}
-
-
-
-
 # Get the rank information that go with each area
 ranks_masked <- mask_nc(ranks_stack_all, region_extent)
 rates_masked <- mask_nc(rates_stack_all, region_extent)
@@ -1466,7 +1423,7 @@ world_rank_stars <- st_as_stars(rotate(ranks_stack_all))
 world_ranks_binned <- world_rank_stars %>% 
   mutate(
     rank = Annual.Sea.Surface.Temperature.Warming.Rate.Rank,
-    rank_bin = cut(rank, breaks = seq(0.1, 1, by = 0.1))) %>% 
+    rank_bin = cut(rank, breaks = seq(0, 1, by = 0.1))) %>% 
   select(-c(rank, Annual.Sea.Surface.Temperature.Warming.Rate.Rank))
 
 
@@ -1478,8 +1435,8 @@ global_ranks_zoom <- ggplot() +
   geom_sf(data = greenland, color = "white", fill = "gray30", size = .075) +
   scale_y_continuous(breaks = seq(-90, 90, by = 5)) +
   scale_x_continuous(breaks = seq(-180, 180, by = 10))+
-  scale_fill_brewer(palette = "Spectral", direction = 1, na.value = "transparent") +
-  map_theme +
+  scale_fill_brewer(palette = "Spectral", direction = -1, na.value = "transparent") +
+  map_theme() +
   coord_sf(
     xlim = c("xmin" = -77, "xmax" = -50),
     ylim = c("ymin" = 32, "ymax" = 48),
@@ -1497,8 +1454,8 @@ global_ranks_zoom <- ggplot() +
 global_ranks <- ggplot() +
   geom_stars(data = world_ranks_binned) +
   geom_sf(data = world_sf, color = "white", fill = "gray30", size = .1) +
-  scale_fill_brewer(palette = "Spectral", direction = 1, na.value = "transparent") +
-  map_theme +
+  scale_fill_brewer(palette = "Spectral", direction = -1, na.value = "transparent") +
+  map_theme() +
   coord_sf(expand = F) +
   scale_y_continuous(breaks = seq(-90, 90, by = 30)) +
   guides("fill" = guide_colorsteps(title = expression("Global Percentile of Warming Rates"),
@@ -1526,81 +1483,6 @@ ranks_global_vertical <- (global_ranks_zoom / global_ranks ) +
 ranks_global_figure
 
 ```
-
-
-
-
-
-```{r highlighting gom warming rate, eval = FALSE, layout="l-body-outset", fig.width=6, fig.height=4}
-# # for an expanded view need to use the global ranks
-# world_rank_stars <- st_as_stars(rotate(ranks_stack_all))
-# 
-# 
-# # ranks map
-# global_ranks_zoom <- ggplot() +
-#   geom_stars(data = world_rank_stars) +
-#   geom_sf(data = new_england, color = "gray80", fill = "#36454F", size = .075) +
-#   geom_sf(data = canada, color = "gray80", fill = "#36454F", size = .075) +
-#   geom_sf(data = greenland, color = "gray80", fill = "#36454F", size = .075) +
-#   # geom_sf(data = region_extent,
-#   #         color = "white",
-#   #         fill = "transparent", linetype = 1, size = 0.75) +
-#   scale_y_continuous(breaks = seq(-90, 90, by = 5)) +
-#   scale_x_continuous(breaks = seq(-90, 40, by = 10)) +
-#   scale_fill_viridis_c(limit = c(0.95, 1),  
-#                        option = "inferno",
-#                        na.value = "black") +
-#   map_theme +
-#   coord_sf(
-#     xlim = c("xmin" = -77, "xmax" = -50),
-#     ylim = c("ymin" = 32, "ymax" = 48),
-#     expand = T) +
-#   guides("fill" = guide_colorbar(
-#     title = expression("Global Percentile of Warming Rates"),
-#     title.position = "top", 
-#     title.hjust = 0.5,
-#     barwidth = unit(2.5, "in"),
-#     frame.colour = "black",
-#     ticks.colour = "black")) 
-# 
-# 
-# # ranks zoomed_out
-# global_ranks <- ggplot() +
-#   geom_stars(data = world_rank_stars) +
-#   geom_sf(data = world_sf, color = "gray80", fill = "#36454F", size = .1) +
-#   scale_fill_viridis_c(limit = c(0.95, 1),  
-#                        option = "inferno",
-#                        #oob = scales::oob_squish, 
-#                        na.value = "black") +
-#   map_theme +
-#   coord_sf(expand = F) +
-#   scale_y_continuous(breaks = seq(-90, 90, by = 30)) +
-#   guides("fill" = guide_colorbar(title = expression("Global Percentile of Warming Rates"),
-#                                  title.position = "top", 
-#                                  title.hjust = 0.5,
-#                                  barwidth = unit(2.5, "in"),
-#                                  frame.colour = "black",
-#                                  ticks.colour = "black"))  +
-#   theme(axis.text.x = element_blank(),
-#         axis.ticks.x = element_blank())
-# 
-# 
-# # plot map
-# ranks_global_figure <- (global_ranks_zoom | global_ranks ) + 
-#   plot_layout(guides = "collect") & 
-#   theme(legend.position = "bottom")
-# 
-# 
-# ranks_global_vertical <- (global_ranks_zoom / global_ranks ) + 
-#   plot_layout(guides = "collect") & 
-#   theme(legend.position = "bottom")
-# 
-# 
-# # plot patchwork
-# ranks_global_figure
-
-```
-
 
 
 
