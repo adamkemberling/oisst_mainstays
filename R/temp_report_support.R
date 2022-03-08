@@ -25,6 +25,7 @@ theme_set(theme_bw() +
               plot.title = element_text(hjust = 0, face = "bold", size = 14),
               plot.subtitle = element_text(size = 9),
               plot.caption = element_text(size = 8, margin = margin(t = 20), color = "gray40"),
+              plot.margin = unit(c(1, 1, 2, 1), "lines"),
               legend.title = element_text(size = 9),
               legend.text = element_text(size = 9),
               # Axes
@@ -101,7 +102,8 @@ theme_gmri <- function(base_size = 10,
       plot.title = element_text(hjust = 0, face = "bold", size = 14),
       plot.subtitle = element_text(size = 9),
       plot.caption = element_text(size = 7.2, margin = margin(t = 20), color = "gray40"),
-      plot.margin = unit(c(1, 1, 1, 1), "lines"), 
+      #plot.margin = unit(c(1, 1, 1, 1), "lines"), 
+      plot.margin = unit(c(1, 1, 2, 1), "lines"),
       
       # Facet Details
       strip.text = element_text(color = "white", face = "bold", size = 11),
@@ -115,14 +117,127 @@ theme_gmri <- function(base_size = 10,
 
 
 # Set theme up for maps
-map_theme <- list(
-  theme(
-    panel.border       = element_rect(color = "black", fill = NA),
-    plot.background    = element_rect(color = "transparent", fill = "transparent"),
-    line               = element_blank(),
-    axis.title.x       = element_blank(), # turn off titles
-    axis.title.y       = element_blank(),
-    legend.title.align = 0.5))
+map_theme <- function(...){
+  list(
+    theme(
+      panel.border       = element_rect(color = "black", fill = NA),
+      plot.background    = element_rect(color = "transparent", fill = "transparent"),
+      line               = element_blank(),
+      axis.title.x       = element_blank(), # turn off titles
+      axis.title.y       = element_blank(),
+      legend.title.align = 0.5,
+      ...)
+  )
+}
+
+
+
+
+
+
+# # Logo placement testing:
+# # stackoverflow sources:
+# # https://stackoverflow.com/questions/41919023/ggplot-adding-image-on-top-right-in-two-plots-with-different-scales
+
+# 
+# # Example Plot
+# (test_fig <-  ggplot(mtcars, aes(mpg, cyl)) +
+#   geom_point() + labs(title = "Tester ggplot"))
+
+
+# Get x and y min/max coordinates using relative positions, returned as units from plotting scale:
+get_relative_xy <- function(p, position = "bot_left", xmin = 0.01, ymin = -0.3, nudge_x = 0, nudge_y = 0){
+  
+  # Use switch to toggle some preset positions:
+  position <- switch(position,
+                     "bot_left"  = data.frame(xmin = -0.1, xmax = 0.25, ymin = -0.5, ymax = -0.325),
+                     "bot_right" = data.frame(xmin = 0.725, xmax = 1.075, ymin = -0.5, ymax = -0.325),
+                     "top_right" = data.frame(xmin = 0.725, xmax = 1.075, ymin = 0.8, ymax = 0.975),
+                     "top_left"  = data.frame(xmin = -0.05, xmax = 0.3, ymin = 0.8, ymax = 0.975),
+                     "manual" = data.frame(xmin = xmin, xmax = xmax+.35, ymin = ymin, ymax = ymax+.175))
+  
+  
+  # Get the x and y scale ranges
+  # y-range, x_range:
+  y_range <- layer_scales(p)$y$range$range
+  x_range <- layer_scales(p)$x$range$range
+  plot_dims <- data.frame(
+    xmin = x_range[1],
+    xmax = x_range[2],
+    ymin = y_range[1],
+    ymax = y_range[2])
+  
+  # Get ranges
+  plot_dims <- plot_dims %>% 
+    mutate(
+      xrange = xmax - xmin,
+      yrange = ymax - ymin)
+  
+  # Set the positions by working outward from x and y minima
+  new_dims <- plot_dims %>% 
+    mutate(
+      new_xmin = xmin + (position$xmin * xrange) + (nudge_x * xrange),
+      new_xmax = xmin + (position$xmax * xrange) + (nudge_x * xrange),
+      new_ymin = ymin + (position$ymin * yrange) + (nudge_y * yrange),
+      new_ymax = ymin + (position$ymax * yrange) + (nudge_y * yrange)) %>% 
+    select(new_xmin, new_xmax, new_ymin, new_ymax)
+  
+  # Return relative positions
+  return(new_dims)
+}
+
+# # Get min max in relative values
+# (test_rel_dims <- get_relative_xy(test_fig, position = "bot_left"))
+
+
+# Place GMRI logo using relative spacing for placement
+add_gmri_logo <- function(p, position = "bot_left", relative_xy = NULL, nudge_x = 0, nudge_y = 0){
+  
+  # Get the positioning if it isn't provided
+  if(is.null(relative_xy) == TRUE){
+    relative_xy <- get_relative_xy(p, position = position, nudge_x = nudge_x,  nudge_y = nudge_y)  }
+  
+  # Path to logo from package
+  logo_path <- paste0(system.file("stylesheets", package = "gmRi"), "/gmri_logo.png")
+  
+  # load a ggplot grob of the logo
+  gmri_logo <- grid::rasterGrob(png::readPNG(logo_path))
+  
+  # Add and position the logo geom
+  logo_grob <- list(
+    annotation_custom(gmri_logo, 
+                      xmin = relative_xy$new_xmin, 
+                      xmax = relative_xy$new_xmax, 
+                      ymin = relative_xy$new_ymin, 
+                      ymax = relative_xy$new_ymax))
+  
+  if(str_detect(position, pattern = 'bot_')){
+    # Turn off clipping outside the margins
+    logo_grob[[3]] <- coord_cartesian(clip = "off")
+    # Expand the margin at bottom so there is always room for it:
+    logo_grob[[4]] <- theme(plot.margin = unit(c(1, 1, 2, 1), "lines"))
+    
+  }
+    
+  # Add to plot
+  plot_out <- p + logo_grob
+  return(plot_out)
+  
+}
+
+
+
+# # # Test it (plots using units of the plot window...)
+# Placing using relative position
+# add_gmri_logo(test_fig, position = "top_right")
+# 
+# # Or Manual Placement
+# test_fig +
+#   geom_gmri_logo(relative_xy = get_relative_xy(test_fig, position = "manual", xmin = 0.75, xmax = 0.85, ymin = 0.75, ymax = 0.85))
+
+
+
+
 
 
 
@@ -287,6 +402,24 @@ get_decadal_rates <- function(temp_df,
 
 
 
+# Make a box to use when cropping based on an xlim and ylim pair
+make_cropbox <- function(xlims, ylims){
+  sfc <- st_sfc(st_polygon(list(
+    rbind(c(xlims[[1]], ylims[[1]]),  
+          c(xlims[[1]], ylims[[2]]), 
+          c(xlims[[2]], ylims[[2]]), 
+          c(xlims[[2]], ylims[[1]]), 
+          c(xlims[[1]], ylims[[1]])))))
+  sfc <- st_as_sf(sfc)
+  return(sfc)
+}
+
+
+
+
+
+
+
 # Masking Function to clip to the study area
 mask_nc <- function(ras_obj, mask_shape, rotate = TRUE){
   
@@ -355,6 +488,41 @@ get_masked_vals <- function(masked_ranks, masked_rates, in_fahrenheit = F){
   return(table_out)
 }
 
+
+
+####____####
+
+####  Specific Plots  ####
+
+# Function to plot one or more years
+anom_horizon_plot <- function(grid_data, origin = ori, scale_cutpoints = sca, labels = sca_labels){
+  
+  ggplot(grid_data) +
+    geom_horizon(aes(flat_date, 
+                     sst_anom,
+                     fill = ..Cutpoints..), 
+                 origin = ori, 
+                 horizonscale = sca) +
+    scale_fill_hcl(palette = 'RdBu', reverse = T, labels = sca_labels) +
+    facet_grid(year~.) +
+    theme(
+      #strip.background = element_rect(fill = "#36454F", color = "#36454F"),
+      panel.grid = element_blank(),
+      panel.spacing.y=unit(0.1, "lines"),
+      strip.text.y = element_text(size = 7, angle = 0, hjust = 0),
+      axis.text.y = element_blank(),
+      axis.title.y = element_blank(),
+      axis.ticks.y = element_blank(),
+      panel.border = element_blank(),
+      legend.position = "left") +
+    scale_x_date(expand=c(0,0), 
+                 date_breaks = "1 month", 
+                 date_labels = "%b") +
+    labs(x = '', 
+         fill = "Temperature Anomaly") 
+  
+  
+}
 
 
 
