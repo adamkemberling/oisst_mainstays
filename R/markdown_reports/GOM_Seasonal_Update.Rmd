@@ -49,7 +49,7 @@ library(geomtextpath)
 source(here("R/oisst_support_funs.R"), verbose = FALSE)
 source(here("R/temp_report_support.R"), verbose = FALSE)
 
-#box paths
+# Box paths
 oisst_path <- cs_path("res", "OISST/oisst_mainstays")
 
 
@@ -80,7 +80,7 @@ poly_path <- region_paths[["apershing_gulf_of_maine"]][["shape_path"]]
 
 # Parameters
 params <- list(
-  season = "Fall",
+  season = "Winter",
   `Save Data` = FALSE,
   `Save Figures` = TRUE)
 

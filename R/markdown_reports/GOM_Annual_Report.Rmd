@@ -16,6 +16,10 @@ output:
     toc: true
     toc_depth: 2
     toc_float: true
+params: 
+  save_figures: 
+    label: "Save Figures?" 
+    value: FALSE
 ---
 
 ```{r setup, include=FALSE}
@@ -58,16 +62,19 @@ suppressPackageStartupMessages( source(here("R/temp_report_support.R"), verbose 
 #box paths
 oisst_path <- cs_path("res", "OISST/oisst_mainstays")
 
+# What area is the report using?
+group_name <- "gmri_sst_focal_areas"
+region_name <- "apershing_gulf_of_maine"
 
 # File paths for various extents based on "apershing_gulf_of_maine"
-region_paths <- get_timeseries_paths(region_group = "gmri_sst_focal_areas", 
+region_paths <- get_timeseries_paths(region_group = group_name, 
                                      mac_os = "mojave")
 
 # Timeseries Path
-timeseries_path <- region_paths[["apershing_gulf_of_maine"]][["timeseries_path"]]
+timeseries_path <- region_paths[[region_name]][["timeseries_path"]]
 
 # Polygon Path
-poly_path <- region_paths[["apershing_gulf_of_maine"]][["shape_path"]]
+poly_path <- region_paths[[region_name]][["shape_path"]]
 region_extent <- read_sf(poly_path)
 
 # Pull extents for the region for cropping
@@ -75,17 +82,12 @@ crop_x <- st_bbox(region_extent)[c(1,3)]
 crop_y <- st_bbox(region_extent)[c(2,4)]
 
 # Expand the area out to see the larger patterns
+# Used as plot limits
 crop_x_expanded <- crop_x + c(-2.25, 2.25)
 crop_y_expanded <- crop_y + c(-0.75, 0.75)
 
 # Make a new extent for cropping to larger area
-sfc <- st_sfc(st_polygon(list(
-  rbind(c(crop_x_expanded[[1]], crop_y_expanded[[1]]),  
-        c(crop_x_expanded[[1]], crop_y_expanded[[2]]), 
-        c(crop_x_expanded[[2]], crop_y_expanded[[2]]), 
-        c(crop_x_expanded[[2]], crop_y_expanded[[1]]), 
-        c(crop_x_expanded[[1]], crop_y_expanded[[1]])))))
-sfc <- st_as_sf(sfc)
+sfc <- make_cropbox(xlims = crop_x_expanded, ylims = crop_y_expanded)
 
 
 # Coastline Shapes
@@ -98,10 +100,20 @@ greenland   <- ne_states(country = "greenland", returnclass = "sf")
 logo_path <- paste0(system.file("stylesheets", package = "gmRi"), "/gmri_logo.png")
 lab_logo <- magick::image_read(logo_path)
 
+# Adding it as an overlay:
+# grid::grid.raster(lab_logo, x = 0.05, y = 0.03, just = c('left', 'bottom'), width = unit(0.8, 'inches'))
+
+# Adding it as a grob
+# gmri_logo <- grid::rasterGrob(png::readPNG(logo_path))
+
+
 
 # Box Location to save hi-res images
 save_location <- cs_path("root", "GoM Seasonal Climate Update/annual_update_figures")
 ```
+
+
+
 
 `r gmRi::use_gmri_style_rmd(css = "gmri_rmarkdown.css")`
 
@@ -242,8 +254,11 @@ ersst_long_term_p <- ggplot(data = ersst_yr, aes(yr, sst_f)) +
        caption = "Data Source: ERSSTv5 Monthly Sea Surface Temperature")
 
 
+# Add Logo
+# add_gmri_logo(ersst_long_term_p, position = "bot_left")
 
 ersst_long_term_p
+grid::grid.raster(lab_logo, x = 0.05, y = 0.03, just = c('left', 'bottom'), width = unit(0.8, 'inches'))
 ```
 
 ## Newer Technology: Higher-Quality Data
@@ -310,8 +325,9 @@ ersst_v_oisst <- ggplot() +
        subtitle = "OISSTv2 Data Availability Overlap with ERSSTv5")
 
 
-
-ersst_v_oisst
+# Can't add logo
+ersst_v_oisst # + add_gmri_logo(ersst_v_oisst, position = "bot_left", layer = 4)
+grid::grid.raster(lab_logo, x = 0.05, y = 0.03, just = c('left', 'bottom'), width = unit(0.8, 'inches'))
 ```
 
 
@@ -392,8 +408,10 @@ annual_temps_plot <- ggplot(annual_summary, aes(year, area_wtd_f)) +
   labs(x = "Year", y = "Average Annual Temperature")
 
 
-# display plot
+# Display plot
+#annual_temps_plot <- add_gmri_logo(annual_temps_plot, position = "top_left", nudge_y = .35)
 annual_temps_plot
+grid::grid.raster(lab_logo, x = 0.05, y = 0.03, just = c('left', 'bottom'), width = unit(0.8, 'inches'))
 ```
 
 
@@ -424,7 +442,7 @@ line_colors <- setNames(
 
 
 # Single Line Plot
-(temp_simplified <- ggplot(data = annual_summary, aes(year, area_wtd_anom_f)) +
+temp_simplified <- ggplot(data = annual_summary, aes(year, area_wtd_anom_f)) +
 
   # Overlay yearly means
   geom_line(color = "gray10", size = 1.5, linetype = 1) +
@@ -457,46 +475,12 @@ line_colors <- setNames(
    theme(legend.position = c(0.25, 0.85),
          legend.background = element_rect(color = "black", fill = "white"))
 
-)
 
+# add logo
+# temp_simplified <- add_gmri_logo(temp_simplified, position = "bot_left")
+temp_simplified
+grid::grid.raster(lab_logo, x = 0.05, y = 0.03, just = c('left', 'bottom'), width = unit(0.8, 'inches'))
 
-
-
-# # Don't Plot the Gulf of Maine temps as a line
-# # Trend lines and points colored for both gorups:
-# ggplot(data = global_summary, aes(year, area_wtd_anom_f)) +
-# 
-#   # Overlay yearly means
-#    geom_point(data = annual_summary, aes(year, area_wtd_anom_f), color = gmri_cols("gmri blue"), size = 1) +
-#   geom_smooth(
-#     data = annual_summary %>% 
-#       mutate(`Warming Rate` = eq_all),
-#     method = "lm",
-#     formula = y ~ x, se = T,
-#     aes(color = `Warming Rate`, fill = `Warming Rate`),
-#    alpha = 0.20,
-#     size = 1,
-#     linetype = 1) + 
-#   geom_point(data = global_summary, aes(year, area_wtd_anom_f), color = gmri_cols("gmri green"), size = 1) +
-#   geom_smooth(
-#      data = mutate(global_summary, `Warming Rate` = eq_global),
-#      aes(color = `Warming Rate`, fill = `Warming Rate`),
-#     method = "lm",
-#     formula = y ~ x, se = T,
-#     alpha = 0.20, 
-#     size = 1,
-#     linetype = 1) +
-#   scale_color_manual(values = line_colors) +
-#   scale_fill_manual(values = line_colors) +
-#   scale_x_continuous(limits = c(1978, 2024), expand = expansion(add = c(0,0))) +
-#   scale_y_continuous(labels =  number_format(suffix = " \u00b0F"),
-#                       limits = c(-1.5, 4.5)) +
-#    labs(title = "Global Temperatures:",
-#         subtitle = "Annual Sea Surface Temperature Anomalies",
-#         x = "Year", y = "Sea Surface Temperature Anomaly",
-#         caption = "Anomalies calculated using 1982-2011 reference period.") +
-#    theme(legend.position = c(0.25, 0.85),
-#          legend.background = element_rect(color = "black", fill = "white"))
 
 ```
 
@@ -505,7 +489,7 @@ line_colors <- setNames(
 ```{r just gom temps, eval = F}
 
 # Fahrenheit
-(gom_f <- ggplot(data = annual_summary, aes(year, area_wtd_anom_f)) +
+gom_f <- ggplot(data = annual_summary, aes(year, area_wtd_anom_f)) +
 
   # Overlay yearly means
   geom_line(color = "gray10", size = 1.5, linetype = 1) +
@@ -526,11 +510,12 @@ line_colors <- setNames(
         x = "Year", y = "Sea Surface Temperature Anomaly",
         caption = "Anomalies calculated using 1982-2011 reference period.")  +
    theme(legend.position = c(0.25, 0.85),
-         legend.background = element_rect(color = "black", fill = "white")))
+         legend.background = element_rect(color = "black", fill = "white"))
 
+#gom_f <- add_gmri_logo(gom_f, position = "bot_left")
 
 # Celsius
-(gom_c <- ggplot(data = annual_summary, aes(year, area_wtd_anom)) +
+gom_c <- ggplot(data = annual_summary, aes(year, area_wtd_anom)) +
 
   # Overlay yearly means
   geom_line(color = "gray10", size = 1.5, linetype = 1) +
@@ -551,14 +536,15 @@ line_colors <- setNames(
         x = "Year", y = "Sea Surface Temperature Anomaly",
         caption = "Anomalies calculated using 1982-2011 reference period.")  +
    theme(legend.position = c(0.25, 0.85),
-         legend.background = element_rect(color = "black", fill = "white")))
+         legend.background = element_rect(color = "black", fill = "white"))
+
+#gom_c <- add_gmri_logo(gom_c, position = "bot_left")
 
 
 
+# save them
 ggsave(plot = gom_f, filename = str_c(save_location, "gom_annual_f.png"),
        dpi = "retina", bg = "white")
-
-# top 20% rankings
 ggsave(plot = gom_c, filename = str_c(save_location, "gom_annual_c.png"),
        dpi = "retina", bg = "white")
 ```
@@ -636,10 +622,12 @@ gom_recent_trend <- annual_summary %>%
 
 
 # Put them together
-(gom_recent_warming <- (gom_all_trend / gom_recent_trend ) + 
+gom_recent_warming <- (gom_all_trend / gom_recent_trend ) + 
   plot_layout(guides = "collect")  & 
   theme(legend.position = "bottom") &
-  guides(color = guide_legend(title.position = "top", ncol = 1, title.hjust = 0.5)))
+  guides(color = guide_legend(title.position = "top", ncol = 1, title.hjust = 0.5))
+
+gom_recent_warming
 ```
 
 
@@ -651,7 +639,7 @@ gom_recent_trend <- annual_summary %>%
 ```{r}
 ####  Annual Trend Plot  ####
 gom_anomaly_bars <- annual_summary %>% 
-  ggplot(aes(yr_as_dtime, area_wtd_anom_f)) +
+  ggplot(aes(year, area_wtd_anom_f)) +
     geom_col(aes(fill = anom_direction), color = "black", size = 0.25, alpha = 0.9) +
     scale_fill_manual(values = c("Hot" = "#CA0020", "Cold" = "#0571B0")) +
     theme_gmri() +
@@ -667,8 +655,10 @@ gom_anomaly_bars <- annual_summary %>%
 
 
 
-gom_anomaly_bars
+#gom_anomaly_bars <- add_gmri_logo(gom_anomaly_bars, position = "bot_left")
 
+gom_anomaly_bars
+grid::grid.raster(lab_logo, x = 0.05, y = 0.03, just = c('left', 'bottom'), width = unit(0.8, 'inches'))
 ```
 
 
@@ -692,12 +682,10 @@ hottest_2021 <- hottest_days %>%
 
 
 # Daily Record Temperatures
-(hottest_days_plot <- hottest_days %>% 
+hottest_days_plot <- hottest_days %>% 
   mutate(is_21 = ifelse(yr == "2021", "2021", "1982-2020"),
          flat_date = as.Date("2021-01-01") + (doy - 1)) %>% 
   ggplot(aes(x = flat_date, y = sst_f, color = is_21)) +
-  #geom_segment() +
-  #geom_path(group = 1) +
   geom_point() +
   scale_x_date(date_labels = "%b", date_breaks = "1 month", expand = expansion(add = c(0,0))) +
   scale_y_continuous(labels = number_format(suffix = deg_f)) +
@@ -706,12 +694,16 @@ hottest_2021 <- hottest_days %>%
        y = "Sea Surface Temperature", 
        title = "Hottest Days on Record", 
        subtitle = "Gulf of Maine",
-       color = "Record Setting Year")  +
+       color = "Record Setting Year",
+       caption = "Temperature data covers period of 1982-2021")  +
    theme(legend.position = c(0.25, 0.85),
          legend.background = element_rect(color = "black", fill = "white")) +
   guides(color = guide_legend(title.position = "top", title.hjust = 0.5)) 
-  )
 
+
+# hottest_days_plot <- add_gmri_logo(hottest_days_plot, "bot_left")
+hottest_days_plot
+grid::grid.raster(lab_logo, x = 0.05, y = 0.03, just = c('left', 'bottom'), width = unit(0.8, 'inches'))
 ```
 
 Of the 365 days in a year, 2021 set a new record temperature on `r hottest_2021` or `r round((hottest_2021/365) * 100, 2)`% of the year. Many of these occurred in clusters of exceptionally warm periods that happened at various points throughout the year.
@@ -728,7 +720,7 @@ records_21 <- hottest_days %>%
 
 
 #@ What percent of days in month were records:
-region_hw %>% 
+record_percents <- region_hw %>% 
   filter(yr == "2021") %>% 
   full_join(records_21) %>% 
   mutate(record_temp = ifelse(record_temp == TRUE, TRUE, FALSE)) %>% 
@@ -744,6 +736,10 @@ region_hw %>%
   scale_y_continuous(labels = percent_format(), expand = expansion(add = c(0,0))) +
   theme(legend.position = "none") +
   labs(x = "", y = "Percent of Daily Temperatures", title = "2021: Record Temperatures as Percent of Each Month")
+
+
+
+
 ```
 
 Six months in 2021 had record setting temperatures on atleast 50% of the days in that month. 2021 was an exceptionally warm year in October, which set record temperatures on every day during that prolonged fall heatwave event.
@@ -801,7 +797,7 @@ linetype_key <- c(
 
 
 # Plot the last 365 days
-(hw_temp_p <- ggplot(this_yr, aes(x = time)) +
+hw_temp_p <- ggplot(this_yr, aes(x = time)) +
     geom_segment(aes(x = time, xend = time, 
                      y = seas_f, yend = sst_f), 
                  color = "#0571B0", alpha = 0.25) +
@@ -818,9 +814,14 @@ linetype_key <- c(
     guides(color = guide_legend(override.aes = list(linetype = linetype_key), nrow = 1)) +
     theme(legend.title = element_blank(),
           legend.position = "bottom") +
-    labs(x = "", 
+    labs(x = NULL, 
          y = "Sea Surface Temperature")
-)
+
+
+# Plot with logo
+# add_gmri_logo(hw_temp_p, position = "top_left")
+hw_temp_p
+grid::grid.raster(lab_logo, x = 0.05, y = 0.03, just = c('left', 'bottom'), width = unit(0.8, 'inches'))
 ```
 
 The highest temperatures anomalies spiked in the last days of June, capping off an already warm start to the year. A very-warm August and steady, above-average temperatures from early September through the end of the year helped solidify 2021 as the hottest year on record for the Gulf of Maine.
@@ -856,7 +857,7 @@ During 2021 there were `r events_num` marine heatwave events,  lasting a total o
 
 ```{r single year anom lineplot}
 # Plot the last 365 days - anomaly scale
-(hw_anom_p <- this_yr %>% 
+hw_anom_p <- this_yr %>% 
   mutate(
     anom_thresh = mhw_thresh - seas,
     anom_thresh_f = mhw_thresh_f - seas_f,
@@ -880,13 +881,22 @@ ggplot(aes(x = time)) +
     theme(legend.title = element_blank(),
           legend.position = "bottom") +
     scale_y_continuous(labels =  number_format(suffix = " \u00b0F")) +
-    labs(x = "", 
+    labs(x = NULL, 
          y = "Temperature Anomaly", 
-         caption = paste0("Climate reference period :  1982-2011")))
+         caption = paste0("Climate reference period :  1982-2011"))
 
+# Plot with logo
+# add_gmri_logo(hw_anom_p, position = "top_left") 
+hw_anom_p
+grid::grid.raster(lab_logo, x = 0.05, y = 0.03, just = c('left', 'bottom'), width = unit(0.8, 'inches'))
 
-# Show figure
+# Make stacked figure
 year_timeline <- (hw_temp_p + theme(legend.position = "none")) / hw_anom_p
+#add_gmri_logo(year_timeline, position = "top_left")
+
+# Now add logos to save individually
+#hw_temp_p <- add_gmri_logo(hw_temp_p, position = "top_left")
+#hw_anom_p <- add_gmri_logo(hw_anom_p, position = "top_left") 
 
 ```
 
@@ -954,11 +964,12 @@ heatwave_heatmap <- ggplot(grid_data, aes(x = flat_date, y = year)) +
        x = "", 
        y = "",
        "\nClimate reference period : 1982-2011",
-       caption = "Marine heatwave is an event hotter than 90th percentile of 1982-2011 temperatures on that day.")
+       caption = "Marine heatwaves are events hotter than 90th percentile of 1982-2011 temperatures for that day.")
 
 
 # Assemble pieces
 heatwave_heatmap
+#add_gmri_logo(heatwave_heatmap, position = "bot_left")
 grid::grid.raster(lab_logo, x = 0.05, y = 0.03, just = c('left', 'bottom'), width = unit(0.8, 'inches'))
 ```
 
@@ -990,46 +1001,16 @@ ori <- 0
 
 # Manually pick cut points
 sca <- seq(-5, 5, length.out = 9)
-
 sca_bins <- str_c(sca[1:(length(sca)-1)], " to ", sca[2:length(sca)], "\u00b0F")
 sca_labels <- rev(sca_bins)
 
 
-# Function to plot one or more years
-anom_horizon_plot <- function(grid_data, origin = ori, scale_cutpoints = sca, labels = sca_labels){
-  
-   ggplot(grid_data) +
-  geom_horizon(aes(flat_date, 
-                   sst_anom,
-                   fill = ..Cutpoints..), 
-               origin = ori, 
-               horizonscale = sca) +
-  scale_fill_hcl(palette = 'RdBu', reverse = T, labels = sca_labels) +
-  facet_grid(year~.) +
-  theme(
-    #strip.background = element_rect(fill = "#36454F", color = "#36454F"),
-    panel.grid = element_blank(),
-    panel.spacing.y=unit(0.1, "lines"),
-    strip.text.y = element_text(size = 7, angle = 0, hjust = 0),
-    axis.text.y = element_blank(),
-    axis.title.y = element_blank(),
-    axis.ticks.y = element_blank(),
-    panel.border = element_blank(),
-    legend.position = "left") +
-  scale_x_date(expand=c(0,0), 
-               date_breaks = "1 month", 
-               date_labels = "%b") +
-  labs(x = '', 
-       fill = "Temperature Anomaly") 
-  
-  
-}
-
 
 # Plot Horizon Plot Using All Years
-gom_annual_horizons <- anom_horizon_plot(grid_data = filter(grid_data, yr <= 2021), 
-                  origin = ori, 
-                  scale_cutpoints = sca) +
+gom_annual_horizons <- anom_horizon_plot(
+    grid_data = filter(grid_data, yr <= 2021), 
+    origin = ori, 
+    scale_cutpoints = sca) +
   labs(title = "Temperature Anomaly Horizons",
        subtitle = "How deviation from the norm has become the new-normal",
        caption = "Climatatological Reference Period: 1982-2011")
@@ -1037,6 +1018,7 @@ gom_annual_horizons <- anom_horizon_plot(grid_data = filter(grid_data, yr <= 202
 
 # Plot it
 gom_annual_horizons
+# add_gmri_logo(gom_annual_horizons, "bot_left")
 grid::grid.raster(lab_logo, x = 0.05, y = 0.03, just = c('left', 'bottom'), width = unit(0.8, 'inches'))
 
 ```
@@ -1190,6 +1172,7 @@ hw_streamplot <- ggplot(day_types, aes(yr, y = day_total, fill = `Anomaly Streng
 
 # Show figure
 hw_streamplot
+# add_gmri_logo(hw_streamplot, "bot_left")
 grid::grid.raster(lab_logo, x = 0.08, y = 0.04, just = c('left', 'bottom'), width = unit(0.8, 'inches'))
 ```
 
@@ -1278,41 +1261,6 @@ grid::grid.raster(lab_logo, x = 0.08, y = 0.025, just = c('left', 'bottom'), wid
 ```
 
 
-```{r year panels facets, eval = F}
-# # Snipe out the top5 for each
-# year_met_ranks <- year_mets %>% 
-#   filter(Var %in% c("Average Temperature", "Temperature Above Average")) %>% 
-#   group_by(Var) %>% 
-#   slice_max(n = 5, order_by = Metric) %>% 
-#   ungroup() %>%
-#   mutate(year = reorder_within(year, Metric, Var)) 
-# 
-# # Plot the rankings
-# hottest_yr_panels <- year_met_ranks %>% 
-#   ggplot(aes(year, Metric, color = yr_focus)) +
-#     geom_col(aes(fill = yr_focus), width = 0.8,  show.legend = F) +
-#     directlabels::geom_dl(aes(label = str_c(Metric, deg_sym)), 
-#                           method = list(directlabels::dl.trans(x = x + 1), rot = 0)) +
-#     facet_wrap(~Var, scales = "free", ncol = 1) +
-#     coord_flip() +
-#     scale_x_reordered() +
-#     scale_y_continuous(expand = expansion(mult = c(0, 0.15)), labels = number_format(suffix = deg_f)) +
-#     scale_color_gmri() +
-#     scale_fill_gmri() +
-#     theme(panel.grid = element_blank()) +
-#    labs(y = "",
-#          x = NULL,
-#          title = "How 2021 Stacks Up:",
-#          caption = "Anomalies calculated using 1982-2011 climatology.",
-#          subtitle = "Ranking Characteristics of Acute and Prolonged Warming Events")
-# 
-# 
-# hottest_yr_panels
-# grid::grid.raster(lab_logo, x = 0.08, y = 0.025, just = c('left', 'bottom'), width = unit(0.8, 'inches'))
-
-```
-
-
 ## Mapping Record Temperatures
 
 2021 was an exceptionally warm year for many parts of the World, not just the Gulf of Maine. By taking the average temperature for the year for all years, we can rank how this year compares to previous years in the OISST data. For many places around the world this was one of the top 3 warmest years on record.
@@ -1387,8 +1335,7 @@ ranks_map <- ggplot() +
   labs(title = "Record Setting Temperatures of 2021",
        fill = "2021 Ranking",
        caption = "Temperature rankings cover period of 1982-2021") +
-  map_theme +
-  theme(axis.text.x = element_blank(), axis.ticks.x = element_blank()) 
+  map_theme(axis.text.x = element_blank(), axis.ticks.x = element_blank())
   
 ranks_map
 grid::grid.raster(lab_logo, x = 0.08, y = 0.16, just = c('left', 'bottom'), width = unit(0.8, 'inches'))
@@ -1403,7 +1350,7 @@ If we look more closely at the Northeast US we can see that 2021 was an exceptio
 
 ```{r, eval = TRUE}
 # Zoom in on Northeast US
-(northeast_records <- ggplot() +
+northeast_records <- ggplot() +
   geom_stars(data = ranks_st) +
   geom_sf(data = new_england, size = .25) +
   geom_sf(data = canada, size = .25) +
@@ -1414,8 +1361,10 @@ If we look more closely at the Northeast US we can see that 2021 was an exceptio
        title = "Record Warm Temperatures",
        subtitle = "From North Carolina to Newfoundland",
        caption = "Temperature rankings cover period of 1982-2021")  +
-  map_theme)
+  map_theme()
 
+
+northeast_records
 grid::grid.raster(lab_logo, x = 0.08, y = 0.02, just = c('left', 'bottom'), width = unit(0.8, 'inches'))
 ```
 
@@ -1449,8 +1398,6 @@ temp_breaks <- c(temp_limits[1], temp_limits[1]/2,  0, temp_limits[2]/2, temp_li
 temp_labels <- str_c(c(str_c("< ", temp_limits[1]), temp_limits[1]/2, 0, temp_limits[2]/2, str_c("> ", temp_limits[2])), "\u00b0F")
 
 
-# Map it
-
 # Make it a stars class to plot with ggplot
 anoms_st <- st_as_stars(annual_mean_f)
 
@@ -1473,9 +1420,9 @@ annual_gom_map <- ggplot() +
   coord_sf(xlim = c(-78, -56.5), ylim = c(37.8, 48)) +
   labs(title = "2021: Average Temperature Anomalies",
        caption = "Anomalies calculated using 1982-2011 climatology.") +
-  map_theme +
-  theme(legend.position = "bottom",
-        legend.title = element_text(angle = 0))+
+  map_theme(
+    legend.position = "bottom",
+    legend.title = element_text(angle = 0))+
   guides("fill" = guide_colorbar(
     title = "Average Temperature Anomaly ",
     title.position = "top",
@@ -1486,7 +1433,7 @@ annual_gom_map <- ggplot() +
 
 # Show figure
 annual_gom_map
-
+grid::grid.raster(lab_logo, x = 0.05, y = 0.03, just = c('left', 'bottom'), width = unit(0.8, 'inches'))
 
 ```
 
@@ -1540,22 +1487,22 @@ annual_anom_map <- ggplot() +
   labs(title = "2021: Average Temperature Anomalies",
        caption = "Anomalies calculated using 1982-2011 climatology.") +
   coord_sf(expand = FALSE) +
-  map_theme +
+  map_theme(
+    legend.position = "bottom",
+    legend.title = element_text(angle = 0),
+    axis.text.x = element_blank(),
+    axis.ticks.x = element_blank()) +
   guides("fill" = guide_colorbar(
     title = "Average Temperature Anomaly ",
     title.position = "top",
     title.hjust = 0.5,
     barwidth = unit(3, "in"),
     frame.colour = "black",
-    ticks.colour = "black")) +
-  theme(legend.position = "bottom",
-        legend.title = element_text(angle = 0),
-        axis.text.x = element_blank(),
-        axis.ticks.x = element_blank()) 
+    ticks.colour = "black")) 
 
 # Show figure
 annual_anom_map
-
+grid::grid.raster(lab_logo, x = 0.05, y = 0.03, just = c('left', 'bottom'), width = unit(0.8, 'inches'))
 
 ```
 
@@ -1631,7 +1578,7 @@ global_rates_zoom <- ggplot() +
                        breaks = temp_breaks, 
                        labels = temp_labels,
                        oob = oob_squish) +
-  map_theme +
+  map_theme() +
   coord_sf(
     xlim = c("xmin" = -77, "xmax" = -50),
     ylim = c("ymin" = 32, "ymax" = 48),
@@ -1655,7 +1602,9 @@ global_rates <- ggplot() +
                        breaks = temp_breaks, 
                        labels = temp_labels,
                        oob = oob_squish) +
-  map_theme +
+  map_theme(
+    axis.text.x = element_blank(),
+    axis.ticks.x = element_blank()) +
   coord_sf(expand = F) +
   scale_y_continuous(breaks = seq(-90, 90, by = 30)) +
   guides("fill" = guide_colorbar(title = "Annual Warming Rate: 1982-2021",
@@ -1663,9 +1612,7 @@ global_rates <- ggplot() +
                                  title.hjust = 0.5,
                                  barwidth = unit(2.5, "in"),
                                  frame.colour = "black",
-                                 ticks.colour = "black"))  +
-  theme(axis.text.x = element_blank(),
-        axis.ticks.x = element_blank())
+                                 ticks.colour = "black"))  
 
 
 # plot map
@@ -1678,6 +1625,7 @@ rates_global_figure <- (global_rates_zoom | global_rates ) +
 
 # plot patchwork
 rates_global_figure
+grid::grid.raster(lab_logo, x = 0.05, y = 0.03, just = c('left', 'bottom'), width = unit(0.8, 'inches'))
 ```
 
 
@@ -1715,7 +1663,7 @@ global_ranks_zoom <- ggplot() +
   scale_x_continuous(breaks = seq(-180, 180, by = 10))+
   scale_fill_brewer(palette = "Spectral", direction = -1, na.value = "transparent") +
   # scale_fill_viridis_d(option = "viridis", direction = 1, na.value = "transparent", na.translate = FALSE) +
-  map_theme +
+  map_theme() +
   coord_sf(
     xlim = c("xmin" = -77, "xmax" = -50),
     ylim = c("ymin" = 32, "ymax" = 48),
@@ -1735,7 +1683,9 @@ global_ranks <- ggplot() +
   geom_sf(data = world_sf, color = "white", fill = "gray30", size = .1) +
   scale_fill_brewer(palette = "Spectral", direction = -1, na.value = "transparent") +
   # scale_fill_viridis_d(option = "viridis", direction = 1, na.value = "transparent", na.translate = FALSE) +
-  map_theme +
+  map_theme(
+    axis.text.x = element_blank(),
+    axis.ticks.x = element_blank()) +
   coord_sf(expand = F) +
   scale_y_continuous(breaks = seq(-90, 90, by = 30)) +
   guides("fill" = guide_colorsteps(title = "Warming Rate Percentile: 1982-2021",
@@ -1743,9 +1693,7 @@ global_ranks <- ggplot() +
                                  title.hjust = 0.5,
                                  barwidth = unit(2.5, "in"),
                                  frame.colour = "black",
-                                 ticks.colour = "black"))  +
-  theme(axis.text.x = element_blank(),
-        axis.ticks.x = element_blank())
+                                 ticks.colour = "black")) 
 
 
 # plot map
@@ -1758,6 +1706,7 @@ ranks_global_figure <- (global_ranks_zoom | global_ranks ) +
 
 # plot patchwork
 ranks_global_figure
+grid::grid.raster(lab_logo, x = 0.05, y = 0.03, just = c('left', 'bottom'), width = unit(0.8, 'inches'))
 
 ```
 
@@ -1796,12 +1745,10 @@ top_ranks_zoom <- ggplot() +
   scale_y_continuous(breaks = seq(-90, 90, by = 5)) +
   scale_x_continuous(breaks = seq(-180, 180, by = 10))+
   scale_fill_viridis_d(option = "plasma", direction = 1, na.value = "gray10") +
-  map_theme +
+  map_theme() +
   coord_sf(
     xlim = crop_x_expanded,
     ylim = crop_y_expanded,
-    # xlim = c("xmin" = -75, "xmax" = -60),
-    # ylim = c("ymin" = 38, "ymax" = 48),
     expand = T) +
   guides("fill" = guide_colorsteps(
     title = "Warming Rate Percentile: 1982-2021",
@@ -1817,7 +1764,9 @@ top_ranks <- ggplot() +
   geom_stars(data = ranks_top_binned) +
   geom_sf(data = world_sf, color = "white", fill = "gray30", size = .1) +
    scale_fill_viridis_d(option = "plasma", direction = 1, na.value = "gray10") +
-  map_theme +
+  map_theme(
+    axis.text.x = element_blank(),
+    axis.ticks.x = element_blank()) +
   coord_sf(expand = F) +
   scale_y_continuous(breaks = seq(-90, 90, by = 30)) +
   guides("fill" = guide_colorsteps(title = "Warming Rate Percentile: 1982-2021",
@@ -1825,9 +1774,7 @@ top_ranks <- ggplot() +
                                  title.hjust = 0.5,
                                  barwidth = unit(2.5, "in"),
                                  frame.colour = "black",
-                                 ticks.colour = "black"))  +
-  theme(axis.text.x = element_blank(),
-        axis.ticks.x = element_blank())
+                                 ticks.colour = "black"))
 
 
 # plot map
@@ -1840,7 +1787,7 @@ top_ranks_figure <- (top_ranks_zoom | top_ranks ) +
 
 # plot patchwork
 top_ranks_figure
-
+grid::grid.raster(lab_logo, x = 0.05, y = 0.03, just = c('left', 'bottom'), width = unit(0.8, 'inches'))
 
 ```
 
@@ -1993,9 +1940,8 @@ ggplot() +
   geom_sf(data = lme_sf_ranks, aes(fill = warming_percentile), color = "transparent") +
   geom_sf(data = world_sf, size = 0.25) +
   scale_fill_distiller(palette = "RdBu", direction = -1, na.value = "transparent") +
-  theme(legend.position = "bottom") +
   coord_sf(expand = FALSE) +
-  map_theme +
+  map_theme(legend.position = "bottom") +
   guides(fill = guide_colorbar(
     title.position = "top",
     title.hjust = 0.5, 
@@ -2023,125 +1969,136 @@ NOAA High Resolution SST data provided by the NOAA/OAR/ESRL PSL, Boulder, Colora
 
 
 ####  Saving Figures  ####
-
-
-# ERSST timeline
-ggsave(plot = ersst_long_term_p, filename = str_c(save_location, "ersst_long_term_temps.png"),
-       dpi = "retina", bg = "white")
-
-
-# How ERSSt and OISST are different
-ggsave(plot = ersst_v_oisst, filename = str_c(save_location, "ersst_and_oisst_temps.png"),
-       dpi = "retina", bg = "white")
-
-# How 2021 compares to long-term pattern
-ggsave(plot = annual_temps_plot, filename = str_c(save_location, "annual_temps_plot.png"),
-       dpi = "retina", bg = "white")
-
-
-# simplified temperature plot
-ggsave(plot = temp_simplified, filename = str_c(save_location, "oisst_simple_trends.png"),
-       dpi = "retina", bg = "white")
-
-# accelerating warming plot
-ggsave(plot = gom_recent_warming, filename = str_c(save_location, "oisst_recent_gomwarming.png"),
-       dpi = "retina", bg = "white")
-
-
-# 2021 anomaly bar chart
-ggsave(plot = gom_anomaly_bars, filename = str_c(save_location, "oisst_gom_anom_bars.png"),
-       dpi = "retina", bg = "white")
-
-
-# 2021 Record daily temperatures
-ggsave(plot = hottest_days_plot,
-       filename = str_c(save_location, "2021_hottest_days.png"),
-       dpi = "retina", bg = "white")
-
-
-
-# Full Year Temperatures
-ggsave(plot = hw_temp_p, filename = str_c(save_location, "oisst_lastyr_temps.png"),
-       dpi = "retina", bg = "white")
-
-
-
-# Full Year Anomalies
-ggsave(plot = hw_anom_p, filename = str_c(save_location, "oisst_lastyr_anoms.png"),
-       dpi = "retina", bg = "white")
-
-
-
-# Full year timeline of temps and anomalies
-ggsave(plot = year_timeline, filename = str_c(save_location, "oisst_lastyr_timeline.png"),
-       dpi = "retina", bg = "white")
-
-
-# Heatwave status heatmap
-ggsave(plot = heatwave_heatmap, filename = str_c(save_location, "oisst_gom_heatmap.png"),
-       dpi = "retina", bg = "white")
-
-
-# All year temperature horizons
-ggsave(plot = gom_annual_horizons, filename = str_c(save_location, "oisst_gom_horizons.png"),
-       dpi = "retina", bg = "white")
-
-
-# 2021 | 2012 horizons
-ggsave(plot = comparison_horizons, filename = str_c(save_location, "gom_hottest_horizons.png"),
-       dpi = "retina", bg = "white")
-
-
-# streamplot
-ggsave(plot = hw_streamplot, filename = str_c(save_location, "gom_anomaly_streamplot.png"),
-       dpi = "retina", bg = "white")
-
-
-# record years panels
-ggsave(plot = hottest_yr_panels, 
-       filename = str_c(save_location, "gom_hottest_year_panels.png"),
-       dpi = "retina", bg = "white")
-
-# Annual Temperature Anomalies Map(s)
-ggsave(plot = annual_gom_map, 
-       filename = str_c(save_location, "gom_annual_anom_map.png"),
-       dpi = "retina", bg = "white")
-
-# Global version
-ggsave(plot = annual_anom_map, 
-       filename = str_c(save_location, "global_annual_anom_map.png"),
-       dpi = "retina", bg = "white")
-
-# Ranks maps
-ggsave(plot = ranks_map, filename = str_c(save_location, "record_years_map.png"),
-       dpi = "retina", bg = "white")
-
-
-# northeast warmest years
-ggsave(plot = northeast_records, filename = str_c(save_location, "record_years_ne_map.png"),
-       dpi = "retina", bg = "white")
-
-
-# Global warming rates
-ggsave(plot = rates_global_figure, filename = str_c(save_location, "global_rates_map.png"),
-       dpi = "retina", bg = "white")
-
-
-# global warming rankings
-ggsave(plot = ranks_global_figure, filename = str_c(save_location, "global_ranks_map.png"),
-       dpi = "retina", bg = "white")
-
-# top 20% rankings
-ggsave(plot = top_ranks_figure, filename = str_c(save_location, "ranks_top20.png"),
-       dpi = "retina", bg = "white")
-
-
-
-# LME Report Table
-if(TRUE){
+if(params$save_figures){
+  
+  # ERSST timeline
+  ggsave(plot = ersst_long_term_p, filename = str_c(save_location, "ersst_long_term_temps.png"),
+         dpi = "retina", bg = "white")
+  
+  
+  # How ERSSt and OISST are different
+  ggsave(plot = ersst_v_oisst, filename = str_c(save_location, "ersst_and_oisst_temps.png"),
+         dpi = "retina", bg = "white")
+  
+  # How 2021 compares to long-term pattern
+  ggsave(plot = annual_temps_plot, filename = str_c(save_location, "annual_temps_plot.png"),
+         dpi = "retina", bg = "white")
+  
+  
+  # simplified temperature plot
+  ggsave(plot = temp_simplified, filename = str_c(save_location, "oisst_simple_trends.png"),
+         dpi = "retina", bg = "white")
+  
+  # accelerating warming plot
+  ggsave(plot = gom_recent_warming, filename = str_c(save_location, "oisst_recent_gomwarming.png"),
+         dpi = "retina", bg = "white")
+  
+  
+  # 2021 anomaly bar chart
+  ggsave(plot = gom_anomaly_bars, filename = str_c(save_location, "oisst_gom_anom_bars.png"),
+         dpi = "retina", bg = "white")
+  
+  
+  # 2021 Record daily temperatures
+  ggsave(plot = hottest_days_plot,
+         filename = str_c(save_location, "2021_hottest_days.png"),
+         dpi = "retina", bg = "white")
+  
+  # Percentage of record temperatures bars
+  ggsave(plot = record_percents,
+         filename = str_c(save_location, "2021_percent_record_bars.png"),
+         dpi = "retina", bg = "white")
+  
+  
+  
+  # Full Year Temperatures
+  ggsave(plot = hw_temp_p, filename = str_c(save_location, "oisst_lastyr_temps.png"),
+         dpi = "retina", bg = "white")
+  
+  
+  
+  # Full Year Anomalies
+  ggsave(plot = hw_anom_p, filename = str_c(save_location, "oisst_lastyr_anoms.png"),
+         dpi = "retina", bg = "white")
+  
+  
+  
+  # Full year timeline of temps and anomalies
+  ggsave(plot = year_timeline, filename = str_c(save_location, "oisst_lastyr_timeline.png"),
+         dpi = "retina", bg = "white")
+  
+  
+  # Heatwave status heatmap
+  ggsave(plot = heatwave_heatmap, filename = str_c(save_location, "oisst_gom_heatmap.png"),
+         dpi = "retina", bg = "white")
+  
+  
+  # All year temperature horizons
+  ggsave(plot = gom_annual_horizons, filename = str_c(save_location, "oisst_gom_horizons.png"),
+         dpi = "retina", bg = "white")
+  
+  
+  # 2021 | 2012 horizons
+  ggsave(plot = comparison_horizons, filename = str_c(save_location, "gom_hottest_horizons.png"),
+         dpi = "retina", bg = "white")
+  
+  
+  # streamplot
+  ggsave(plot = hw_streamplot, filename = str_c(save_location, "gom_anomaly_streamplot.png"),
+         dpi = "retina", bg = "white")
+  
+  
+  # record years panels
+  ggsave(plot = hottest_yr_panels, 
+         filename = str_c(save_location, "gom_hottest_year_panels.png"),
+         dpi = "retina", bg = "white")
+  
+  # Annual Temperature Anomalies Map(s)
+  ggsave(plot = annual_gom_map, 
+         filename = str_c(save_location, "gom_annual_anom_map.png"),
+         dpi = "retina", bg = "white")
+  
+  # Global version
+  ggsave(plot = annual_anom_map, 
+         filename = str_c(save_location, "global_annual_anom_map.png"),
+         dpi = "retina", bg = "white")
+  
+  # Ranks maps
+  ggsave(plot = ranks_map, filename = str_c(save_location, "record_years_map.png"),
+         dpi = "retina", bg = "white")
+  
+  
+  # northeast warmest years
+  ggsave(plot = northeast_records, filename = str_c(save_location, "record_years_ne_map.png"),
+         dpi = "retina", bg = "white")
+  
+  
+  # Global warming rates
+  ggsave(plot = rates_global_figure, filename = str_c(save_location, "global_rates_map.png"),
+         dpi = "retina", bg = "white")
+  
+  
+  # global warming rankings
+  ggsave(plot = ranks_global_figure, filename = str_c(save_location, "global_ranks_map.png"),
+         dpi = "retina", bg = "white")
+  
+  # top 20% rankings
+  ggsave(plot = top_ranks_figure, filename = str_c(save_location, "ranks_top20.png"),
+         dpi = "retina", bg = "white")
+  
+  
+  
+  # LME Report Table
   gtsave(data = lme_rank_table, 
          filename = str_c(save_location, "lme_warming_table.png"))
+
+
+  
+  
+  
+  
 }
+
 
 
   
