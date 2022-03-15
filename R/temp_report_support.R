@@ -243,6 +243,7 @@ add_gmri_logo <- function(p, position = "bot_left", relative_xy = NULL, nudge_x 
 
 ####________####
 
+####  Standard Data Processing  ####
 
 
 # Load ERSSTv5
@@ -492,10 +493,68 @@ get_masked_vals <- function(masked_ranks, masked_rates, in_fahrenheit = F){
 
 ####____####
 
-####  Specific Plots  ####
+####  Specific/Standard  Plots  ####
 
-# Function to plot one or more years
-anom_horizon_plot <- function(grid_data, origin = ori, scale_cutpoints = sca, labels = sca_labels){
+
+
+plot_met_seasons <- function(season_highlight){
+  
+  # make a dataframe of where the seasons align
+  met_seasons_df <- data.frame(
+    startdate  = as.Date(c("2016-03-03", "2016-06-03", "2016-09-03", "2015-12-02=3")),
+    labeldate = as.Date(c("2016-04-16", "2016-07-16", "2016-10-16", "2016-01-16")),
+    finishdate = as.Date(c("2016-05-29", "2016-08-29", "2016-11-28", "2016-02-28")),
+    season = c("Spring", "Summer", "Fall", "Winter"),
+    y = rep(5,4)) %>% 
+    mutate(y_orig = y,
+           y = ifelse(season == season_highlight, y + 0.5, y),
+           y_high = y + 1.5,
+           label_y = y_orig + 4,
+           current_season = ifelse(season == season_highlight, season_col, "gray70"))
+  
+  
+  
+  
+  # Plot
+  ggplot(met_seasons_df) +
+    geom_rect(aes(xmin = startdate, 
+                  xmax = finishdate,
+                  ymin = y,
+                  ymax = y_high),
+              fill = met_seasons_df$current_season) +
+    geom_textpath(aes(x = labeldate, y = label_y, label = season), 
+                  color = met_seasons_df$current_season, size = 6) +
+    scale_x_date(date_breaks = "1 month", labels = date_format("%b"), 
+                 limits = range(as.Date(c("2015-12-01", "2016-11-30")))) +
+    ylim(0,13) +
+    coord_curvedpolar() +
+    labs(title = "Meteorological Seasons", 
+         x = "", y = "") +
+    theme(panel.background = element_blank(),
+          plot.title = element_text(vjust = 4),
+          axis.text.x = element_text(size = 16),
+          axis.line.y = element_blank(),
+          axis.line.x = element_blank(),
+          axis.ticks.y = element_blank(),
+          axis.text.y = element_blank(),
+          panel.border = element_blank(),
+          panel.grid.major.y = element_blank(),
+          panel.grid.major.x = element_blank(),
+          title = element_text(size = 14, face = "bold"),
+          plot.margin = unit(c(0.5,1,0,1), "cm"))
+}
+
+
+
+
+
+
+
+# Function to plot one or more years as temperature horizons
+anom_horizon_plot <- function(grid_data, 
+                              origin = ori, 
+                              scale_cutpoints = sca, 
+                              labels = sca_labels){
   
   ggplot(grid_data) +
     geom_horizon(aes(flat_date, 
@@ -523,6 +582,7 @@ anom_horizon_plot <- function(grid_data, origin = ori, scale_cutpoints = sca, la
   
   
 }
+
 
 
 
@@ -615,3 +675,31 @@ warp_grid_projections <- function(in_grid_st, projection_crs = c("world robinson
   return(region_warp_ras)
   
 }
+
+
+
+
+
+
+####________####
+
+
+####  Misc Plot Elements:  ####
+# If we want contours as sf:
+
+ 
+# # Add the bottom contours:
+# bathy <- raster("~/Documents/Repositories/Points_and_contours/NEShelf_Etopo1_bathy.tiff")
+# contours_make <- c(-50, -100, -250)
+# bathy_contours <- rasterToContour(bathy, levels = contours_make) %>% st_as_sf()
+# bathy_contours$level <- factor(bathy_contours$level, levels = as.character(contours_make))
+
+# Put in plot:
+# metR::geom_text_contour(data = bathy_df, aes(x, y, z = depth),
+#                   breaks = contours_make,
+#                   color = "gray40",
+#                   size = 1.4,
+#                   min.size = 10,
+#                   stroke = 0.2,
+#                   rotate = FALSE,
+#                   check_overlap = TRUE) +

@@ -738,7 +738,7 @@ record_percents <- region_hw %>%
   labs(x = "", y = "Percent of Daily Temperatures", title = "2021: Record Temperatures as Percent of Each Month")
 
 
-
+record_percents
 
 ```
 
@@ -1551,7 +1551,7 @@ top_rate <- region_ranks$`Max Rate`
 
 
 
-```{r warming rates Fahrenheit, layout="l-body-outset", fig.width=6, fig.height=4}
+```{r warming rates Fahrenheit}
 
 # Change to F
 world_rate_stars <- calc(rotate(rates_nc), function(x) as_fahrenheit(x, data_type = "anomalies")) %>% 
@@ -1637,7 +1637,7 @@ Based on data from 1982-2021, the warming rates of Gulf of Maine have been some 
 Over that same period locations within the Gulf of Maine have been warming at rates as low as `r low_rate`$^{\circ}F/year$ and as rapidly as `r top_rate`$^{\circ}F/year$, corresponding to ranks as low as `r low_rank`% and as high as `r top_rank`%.
 
 
-```{r highlighting gom warming rate, eval = TRUE, layout="l-body-outset", fig.width=6, fig.height=4}
+```{r highlighting gom warming rate, eval = TRUE}
 # for an expanded view need to use the global ranks
 world_rank_stars <- st_as_stars(rotate(ranks_nc))
 
