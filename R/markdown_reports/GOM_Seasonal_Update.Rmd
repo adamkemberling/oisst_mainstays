@@ -374,10 +374,14 @@ monthly_avgs <- season_data %>%
     clim_f = as_fahrenheit(clim_c),
     anom_f = as_fahrenheit(anom_c, data_type = "anomalies"),
     .groups = "drop") %>% 
-  mutate(across(where(is.numeric), signif, 3),
-         month = factor(month, levels = c("Dec", month.abb[1:11]))) 
+  mutate(across(where(is.numeric), signif, 3)) 
 
-monthly_avgs %>% gt()
+monthly_avgs %>% 
+  rename_all(~str_to_title(str_replace(.x, "_", " "))) %>% 
+  mutate(Month = factor(Month, levels = c("Dec", month.abb[1:11]))) %>% #glimpse()
+  group_by(Month) %>% 
+  gt(groupname_col = 'Month', 
+     rowname_col = 'charOrdered')
 
 ```
 
@@ -819,7 +823,7 @@ hw_temp_p <- ggplot(last_yr_heatwaves, aes(x = time)) +
          y = "Sea Surface Temperature", 
          subtitle = str_c(params$season, params$year, ": Heatwave Conditions", sep = " ")) #+
   
-    ec# # Anomalies on same plot
+    # # Anomalies on same plot
     # geom_segment(aes(x = time, xend = time, 
     #                    y = 0, yend = sst_anom), 
     #              color = "darkred", alpha = 0.25) +
@@ -1044,7 +1048,7 @@ month_plots <- imap(months_masked, function(month_avg_layer, month_id){
 
 ------------------------------------------------------------------------
 
-### Exporting Figures:
+
 
 ```{r}
 # Export Figures
