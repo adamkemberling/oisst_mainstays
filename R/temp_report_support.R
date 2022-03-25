@@ -154,7 +154,7 @@ get_relative_xy <- function(p, position = "bot_left", xmin = 0.01, ymin = -0.3, 
                      "bot_right" = data.frame(xmin = 0.725, xmax = 1.075, ymin = -0.5, ymax = -0.325),
                      "top_right" = data.frame(xmin = 0.725, xmax = 1.075, ymin = 0.8, ymax = 0.975),
                      "top_left"  = data.frame(xmin = -0.05, xmax = 0.3, ymin = 0.8, ymax = 0.975),
-                     "manual" = data.frame(xmin = xmin, xmax = xmax+.35, ymin = ymin, ymax = ymax+.175))
+                     "manual"    = data.frame(xmin = xmin, xmax = xmax+.35, ymin = ymin, ymax = ymax +.175))
   
   
   # Get the x and y scale ranges
@@ -556,7 +556,9 @@ anom_horizon_plot <- function(grid_data,
                               scale_cutpoints = sca, 
                               labels = sca_labels){
   
-  ggplot(grid_data) +
+  grid_data %>% 
+    mutate(year = fct_rev(factor(year))) %>% 
+    ggplot() +
     geom_horizon(aes(flat_date, 
                      sst_anom,
                      fill = ..Cutpoints..), 

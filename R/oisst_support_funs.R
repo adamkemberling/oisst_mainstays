@@ -85,11 +85,12 @@ reclassify_to_discrete <- function(ranks_stack,
 
 
 ####  Identify Marine Heatwaves  ####
-# Wrapper function to do heatwaves and coldwaves simultaneously at 90%
+# 
 #' @title Pull Marine Heatwave and cold Spell Events from Timeseries
 #' 
 #' @description Pull both heatwave and cold spell events using same threshold and return
-#' as single table
+#' as single table. Wrapper function to do heatwaves and coldwaves simultaneously at 90% 
+#' or custom threshold
 #'
 #' @param temperature_timeseries timeseries dataframe with date and sst values
 #' @param threshold percentile cutoff for indicating a heatwave/coldspell event
@@ -103,9 +104,14 @@ pull_heatwave_events <- function(temperature_timeseries,
                                  clim_ref_period = c("1982-01-01", "2011-12-31")) {
   
   # Pull the two column dataframe for mhw estimation
-  test_ts <- data.frame(t    = as.Date(temperature_timeseries$time), 
+  test_ts <- data.frame(t = as.Date(temperature_timeseries$time), 
                         # temp = temperature_timeseries$sst
                         temp = temperature_timeseries$area_wtd_sst)
+  
+  
+  # Drop duplicate dates here?
+  #test_ts <- test_ts %>% filter(lubrid)
+  
   
   # Detect the events in a time series
   ts  <- ts2clm(data = test_ts, 
@@ -150,16 +156,22 @@ pull_heatwave_events <- function(temperature_timeseries,
   # 3. Data formatting for plotting, 
   # adds columns to plot hw and cs seperately
   events_out <- hot_and_cold %>% 
-    mutate(status   = ifelse(mhw_event == TRUE, "Marine Heatwave Event", "Sea Surface Temperature"),
-           status   = ifelse(mcs_event == TRUE, "Marine Cold Spell Event", status),
-           hwe      = ifelse(mhw_event == TRUE, sst, NA),
-           cse      = ifelse(mcs_event == TRUE, sst, NA),
-           nonevent = ifelse(mhw_event == FALSE & mcs_event == FALSE, sst, NA)) 
+    mutate(
+      # Set up status to combine labelling for heatwaves and cold spells:
+      status   = ifelse(mhw_event == TRUE, "Marine Heatwave Event", "Sea Surface Temperature"),
+      status   = ifelse(mcs_event == TRUE, "Marine Cold Spell Event", status),
+      # Corrective measures for where event flagging is off:
+      # status   = ifelse(sst > mhw_thresh, "Marine Heatwave Event", status),
+      # status   = ifelse(sst < mcs_thresh, "Marine Cold Spell Event", status),
+      # Heatwave event temperature values:
+      hwe      = ifelse(mhw_event == TRUE, sst, NA),
+      cse      = ifelse(mcs_event == TRUE, sst, NA),
+      nonevent = ifelse(mhw_event == FALSE & mcs_event == FALSE, sst, NA)) 
   
   # Close the gaps between a mhw event and sst (might not need if full line for temp exists)
   events_out <- events_out %>% 
-    mutate(hwe = ifelse(is.na(hwe) & is.na(lag(hwe)) == FALSE, sst, hwe),
-           cse = ifelse(is.na(cse) & is.na(lag(cse)) == FALSE, sst, cse)) %>% 
+    mutate(hwe = ifelse( (is.na(hwe) & is.na(lag(hwe, n = 1))) == FALSE, sst, hwe),
+           cse = ifelse( (is.na(cse) & is.na(lag(cse, n = 1))) == FALSE, sst, cse)) %>% 
     distinct(time, .keep_all = T)
   
   
@@ -253,8 +265,6 @@ plotly_mhw_plots <- function(data){
 
 
 ####  Make Fahrenheit
-# Get Fahrenheit from Celsius
-as_farenheit <- function(x){x * (9/5) + 32}
 
 # Plotting Function
 plot_mhw <- function(timeseries_data){
