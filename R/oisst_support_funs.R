@@ -44,7 +44,7 @@ reclassify_to_discrete <- function(ranks_stack,
                   0.85, 0.90, 85,
                   0.90, 0.95, 90,
                   0.95,    1, 95)
-  #####_####
+  #####_ end bins ####
   
   
   # reshape the object into a matrix with columns and rows

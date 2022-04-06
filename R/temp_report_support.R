@@ -497,6 +497,82 @@ get_masked_vals <- function(masked_ranks, masked_rates, in_fahrenheit = F){
 
 
 
+
+# Function to map  Gulf of Maine, with region of interest overlaid
+map_study_area <- function(region_extent,
+                           x_buffer =  c(-2.25, 2.25),
+                           y_buffer = c(-0.75, 0.75),
+                           new_england_sf = NULL,
+                           canada_sf = NULL,
+                           greenland_sf = NULL,
+                           plot_title = NULL){
+  
+  
+  # Load country borders if NULL
+  if(is.null(new_england_sf)){
+    new_england_sf <- ne_states("united states of america", returnclass = "sf")
+  }
+  if(is.null(canada_sf)){
+    canada_sf      <- ne_states("canada", returnclass = "sf")
+  }
+  if(is.null(greenland_sf)){
+    greenland_sf   <- ne_states(country = "greenland", returnclass = "sf")
+  }
+  
+  
+  # Pull extents for the region for crop
+  crop_x <- st_bbox(region_extent)[c(1,3)]
+  crop_y <- st_bbox(region_extent)[c(2,4)]
+  
+  # Expand the area out to see the larger patterns
+  crop_x <- crop_x + x_buffer
+  crop_y <- crop_y + y_buffer
+  
+  #
+  # Add the bottom contours:
+  bathy <- raster("~/Documents/Repositories/Points_and_contours/NEShelf_Etopo1_bathy.tiff")
+  
+  # Contours for geom_contour()
+  bathy_df <- as.data.frame(raster::coordinates(bathy))
+  bathy_df$depth <- raster::extract(bathy, bathy_df)
+  bathy_df$depth <- bathy_df$depth * -1
+  contours_make <- c(50, 100, 250)
+  
+  
+  # Full map of GOM
+  gom_extent_p <- ggplot() +
+    geom_sf(data = new_england, fill = "gray90", size = .25) +
+    geom_sf(data = canada, fill = "gray90", size = .25) +
+    geom_sf(data = greenland, fill = "gray90", size = .25) +
+    geom_contour(data = bathy_df, aes(x, y, z = depth),
+                 breaks = contours_make,
+                 color = "gray80") +
+    geom_sf(data = region_extent, 
+            color = gmri_cols("gmri blue"), 
+            fill = gmri_cols("gmri blue"), alpha = 0.2, linetype = 2, size = 0.5) +
+    coord_sf(xlim = crop_x, 
+             ylim = crop_y, expand = T) +
+    map_theme() +
+    labs(title = plot_title)
+  
+  
+  # Show figure
+  return(gom_extent_p)
+  
+}
+
+
+
+
+#' @title Plot Meteorological Seasons
+#'
+#' @param season_highlight Name of season to have highlighted. 
+#' Moves it out in the ring and adds a contrast color.
+#'
+#' @return
+#' @export
+#'
+#' @examples
 plot_met_seasons <- function(season_highlight){
   
   # make a dataframe of where the seasons align
@@ -546,11 +622,661 @@ plot_met_seasons <- function(season_highlight){
 
 
 
+###  ERSST  ####
+
+
+
+ersst_yearly_plot <- function(ersst_yr, temp_units){
+  
+  # Handling Temperature Units:
+  temp_ops <- switch (EXPR = temp_units,
+                      "C" = list(temp_col = expr(sst),
+                                 temp_suff = " \u00b0C"),
+                      "F" = list(temp_col = expr(sst_f),
+                                 temp_suff = " \u00b0F")
+  )
+  temp_col <- temp_ops$temp_col
+  
+  
+  
+  # Benchmark the averages temp and maximum temps
+  long_avg <- mean( filter(ersst_yr, between(yr, 1860, 2000)) %>% pull(sst) , na.rm = T)
+  long_max <- max( filter(ersst_yr, between(yr, 1860, 2000)) %>% pull(sst) , na.rm = T)
+  
+  # Make Splines
+  ersst_smooth <- as.data.frame(spline(ersst_yr$yr, ersst_yr$sst))
+  ersst_smooth_f <- as.data.frame(spline(ersst_yr$yr, ersst_yr$sst_f))
+  
+  # switch units
+  smooth_dat <- ifelse(temp_units == "F", ersst_smooth_f, ersst_smooth)
+  
+  
+  # Fahrenheit Plot
+  ersst_long_term_p <- ggplot(data = ersst_yr, aes(yr, {{temp_col}})) +
+    geom_line(group = 1, alpha = 0.4, linetype = 1, color = gmri_cols("gmri blue")) +
+    geom_point(size = 1, color = gmri_cols("gmri blue")) +
+    geom_point(data = filter(ersst_yr, sst > long_max), 
+               aes(yr, {{temp_col}}), color = "darkred", size = 1.5) +
+    geom_mark_ellipse(aes(yr, {{temp_col}}, 
+                          filter = sst > long_max,
+                          description = "Temperatures in 6 of the 10 Last Years Above 1951 Record",
+                          label = "Recent Extremes"), label.fontsize = 9,
+                      color = "darkred", label.fill = "white", label.colour = "black", con.colour = "black") +
+    geom_mark_ellipse(aes(yr, {{temp_col}}, 
+                          filter = sst == long_max, 
+                          label = str_c(yr,": ", round({{temp_col}}, 2), temp_ops$temp_suff), 
+                          description = "1850-2000 Warmest Temperature on Record"), 
+                      label.fontsize = 9,  label.buffer = unit(0.25, "lines"),
+                      color = "darkred", linetype = 2) +
+    scale_color_gmri() +
+    theme_gmri() +
+    scale_x_continuous(expand = expansion(add = c(2,10))) +
+    scale_y_continuous(expand = expansion(add = c(0.5,5)),
+                       labels = number_format(suffix = temp_ops$temp_suff)) +
+    guides(color = guide_legend(title.position = "top", title.hjust = 0.5))  +
+    theme(legend.position = "bottom") +
+    labs(x = "", y = "Sea Surface Temperature", 
+         color = "Temperature Data Record",
+         title = "Long-Term Temperature Record for the Gulf of Maine",
+         subtitle = "Current temperatures above 150-year highs",
+         caption = "Data Source: ERSSTv5 Monthly Sea Surface Temperature")
+  
+  
+  # return plot
+  return(ersst_long_term_p)
+  
+  
+}
 
 
 
 
-# Function to plot one or more years as temperature horizons
+####  OISST  ####
+
+
+
+#' @title Annotated Annual Averages + Trendline
+#'
+#' @param annual_avgs 
+#' @param all_years_average 
+#' @param rate_data 
+#' @param focal_yr 
+#' @param temp_units 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+annual_avgs_annotated <- function(annual_avgs, all_years_average, rate_data, focal_yr, temp_units){
+  
+  # Build label for focal year
+  anom_2021 <- annual_summary %>% filter(year == focal_yr) %>% 
+    select(area_wtd_anom, area_wtd_anom_f)
+  anom_label <- str_c(round(anom_2021[1], 2), " \u00b0C  |  ", round(anom_2021[2], 2), " \u00b0F")
+  
+  
+  # Swap columns for units
+  temp_ops <- switch(
+    EXPR = temp_units,
+    "C" = list(
+      temp_col = expr(area_wtd_sst),
+      anom_col = expr(area_wtd_anom),
+      all_yr_temp = all_years_average[["avg_temp_c"]],
+      all_yr_anom = all_years_average[["avg_anom_c"]],
+      temp_suff = deg_c),
+    "F" = list(
+      temp_col = expr(area_wtd_f),
+      anom_col = expr(area_wtd_anom_f),
+      all_yr_temp = all_years_average[["avg_temp_f"]],
+      all_yr_anom = all_years_average[["avg_anom_f"]],
+      temp_suff = deg_f))
+  
+  # Assign to shorter names
+  temp_col <- temp_ops$temp_col
+  anom_col <- temp_ops$anom_col
+  temp_suff <- temp_ops$temp_suff
+  
+  #
+  
+  
+  
+  # Assemble plot highlighting 2021 characteristics
+  annual_temps_plot <- ggplot(annual_avgs, aes(year, {{ temp_col }})) +
+    geom_hline(yintercept = temp_ops$all_yr_temp, color = "darkblue", linetype = 2) +
+    geom_line(linetype = 3, size = 0.5, alpha = 0.5) +
+    geom_smooth(formula = y ~ x, 
+                linetype = 1,
+                method = "lm", 
+                color = "darkred", 
+                se = FALSE) +
+    geom_point(color = "gray20", size = 1, alpha = 0.8) +
+    geom_mark_ellipse(
+      data = data.frame(x = 2016, y = temp_ops$all_yr_temp),
+      aes(x, y, label = all_year_avgs$temp_label), 
+      description = "1982-2021 Average Temperature", 
+      label.colour = "darkblue",
+      color = "transparent", 
+      con.colour = "darkblue", 
+      label.fill = "transparent", 
+      label.fontsize = 9, 
+      label.buffer = unit(0.25, "cm")) +
+    geom_mark_ellipse(
+      aes(filter = year == 1994, 
+          label = str_c(rate_data$`GoM All F`$decadal_rate, " \u00b0F / Decade")), 
+      color = "transparent", 
+      description = str_c("40-Year Warming Trend"), 
+      label.colour = "darkred",
+      con.colour =  "darkred", 
+      label.buffer = unit(1.35, "cm"), 
+      label.fill = "transparent", 
+      label.fontsize = 9) +
+    geom_mark_ellipse(
+      aes(filter = year == focal_yr, 
+          label = anom_label),
+      color = "darkred",
+      linetype = 2,
+      description = str_c("Temperature Above\n1982-2011 climatological average"), 
+      label.colour = "darkred",
+      con.colour =  "darkred",
+      label.fill = "transparent", 
+      label.buffer = unit(0.15, "cm"), 
+      label.fontsize = 9) +
+    scale_y_continuous(limits = c(48, 56),
+                       labels =  number_format(suffix = str_c(" ", temp_suff))) +
+    labs(x = "Year", y = "Average Annual Temperature")
+  
+  
+  # Display plot
+  return(annual_temps_plot)
+  
+  
+  
+}
+
+
+
+
+#' @title Plot Annual Temperature Comparison Vs. Global Rate
+#'
+#' @param annual_summary_dat Annual mean temperatures for a region of interest
+#' @param global_summary_dat Annual mean temperatures for the world
+#' @param eq_all Text label describing the region and warming rate information
+#' @param eq_global Global counterpart to eq_all
+#' @param temp_units C or F to indicate display units
+#'
+#' @return
+#' @export
+#'
+#' @examples
+global_rate_comparison <- function(
+    annual_summary_dat,
+    global_summary_dat,
+    eq_all,
+    eq_global,
+    temp_units = "F"
+  ){
+  
+  
+  # Handling Temperature Units:
+  temp_ops <- switch (EXPR = temp_units,
+    "C" = list(temp_col = expr(area_wtd_anom),
+               temp_suff = " \u00b0C"),
+    "F" = list(temp_col = expr(area_wtd_anom_f),
+               temp_suff = " \u00b0F")
+  )
+  temp_col <- temp_ops$temp_col
+  
+  # Adding warming rate equation to data
+  annual_summary_dat <- annual_summary_dat %>% 
+    mutate(`Warming Rate` = eq_all)
+  global_summary_dat <- global_summary_dat %>% 
+    mutate(`Warming Rate` = eq_global)
+  
+  
+  # Line color formatting, to match equations
+  line_colors <- setNames(
+    as.character(c(
+      gmri_cols("gmri blue"), 
+      gmri_cols("gmri green"))),  
+    c(eq_all, eq_global))
+  
+  
+  
+  # Single Line Plot
+  temp_simplified <- ggplot(data = annual_summary_dat, 
+                            aes(year, {{ temp_col }})) +
+    
+    # Overlay yearly means
+    geom_line(color = "gray10", size = 1.5, linetype = 1) +
+    geom_point(color = "gray10", size = 1.5) +
+    # Warming rates
+    geom_smooth(
+      method = "lm",
+      formula = y ~ x, se = F,
+      aes(color = `Warming Rate`),
+      color = gmri_cols("gmri blue"),
+      alpha = 0.90,
+      size = 1.5,
+      linetype = 2) + 
+    geom_smooth(
+      data = global_summary_dat,
+      aes(color = `Warming Rate`),
+      method = "lm",
+      formula = y ~ x, se = F,
+      alpha = 0.90,
+      size = 1.5,
+      linetype = 2) +
+    scale_color_manual(values = line_colors) +
+    scale_x_continuous(limits = c(1982, 2021), expand = expansion(add = c(4,2))) +
+    scale_y_continuous(labels =  number_format(suffix = temp_ops$temp_suff)) +
+    labs(title = "Gulf of Maine:",
+         subtitle = "Annual Sea Surface Temperature Anomalies",
+         x = "Year", y = "Sea Surface Temperature Anomaly",
+         caption = "Anomalies calculated using 1982-2011 reference period.") +
+    theme(legend.position = c(0.25, 0.85),
+          legend.background = element_rect(color = "black", fill = "white"))
+  
+  
+  # add logo
+  # temp_simplified <- add_gmri_logo(temp_simplified, position = "bot_left")
+  temp_simplified
+  
+  
+  
+  
+  
+  
+  
+}
+
+
+
+
+
+
+#' @title Plot Heatwave Status Trend for Last Year
+#'
+#' @param year_hw_dat Heatwave status information with hwe details
+#' @param temp_units Flag for "C" or "F" for unit swapping
+#'
+#' @return
+#' @export
+#'
+#' @examples
+year_hw_temps <- function(
+    year_hw_dat,
+    temp_units = "F"){
+  
+  
+  # Handling Temperature Units:
+  temp_ops <- switch (EXPR = temp_units,
+                      "C" = list(temp_col = expr(sst),
+                                 anom_col = expr(sst_anom),
+                                 seas_col = expr(seas),
+                                 hw_thresh = expr(mhw_thresh),
+                                 hw_temp = expr(hwe),
+                                 temp_suff = " \u00b0C"),
+                      "F" = list(temp_col = expr(sst_f),
+                                 anom_col = expr(anom_f),
+                                 seas_col = expr(seas_f),
+                                 hw_thresh = expr(mhw_thresh_f),
+                                 hw_temp = expr(hwe_f),
+                                 temp_suff = " \u00b0F"))
+  
+  
+  # Assign to shorter names
+  temp_col <- temp_ops$temp_col
+  anom_col <- temp_ops$anom_col
+  clim_col <- temp_ops$seas_col
+  hw_thresh_col <- temp_ops$hw_thresh
+  hw_temp_col <- temp_ops$hw_temp
+  
+  
+  # Set colors by name
+  color_vals <- c(
+    "Sea Surface Temperature" = "#0571B0",
+    "Heatwave Event"          = "darkred",
+    "MHW Threshold"           = "coral3",
+    "Daily Climatology"       = "gray30")
+  
+  # Set linetypes manually
+  linetype_key <- c(
+    "Sea Surface Temperature Anomaly" = 1,
+    "Heatwave Event"                  = 1,
+    "MHW Threshold"                   = 3,
+    "Daily Climatology"               = 2)
+  
+  
+  
+  # Plot the last 365 days
+  hw_temp_p <- ggplot(year_hw_dat, aes(x = time)) +
+    geom_segment(aes(x = time, 
+                     xend = time, 
+                     y = {{ clim_col }}, 
+                     yend = {{ temp_col }}), 
+                 color = "#0571B0", alpha = 0.25) +
+    geom_segment(aes(x = time, 
+                     xend = time, 
+                     y = {{ hw_thresh_col }}, 
+                     yend = {{ hw_temp_col }}), 
+                 color = "darkred", alpha = 0.25) +
+    geom_line(aes(y = {{ temp_col }}, color = "Sea Surface Temperature")) +
+    geom_line(aes(y = {{ hw_temp_col }}, color = "Heatwave Event")) +
+    geom_line(aes(y = {{ hw_thresh_col }}, color = "MHW Threshold"), lty = 3, size = .5) +
+    geom_textpath(aes(y = {{ clim_col }}), color = "gray30", label = "Climatological Mean", hjust = 0.5, lty = 2) +
+    scale_color_manual(values = color_vals) +
+    scale_x_date(date_labels = "%b", date_breaks = "1 month", expand = expansion(mult = c(0,0))) +
+    scale_y_continuous(labels =  number_format(suffix = temp_ops$temp_suff)) +
+    guides(color = guide_legend(override.aes = list(linetype = linetype_key), nrow = 1)) +
+    theme(legend.title = element_blank(),
+          legend.position = "bottom") +
+    labs(x = NULL, 
+         y = "Sea Surface Temperature")
+  
+  
+  # Plot with logo
+  # add_gmri_logo(hw_temp_p, position = "top_left")
+  return(hw_temp_p)
+  
+  
+}
+
+
+
+
+
+#' @title Plot Heatwave Status Trend of Anomalies for Last Year
+#'
+#' @param year_hw_dat 
+#' @param temp_units 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+year_hw_anoms <- function(year_hw_dat = this_yr, temp_units = "F"){
+  
+  # Handling Temperature Units:
+  temp_ops <- switch (EXPR = temp_units,
+                      "C" = list(temp_col = expr(sst),
+                                 anom_col = expr(sst_anom),
+                                 seas_col = expr(seas),
+                                 hw_thresh = expr(mhw_thresh),
+                                 hw_temp = expr(hwe),
+                                 temp_suff = " \u00b0C"),
+                      "F" = list(temp_col = expr(sst_f),
+                                 anom_col = expr(anom_f),
+                                 seas_col = expr(seas_f),
+                                 hw_thresh = expr(mhw_thresh_f),
+                                 hw_temp = expr(hwe_f),
+                                 temp_suff = " \u00b0F"))
+  
+  
+  # Assign to shorter names
+  temp_col <- temp_ops$temp_col
+  anom_col <- temp_ops$anom_col
+  clim_col <- temp_ops$seas_col
+  hw_thresh_col <- temp_ops$hw_thresh
+  hw_temp_col <- temp_ops$hw_temp
+  
+  # Set colors by name
+  color_vals <- c(
+    "Sea Surface Temperature" = "#0571B0",
+    "Heatwave Event"          = "darkred",
+    "MHW Threshold"           = "coral3",
+    "Daily Climatology"       = "gray30")
+  
+  # Set linetypes manually
+  linetype_key <- c(
+    "Sea Surface Temperature Anomaly" = 1,
+    "Heatwave Event"                  = 1,
+    "MHW Threshold"                   = 3,
+    "Daily Climatology"               = 2)
+  
+  
+  # Plot the last 365 days - anomaly scale
+  hw_anom_p <- year_hw_dat %>% 
+    mutate(
+      anom_thresh = {{ hw_thresh_col }} - {{ clim_col }},
+      anom_hwe = {{ hw_temp_col }} - {{ clim_col }}) %>% 
+    ggplot(aes(x = time)) +
+    geom_segment(aes(x = time, xend = time, 
+                     y = 0, yend = {{ anom_col }}), 
+                 color = "#0571B0", alpha = 0.25) +
+    geom_segment(aes(x = time, 
+                     xend = time, 
+                     y = anom_thresh, 
+                     yend = anom_hwe), 
+                 color = "darkred", alpha = 0.25) +
+    geom_line(aes(y = {{ anom_col }}, color = "Sea Surface Temperature Anomaly")) +
+    geom_line(aes(y = anom_hwe, color = "Heatwave Event")) +
+    geom_line(aes(y = anom_thresh, color = "MHW Threshold"), lty = 3, size = .5) +
+    geom_line(aes(y = 0, color = "Daily Climatology"), lty = 2, size = .5) +
+    scale_color_manual(values = color_vals) +
+    scale_linetype_manual(values = linetype_key, guide = "none") +
+    scale_x_date(date_labels = "%b", date_breaks = "1 month", expand = expansion(mult = c(0,0))) +
+    guides(color = guide_legend(override.aes = list(linetype = linetype_key), nrow = 1)) +
+    theme(legend.title = element_blank(),
+          legend.position = "bottom") +
+    scale_y_continuous(labels =  number_format(suffix = temp_ops$temp_suff)) +
+    labs(x = NULL, 
+         y = "Temperature Anomaly", 
+         caption = paste0("Climate reference period :  1982-2011"))
+  
+  # Plot with logo
+  return(hw_anom_p)
+  
+}
+
+
+
+
+#' @title Plot Yearly Heatwave and Temperature Metrics
+#'
+#' @param temp_dat 
+#' @param temp_units 
+#' @param year_focus 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+yearly_metric_plots <- function(temp_dat, temp_units, year_focus = "2021"){
+  
+  # Swap columns for units
+  temp_ops <- switch(
+    EXPR = temp_units,
+    "C" = list(
+      temp_col = expr(sst),
+      anom_col = expr(sst_anom),
+      temp_suff = deg_c),
+    "F" = list(
+      temp_col = expr(sst_f),
+      anom_col = expr(anom_f),
+      temp_suff = deg_f)
+  )
+  temp_col <- temp_ops$temp_col
+  anom_col <- temp_ops$anom_col
+  temp_suff <- temp_ops$temp_suff
+  
+  
+  
+  
+  
+  # Assemble metrics 
+  year_mets <- temp_dat %>% 
+    filter(year != "2022") %>% 
+    group_by(year) %>% 
+    summarise(
+      total_days                         = n(),
+      `Average Temperature`              = round(mean({{ temp_col }}, na.rm = T), 2),
+      `Temperature Above Average`        = round(mean({{ anom_col }}, na.rm = T), 2),
+      `Cumulative Degrees Above Average` = round(sum({{ anom_col }}, na.rm = T), 0),
+      hw_days                            = sum(mhw_event, na.rm = T),
+      hw_events                          = n_distinct(mhw_event_no),
+      peak_temp                          = max({{ temp_col }}),
+      peak_anom                          = max({{ anom_col }}))
+  
+  # Supplement with some derived columns
+  year_mets <- year_mets %>% 
+    mutate(
+      hw_day_pct = round((hw_days/total_days) * 100, 2),
+      `Average Heatwave Length` = round(hw_days/hw_events,  1),
+      yr_focus = ifelse(year == year_focus, TRUE, FALSE)) %>% 
+    pivot_longer(names_to = "Var", values_to = "Metric", 
+                 cols = c("Average Temperature", "Temperature Above Average", "Average Heatwave Length", "Cumulative Degrees Above Average"))
+  
+  
+  # Build Seperately:
+  rplot_1 <- year_mets %>% 
+    filter(Var == "Average Temperature") %>% 
+    group_by(Var) %>% 
+    slice_max(n = 5, order_by = Metric) %>% 
+    mutate(year = factor(year),
+           year = fct_reorder(year, Metric, median)) %>% 
+    ggplot(aes(Metric, year, fill = yr_focus, color = yr_focus)) +
+    directlabels::geom_dl(aes(label = str_c(Metric, deg_sym)), 
+                          method = list(directlabels::dl.trans(x = x + 1), rot = 0)) +
+    geom_col(show.legend = FALSE) + 
+    scale_x_continuous(expand = expansion(mult = c(0, 0.15)), labels = number_format(suffix = temp_suff)) +
+    scale_color_gmri() +
+    scale_fill_gmri() +
+    theme(panel.grid = element_blank()) +
+    labs(y = "",
+         x = "Average Temperatures")
+  
+  
+  rplot_2 <- year_mets %>% 
+    filter(Var == "Temperature Above Average") %>% 
+    group_by(Var) %>% 
+    slice_max(n = 5, order_by = Metric) %>% 
+    mutate(year = factor(year),
+           year = fct_reorder(year, Metric, median)) %>% 
+    ggplot(aes(Metric, year, fill = yr_focus, color = yr_focus)) +
+    directlabels::geom_dl(aes(label = str_c(Metric, deg_sym)), 
+                          method = list(directlabels::dl.trans(x = x + 1), rot = 0)) +
+    geom_col(show.legend = FALSE) + 
+    scale_x_continuous(expand = expansion(mult = c(0, 0.15)), labels = number_format(suffix = temp_suff)) +
+    scale_color_gmri() +
+    scale_fill_gmri() +
+    theme(panel.grid = element_blank()) +
+    labs(y = "",
+         x = "Temperature Above Average",
+         caption = "Anomalies calculated using 1982-2011 climatology.")
+  
+  
+  # Replace the facet option
+  hottest_yr_panels <- rplot_1 / rplot_2 + plot_annotation(title = "How 2021 Stacks Up:")
+  
+  # Display plot
+  hottest_yr_panels
+  
+  
+}
+
+
+
+#' @title Heatwave Anomaly Heatmap
+#'
+#' @param hw_dat 
+#' @param temp_units 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+heatwave_heatmap_plot <- function(hw_dat, temp_units){
+  
+  # Set unit controls
+  temp_ops <- switch(
+    EXPR = temp_units,
+    "C" = list(anom_col = expr(sst_anom),
+               temp_suff = "\u00b0C",
+               temp_limits = c(-3,3)),
+    "F" = list(anom_col = expr(anom_f),
+               temp_suff = "\u00b0F",
+               temp_limits = c(-5,5)))
+  temp_limits <- temp_ops$temp_limits
+  anom_col <- temp_ops$anom_col
+  temp_suff <- temp_ops$temp_suff
+  
+  # Color limit for palettes
+  temp_breaks <- c(temp_limits[1], temp_limits[1]/2,  0, temp_limits[2]/2, temp_limits[2])
+  temp_labels <- str_c(c(str_c("< ", temp_limits[1]), temp_limits[1]/2, 0, temp_limits[2]/2, str_c("> ", temp_limits[2])), temp_suff)
+  
+  
+  
+  
+  # Assemble heatmap plot
+  heatwave_heatmap <- ggplot(hw_dat, 
+                             aes(x = flat_date, y = year)) +
+    
+    # background box fill for missing dates
+    geom_rect(xmin = base_date, 
+              xmax = base_date + 365, 
+              ymin = min(hw_dat$year) - .5, 
+              ymax = max(hw_dat$year) + .5, 
+              fill = "gray75", color = "transparent") +
+    
+    # tile for sst colors
+    geom_tile(aes(fill = {{ anom_col }})) +
+    # points for heatwave events
+    geom_point(data = filter(hw_dat, mhw_event == TRUE),
+               aes(x = flat_date, y = year), size = .25)  +
+    # # Points if over threshold only
+    # geom_point(data = filter(grid_data, sst > mhw_thresh),
+    #            aes(x = flat_date, y = year), size = .25)  +
+    scale_x_date(date_labels = "%b", date_breaks = "1 month", expand = expansion(add = c(0,0))) +
+    scale_y_continuous(limits = c(1981.5, 2021.5), expand = expansion(add = c(0,0))) +
+    scale_fill_distiller(palette = "RdBu", 
+                         na.value = "transparent", 
+                         limit = temp_limits, 
+                         oob = scales::squish,
+                         breaks = temp_breaks, 
+                         labels = temp_labels) +
+    
+    #5 inches is default rmarkdown height for barheight
+    guides("fill" = guide_colorbar(title = "Sea Surface Temperature Anomaly", 
+                                   title.position = "right", 
+                                   title.hjust = 0.5,
+                                   barheight = unit(3.5, "inches"), 
+                                   frame.colour = "black", 
+                                   ticks.colour = "black")) +  
+    theme(legend.title = element_text(angle = 90)) +
+    labs(title = "Temperature Anomalies and Marine Heatwave Events",
+         x = "", 
+         y = "",
+         "\nClimate reference period : 1982-2011",
+         caption = "Heatwave event dates have been overlayed with black points for distinction.")
+  
+  
+  # Assemble pieces
+  return(heatwave_heatmap)
+  
+  
+  
+}
+
+
+
+
+
+
+
+
+
+
+#' @title Temperature Anomaly Horizon Plot
+#'
+#' @param grid_data 
+#' @param origin 
+#' @param scale_cutpoints 
+#' @param labels 
+#'
+#' @return
+#' @export
+#'
+#' @examples
 anom_horizon_plot <- function(grid_data, 
                               origin = ori, 
                               scale_cutpoints = sca, 
@@ -705,3 +1431,69 @@ warp_grid_projections <- function(in_grid_st, projection_crs = c("world robinson
 #                   stroke = 0.2,
 #                   rotate = FALSE,
 #                   check_overlap = TRUE) +
+
+
+
+
+
+# Gulf of Maine Warming n isolation
+ 
+# # Fahrenheit
+# gom_f <- ggplot(data = annual_summary, aes(year, area_wtd_anom_f)) +
+# 
+#   # Overlay yearly means
+#   geom_line(color = "gray10", size = 1.5, linetype = 1) +
+#   geom_point(color = "gray10", size = 1.5) +
+#   geom_smooth(
+#     data = annual_summary %>% 
+#       mutate(`Warming Rate` = eq_all),
+#     method = "lm",
+#     formula = y ~ x, se = F,
+#     aes(color = `Warming Rate`),
+#     alpha = 0.90,
+#     size = 1.5,
+#     linetype = 2) + 
+#    scale_color_gmri() +
+#    scale_y_continuous(labels =  number_format(suffix = " \u00b0F")) +
+#    labs(title = "Gulf of Maine:",
+#         subtitle = "Annual Sea Surface Temperature Anomalies",
+#         x = "Year", y = "Sea Surface Temperature Anomaly",
+#         caption = "Anomalies calculated using 1982-2011 reference period.")  +
+#    theme(legend.position = c(0.25, 0.85),
+#          legend.background = element_rect(color = "black", fill = "white"))
+# 
+# #gom_f <- add_gmri_logo(gom_f, position = "bot_left")
+# 
+# # Celsius
+# gom_c <- ggplot(data = annual_summary, aes(year, area_wtd_anom)) +
+# 
+#   # Overlay yearly means
+#   geom_line(color = "gray10", size = 1.5, linetype = 1) +
+#   geom_point(color = "gray10", size = 1.5) +
+#   geom_smooth(
+#     data = annual_summary %>% 
+#       mutate(`Warming Rate` = eq_all_c),
+#     method = "lm",
+#     formula = y ~ x, se = F,
+#     aes(color = `Warming Rate`),
+#     alpha = 0.90,
+#     size = 1.5,
+#     linetype = 2) + 
+#    scale_color_gmri() +
+#    scale_y_continuous(labels =  number_format(suffix = " \u00b0C")) +
+#    labs(title = "Gulf of Maine:",
+#         subtitle = "Annual Sea Surface Temperature Anomalies",
+#         x = "Year", y = "Sea Surface Temperature Anomaly",
+#         caption = "Anomalies calculated using 1982-2011 reference period.")  +
+#    theme(legend.position = c(0.25, 0.85),
+#          legend.background = element_rect(color = "black", fill = "white"))
+# 
+# #gom_c <- add_gmri_logo(gom_c, position = "bot_left")
+# 
+# 
+# 
+# # save them
+# ggsave(plot = gom_f, filename = str_c(save_location, "gom_annual_f.png"),
+#        dpi = "retina", bg = "white")
+# ggsave(plot = gom_c, filename = str_c(save_location, "gom_annual_c.png"),
+#        dpi = "retina", bg = "white")

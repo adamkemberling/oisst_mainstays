@@ -151,40 +151,13 @@ The spatial extent that we've used as the "Gulf of Maine" is displayed below. Th
 # Load the bounding box for Andy's GOM to show they align
 region_extent <- st_read(poly_path, quiet = TRUE)
 
-# Pull extents for the region for crop
-crop_x <- st_bbox(region_extent)[c(1,3)]
-crop_y <- st_bbox(region_extent)[c(2,4)]
 
-# Expand the area out to see the larger patterns
-crop_x <- crop_x + c(-2.25, 2.25)
-crop_y <- crop_y + c(-0.75, 0.75)
-
-
-# Add the bottom contours:
-bathy <- raster("~/Documents/Repositories/Points_and_contours/NEShelf_Etopo1_bathy.tiff")
-
-# Contours for geom_contour()
-bathy_df <- as.data.frame(raster::coordinates(bathy))
-bathy_df$depth <- raster::extract(bathy, bathy_df)
-bathy_df$depth <- bathy_df$depth * -1
-contours_make <- c(50, 100, 250)
-
-
-# Full map of GOM
-gom_extent_p <- ggplot() +
-  geom_sf(data = new_england, fill = "gray90", size = .25) +
-  geom_sf(data = canada, fill = "gray90", size = .25) +
-  geom_sf(data = greenland, fill = "gray90", size = .25) +
-  geom_contour(data = bathy_df, aes(x, y, z = depth),
-               breaks = contours_make,
-               color = "gray80") +
-  geom_sf(data = region_extent, 
-          color = gmri_cols("gmri blue"), 
-          fill = gmri_cols("gmri blue"), alpha = 0.2, linetype = 2, size = 0.5) +
-  coord_sf(xlim = crop_x, 
-           ylim = crop_y, expand = T) +
-  map_theme()
-
+# Map the Gulf of Maine with Bathymetry
+gom_extent_p <- map_study_area(
+  region_extent = region_extent,
+  new_england_sf = new_england,
+  canada_sf = canada,
+  greenland_sf = greenland)
 
 # Show figure
 gom_extent_p
@@ -243,6 +216,7 @@ region_hw <- region_hw %>%
     mcs_event == TRUE ~ 0,
     TRUE ~ 0.5))
 ```
+
 
 ```{r seasonal table prep}
 # Subset data for the season were looking at
@@ -347,7 +321,8 @@ week_summ_table <- week_summaries  %>%
       clim_f = "\u00b0F",
       clim_c = "\u00b0C",
       anom_f = "\u00b0F",
-      anom_c = "\u00b0C"#, outcomes = "Heatwave | Normal | Coldspell"
+      anom_c = "\u00b0C"#, 
+      #outcomes = "Heatwave | Normal | Coldspell"
       ) %>% 
     tab_source_note(source_note = md("*Data Source: NOAA OISSTv2 Daily Sea Surface Temperature Data.*") ) %>% 
     tab_source_note(md("*Climatology Reference Period: 1982-2011.*"))
@@ -782,7 +757,11 @@ num_hw_days <- sum(last_yr_heatwaves$mhw_event, na.rm = T)
 
 ```
 
-Using this broadly accepted definition, **the Gulf of Maine has experienced MHW conditions for almost all of 2021**, with only brief reprieves in mid-March, late April, and during the transition from July to August. We started the year off with a MHW event in January that persisted through March. The longest heatwave of the year began at the very end of April, and lasted until the end of July, peaking at nearly $4~^oC$ above "normal" at the beginning of July and throughout the latter half of August.
+Using this broadly accepted definition, **the Gulf of Maine has experienced MHW conditions for almost all of 2021**, with only brief reprieves in mid-March, late April, and during the transition from July to August. We started the year off with a MHW event in January that persisted through March. 
+
+
+
+The longest heatwave of the year began at the very end of April, and lasted until the end of July, peaking at nearly $4~^oC$ above "normal" at the beginning of July and throughout the latter half of August.
 
 ```{r}
 # Set colors by name
