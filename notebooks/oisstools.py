@@ -400,6 +400,10 @@ def build_annual_from_cache(last_month, this_month, workspace = "local", verbose
     #### Last check, again for duplicates to remove
     oisst_combined = oisst_combined.sel(time = ~oisst_combined.get_index("time").duplicated())
     
+    # # Checking duplicates
+    # import numpy as np
+    # np.unique(temp_21.get_index("time").date)
+    
     
     ####  Add Attributes Back  ####
   
