@@ -110,7 +110,7 @@ plot(month_sept$X1981.09.30, col = temp_pal, main = "September 1981")
 ```{r}
 # Cropping Extent  
 crop_extent <- make_cropbox(xlims = c(-79, -59), 
-                            ylims = c(34, 48))
+                            ylims = c(34, 47.5))
 #st_crs(crop_extent) <- crs(month_sst)
 
 # Crop it
@@ -288,7 +288,9 @@ bsb_prefs <- imap(hires_list, make_pref_ras, p1 = 18, p2 = 25, alpha = 1, gamma 
 ```{r}
 plot(bsb_prefs$X1990s, 
      main = "1990's Black Sea Bass Thermal Preference", 
-     col = terrain.colors(14, rev = T))
+     col = terrain.colors(14, rev = T), 
+     xlim = c(-78, -63), 
+     ylim = c(35.5,46))
 ```
 
 ### Sea Bass 2000's
@@ -297,7 +299,9 @@ plot(bsb_prefs$X1990s,
 
 plot(bsb_prefs$X2000s, 
      main = "2000's Black Sea Bass Thermal Preference", 
-     col = terrain.colors(14, rev = T))
+     col = terrain.colors(14, rev = T), 
+     xlim = c(-78, -63), 
+     ylim = c(35.5,46))
 ```
 
 
@@ -306,7 +310,9 @@ plot(bsb_prefs$X2000s,
 ```{r}
 plot(bsb_prefs$X2010s, 
      main = "2010's Black Sea Bass Thermal Preference", 
-     col = terrain.colors(14, rev = T))
+     col = terrain.colors(14, rev = T), 
+     xlim = c(-78, -63), 
+     ylim = c(35.5,46))
 ```
 
 
@@ -339,7 +345,9 @@ lob_prefs <- imap(hires_list, make_pref_ras, p1 = 11, p2 = 22, alpha = 1, gamma 
 ```{r}
 plot(lob_prefs$X1990s, 
      main = "1990's Lobster Thermal Preference", 
-     col = terrain.colors(14, rev = T))
+     col = terrain.colors(14, rev = T), 
+     xlim = c(-75.25, -60), 
+     ylim = c(37.5,46))
 ```
 
 ### Lobster 2000's
@@ -348,7 +356,9 @@ plot(lob_prefs$X1990s,
 
 plot(lob_prefs$X2000s, 
      main = "2000's Lobster Thermal Preference", 
-     col = terrain.colors(14, rev = T))
+     col = terrain.colors(14, rev = T), 
+     xlim = c(-75.25, -60), 
+     ylim = c(37.5,46))
 ```
 
 
@@ -357,7 +367,9 @@ plot(lob_prefs$X2000s,
 ```{r}
 plot(lob_prefs$X2010s, 
      main = "2010's Lobster Thermal Preference", 
-     col = terrain.colors(14, rev = T))
+     col = terrain.colors(14, rev = T), 
+     xlim = c(-75.25, -60), 
+     ylim = c(37.5,46))
 ```
 
  
@@ -366,15 +378,35 @@ plot(lob_prefs$X2010s,
 
 ```{r}
 # Load warming rates
-annual_rates <- terra::rast(str_c(oisst_path, "warming_rates/annual_warming_rates1982to2021.nc"))
+annual_rates <- raster::stack(str_c(oisst_path, "warming_rates/annual_warming_rates1982to2021.nc"),
+                              varname  = "annual_warming_rate")
+
 
 # Plot Rates
-plot(annual_rates$annual_warming_rate, main = "Annual Warming Rate | 1982-2021", col = terrain.colors(14))
+plot(rotate(annual_rates), 
+     main = "Annual Warming Rate | 1982-2021", 
+     col = terrain.colors(14))
+
 ```
 
 ## Local Rates
 
 ```{r}
+# # Crop to local area:
+rates_gom <- mask_nc(ras_obj = annual_rates, mask_shape = crop_extent, rotate = T)
+
+# Mask that region
+rates_gom <- mask(rates_gom, lakes_cover, inverse = TRUE)
+
+# Resample to higher resolution
+rates_hires <- raster::resample(rates_gom, s)
+
+# Plot Rates
+plot(rates_hires, 
+     main = "Annual Warming Rate | 1982-2021", 
+     col = terrain.colors(14))
+
+
 
 ```
 
@@ -385,7 +417,11 @@ plot(annual_rates$annual_warming_rate, main = "Annual Warming Rate | 1982-2021",
 
 ```{r}
 # Plot Ranks:
-plot(annual_rates$rate_percentile, main = "Warming Rate Percentile | 1982-2021", col = terrain.colors(14))
+annual_ranks <- raster::stack(str_c(oisst_path, "warming_rates/annual_warming_rates1982to2021.nc"),
+                              varname  = "rate_percentile")
+plot(annual_ranks, 
+     main = "Warming Rate Percentile | 1982-2021", 
+     col = terrain.colors(14))
 
 ```
 
@@ -394,7 +430,70 @@ plot(annual_rates$rate_percentile, main = "Warming Rate Percentile | 1982-2021",
 
 ```{r}
 
+# # Crop to local area:
+ranks_gom <- mask_nc(ras_obj = annual_rates, mask_shape = crop_extent, rotate = T)
+
+# Mask that region
+ranks_gom <- mask(ranks_gom, lakes_cover, inverse = TRUE)
+
+# Resample to higher resolution
+ranks_hires <- raster::resample(ranks_gom, s)
+
+# Plot Ranks
+plot(ranks_hires, 
+     main = "Warming Rate Percentile | 1982-2021", 
+     col = terrain.colors(14))
 ```
 
 
+
+## Bounding the gulf Stream?
+
+
+---
+
+# Saving Geotiffs
+
+To make the data available to openspaces the requested filetype is a GeoTiff
+
+This stackoverflow question asks details aroundhow those can be saved from R:
+https://gis.stackexchange.com/questions/257204/saving-geotiff-from-r
+
+
+```{r}
+# Folder location
+out_location <- here::here("R/markdown_reports/Openspaces_data")
+
+# List of things to save
+tiff_list <- list(
+  "sst1990" = temp_hires$X1990s,
+  "sst2000" = temp_hires$X2000s,
+  "sst2010" = temp_hires$X2010s,
+  "bsb1990" = bsb_prefs$X1990s,
+  "bsb2000" = bsb_prefs$X2000s,
+  "bsb2010" = bsb_prefs$X2010s,
+  "lob1990" = lob_prefs$X1990s,
+  "lob2000" = lob_prefs$X2000s,
+  "lob2010" = lob_prefs$X2010s
+)
+
+# Saving Something
+test_save <- tiff_list[1]
+
+
+# Save a geotiff
+iwalk(tiff_list, function(x, y){
+  writeRaster(x, filename = str_c(out_location, "/", y, ".tif"), options=c('TFW=YES'), overwrite = TRUE)
+  message(str_c("Saving geoTiff: ", y))
+})
+
+```
+
+
+
+```{python, eval = FALSE}
+import rasterio as rio
+
+
+```
 

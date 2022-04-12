@@ -23,7 +23,7 @@ This index page serves as a link directory to temperature reports. Use the follo
  8. [Global Sea Surface Temperature Patterns](https://adamkemberling.github.io/oisst_mainstays/R/markdown_reports/Global_sst_trends.html)
  
 
- 
+ 9. [Thermal Preference Mapping](https://adamkemberling.github.io/oisst_mainstays/R/markdown_reports/openspaces_prep.html)
 
  
  
