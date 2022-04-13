@@ -16,11 +16,12 @@ output:
     toc: true
     toc_depth: 2
     toc_float: true
+    code_folding: hide
 ---
 
 ```{r setup, include=FALSE}
 # knitr options
-knitr::opts_chunk$set(echo = FALSE, 
+knitr::opts_chunk$set(echo = TRUE, 
                       message = F, 
                       warning = F, 
                       comment = "", 
