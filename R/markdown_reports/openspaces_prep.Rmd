@@ -431,7 +431,7 @@ plot(annual_ranks,
 ```{r}
 
 # # Crop to local area:
-ranks_gom <- mask_nc(ras_obj = annual_rates, mask_shape = crop_extent, rotate = T)
+ranks_gom <- mask_nc(ras_obj = annual_ranks, mask_shape = crop_extent, rotate = T)
 
 # Mask that region
 ranks_gom <- mask(ranks_gom, lakes_cover, inverse = TRUE)
@@ -460,7 +460,7 @@ This stackoverflow question asks details aroundhow those can be saved from R:
 https://gis.stackexchange.com/questions/257204/saving-geotiff-from-r
 
 
-```{r}
+```{r, echo = T}
 # Folder location
 out_location <- here::here("R/markdown_reports/Openspaces_data")
 
@@ -474,7 +474,9 @@ tiff_list <- list(
   "bsb2010" = bsb_prefs$X2010s,
   "lob1990" = lob_prefs$X1990s,
   "lob2000" = lob_prefs$X2000s,
-  "lob2010" = lob_prefs$X2010s
+  "lob2010" = lob_prefs$X2010s,
+  "annualrates" = rates_hires$Annual.Sea.Surface.Temperature.Warming.Rate,
+  "annualranks" = ranks_hires$Annual.Sea.Surface.Temperature.Warming.Rate.Rank
 )
 
 # Saving Something
