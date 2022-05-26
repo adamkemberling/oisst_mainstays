@@ -255,6 +255,7 @@ ersst_smooth_f <- as.data.frame(spline(ersst_yr$yr, ersst_yr$sst_f))
 
 # plot it
 ersst_long_term_p <- ersst_yearly_plot(ersst_yr = ersst_yr, temp_units = "F")
+
 ersst_long_term_p
 grid::grid.raster(lab_logo, x = 0.05, y = 0.03, just = c('left', 'bottom'), width = unit(0.8, 'inches'))
 ```
@@ -490,8 +491,6 @@ gom_recent_warming
 
 
 ## Concerning Temperatures in Recent Years
-
-
 
 
 ```{r}
