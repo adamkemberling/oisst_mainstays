@@ -374,14 +374,14 @@ After this point both the seasonal average and the bulk of the daily temperature
 
 ```{r seasonal temp summary}
 
+# 1. Get the overall averages across all years
 
-# All year seasonal average:
+# Set the start year to use 1981 for winter
 ssn_year_start <- ifelse(params$season == "Winter", 1981, 1982)
-
 
 # all_year_szn_avg 
 all_year_season_avg <- region_timeseries %>% 
-  filter(season_yr %in% c(ssn_year_start:2021),
+  filter(season_yr %in% c(ssn_year_start:params$year),
          season_eng == params$season) %>% 
   group_by(season_eng) %>% 
   summarise(avg_temp_c = mean(area_wtd_sst),
@@ -394,7 +394,7 @@ all_year_season_avg <- region_timeseries %>%
 
 
 
-# Get Seasonal Averages for each year, 
+# 2. Get Seasonal Averages for each year, 
 # uses the max date for the season as date cutoff
 seasonal_avgs <- region_timeseries %>% 
   filter(season_eng == params$season,
@@ -411,6 +411,7 @@ seasonal_avgs <- region_timeseries %>%
     anom_f = as_fahrenheit(mean_anom, data_type = "anomalies"),
     .groups = "drop") %>% 
   mutate(
+     year = season_yr,
      yr = season_yr,
      season_center = as.Date(str_c(yr, season_cent)),
      season_llim = as.Date(str_c(yr, season_left)),
@@ -432,11 +433,6 @@ yr_mod <- lm(mean_temp ~ yr, seasonal_avgs)
 annual_rate <- coef(yr_mod)[[2]]
 decadal_rate <- round((annual_rate*10), 2)
 
-# Last Decade
-tenyr_mod <- lm(mean_temp ~ yr, filter(seasonal_avgs, yr %in% c(2011:2021)))
-tenyr_rate <- coef(tenyr_mod)[[2]]
-tenyr_decadal <- round((tenyr_rate*10), 2)
-
 
 # Grab the most recent temp and anomaly for this season for text
 this_seas <- filter(seasonal_avgs, yr == params$year)
@@ -444,47 +440,8 @@ seas_temp <- round(this_seas$mean_temp, 2)
 seas_anom <- round(this_seas$mean_anom, 2)
 ```
 
-```{r wip, eval = FALSE}
-####  Work In Progress  ####
-# ####  Run Warming Rate regressions  ####
-# rate_data <- list(
-#   "GoM All F" = get_decadal_rates(temp_df = seasonal_avgs, 
-#                                   temp_col = "area_wtd_f", 
-#                                   year_col = "year", 
-#                                   year_lim = c(1982, 2021), 
-#                                   area_name = "GoM", 
-#                                   degree_c = F),
-#   "GoM All C" = get_decadal_rates(temp_df = annual_summary, 
-#                                   temp_col = "area_wtd_sst", 
-#                                   year_col = "year", 
-#                                   year_lim = c(1982, 2021), 
-#                                   area_name = "GoM", 
-#                                   degree_c = T),
-#   "GoM 15" = get_decadal_rates(temp_df = annual_summary, 
-#                                temp_col = "area_wtd_f", 
-#                                year_col = "year", 
-#                                year_lim = c(2007, 2021), 
-#                                area_name = "GoM", 
-#                                degree_c = F),
-#   "Global All" = get_decadal_rates(temp_df = global_summary, 
-#                                    temp_col = "area_wtd_f", 
-#                                    year_col = "year", 
-#                                    year_lim = c(1982, 2021), 
-#                                    area_name = "Global", 
-#                                    degree_c = T))
-# 
-# 
-# # Build Regression Equation Labels
-# eq_all_c  <- rate_data[["GoM All C"]][["eq_label"]]
-# eq_all    <- rate_data[["GoM All F"]][["eq_label"]]
-# eq_15     <- rate_data[["GoM 15"]][["eq_label"]]
-# eq_global <- rate_data[["Global All"]][["eq_label"]]
 
-
-
-```
-
-Over the period of 1982-2021, `r tolower(params$season)`'s in the Gulf of Maine have warmed at a rate of **`r decadal_rate`** $^oC/Decade$, and more recently at a rate of **`r tenyr_decadal`** $^oC/Decade$ over the last ten years (2011-2021).
+Over the period of 1982-2021, `r tolower(params$season)`'s in the Gulf of Maine have warmed at a rate of **`r decadal_rate`** $^oC/Decade$.
 
 ```{r seasonal temperature change}
 
@@ -492,9 +449,9 @@ Over the period of 1982-2021, `r tolower(params$season)`'s in the Gulf of Maine 
 # Seasonal Temperature Trend Plot:
 seasonal_temp_p <- ggplot(seasonal_avgs, aes(yr, mean_temp)) +
   geom_line(color = "gray20", linetype = 3, size = 0.5, alpha = 0.5) +
-  #geom_line(data = season_temp_smooth, aes(x = x, y = y), linetype = 3, size = 0.5, alpha = 0.5) +
   geom_point(color = "gray20", size = 1, alpha = 0.8) +
-  geom_hline(data = all_year_season_avg, aes(yintercept = avg_temp_c), color = "darkblue", linetype = 2) + 
+  geom_hline(data = all_year_season_avg, aes(yintercept = avg_temp_c), 
+             color = "darkblue", linetype = 2) + 
   geom_mark_ellipse(data = data.frame(x = 2016, y = all_year_season_avg$avg_temp_c),
                     aes(x, y, label = all_year_season_avg$temp_label), 
                     description = str_c("1982-2021 Average ", params$season, " Temperature"), 
@@ -518,7 +475,7 @@ seasonal_temp_p <- ggplot(seasonal_avgs, aes(yr, mean_temp)) +
                     label.buffer = unit(1.35, "cm"), 
                     label.fill = "transparent", 
                     label.fontsize = 8) +
-  geom_mark_ellipse(aes(filter = yr == 2021, 
+  geom_mark_ellipse(aes(filter = yr == params$year, 
                         label = anom_label),
                     color = "darkred",
                     linetype = 2,
@@ -529,7 +486,7 @@ seasonal_temp_p <- ggplot(seasonal_avgs, aes(yr, mean_temp)) +
                     label.buffer = unit(0.15, "cm"), 
                     label.fontsize = 8) +
   scale_y_continuous(
-    #limits = c(12, 16.5),
+    expand = expansion(add = c(1, 3)),
     sec.axis = sec_axis(trans = ~ as_fahrenheit(.), 
                         labels =  number_format(suffix = " \u00b0F")),
     labels = number_format(suffix = " \u00b0C")) +
@@ -764,53 +721,9 @@ Using this broadly accepted definition, **the Gulf of Maine has experienced MHW 
 The longest heatwave of the year began at the very end of April, and lasted until the end of July, peaking at nearly $4~^oC$ above "normal" at the beginning of July and throughout the latter half of August.
 
 ```{r}
-# Set colors by name
-color_vals <- c(
-  "Sea Surface Temperature" = "royalblue",
-  "Heatwave Event"          = "darkred",
-  "MHW Threshold"           = "coral3",
-  "Daily Climatology"       = "gray30")
-
-linetype_key <- c(
-  "Sea Surface Temperature" = 1,
-  "Heatwave Event"          = 1,
-  "MHW Threshold"           = 3,
-  "Daily Climatology"       = 2)
-
-
-
-# Plot the last 365 days as heatwave events
-hw_temp_p <- ggplot(last_yr_heatwaves, aes(x = time)) +
-    geom_segment(aes(x = time, xend = time, y = seas, yend = sst), 
-                 color = "royalblue", alpha = 0.25) +
-    geom_segment(aes(x = time, xend = time, y = mhw_thresh, yend = hwe), 
-                 color = "darkred", alpha = 0.25) +
-    geom_line(aes(y = sst, color = "Sea Surface Temperature", linetype = "Sea Surface Temperature")) +
-    geom_line(aes(y = hwe, color = "Heatwave Event", linetype = "Heatwave Event")) +
-    geom_line(aes(y = mhw_thresh, color = "MHW Threshold", linetype = "MHW Threshold"), size = .5) +
-    geom_line(aes(y = seas, color = "Daily Climatology", linetype = "Daily Climatology"), size = .5) +
-    scale_color_manual(values = color_vals) +
-    scale_linetype_manual(values = linetype_key, guide = "none") +
-    scale_x_date(date_labels = "%b", date_breaks = "1 month", expand = expansion(add = c(0,0))) +
-    scale_y_continuous(sec.axis = sec_axis(trans = ~as_fahrenheit(.), 
-                                           labels =  number_format(suffix = " \u00b0F")),
-                     labels = number_format(suffix = " \u00b0C")) +
-    guides(color = guide_legend(override.aes = list(linetype = linetype_key), nrow = 2)) +
-    theme(legend.title = element_blank(),
-          legend.position = "bottom") +
-    labs(x = "", 
-         y = "Sea Surface Temperature", 
-         subtitle = str_c(params$season, params$year, ": Heatwave Conditions", sep = " ")) #+
-  
-    # # Anomalies on same plot
-    # geom_segment(aes(x = time, xend = time, 
-    #                    y = 0, yend = sst_anom), 
-    #              color = "darkred", alpha = 0.25) +
-    # geom_line(aes(y = sst_anom), color = "darkred") +
-    # geom_line(aes(y = 0), color = "gray30", linetype = 2) +
-
 
 # Show figure
+hw_temp_p <- year_hw_temps(year_hw_dat = last_yr_heatwaves, temp_units = "F")
 hw_temp_p
 
 ```
@@ -818,60 +731,8 @@ hw_temp_p
 Changing the axis to anomalies rather than temperature the magnitude of the anomalies become more clear. The most severe marine heatwave event of this `r params$season` occurred during the month of June, when temperatures rose above $3.5~^oC$ above the climate average. Remember, the value of zero in this figure is the average daily temperature from the climate period of 1982-2011. Not a single day this year was within $0.5~^oC$ within that average temperature.
 
 ```{r}
-
-# Color & linetype keys
-color_vals <- c(
-  "Sea Surface Temperature Anomaly" = "royalblue",
-  "Heatwave Event"                  = "darkred",
-  "MHW Threshold"                   = "coral3",
-  "Daily Climatology"               = "gray30")
-
-linetype_key <- c(
-  "Sea Surface Temperature Anomaly" = 1,
-  "Heatwave Event"                  = 1,
-  "MHW Threshold"                   = 3,
-  "Daily Climatology"               = 2)
-
-
-
-# Plot the last 365 days - anomaly scale
-hw_anom_p <- last_yr_heatwaves %>% 
-  mutate(
-    sst = sst,
-    seas = seas,
-    sst_anom = sst_anom,
-    mhw_thresh = mhw_thresh,
-    anom_thresh = mhw_thresh - seas,
-    anom_hwe = hwe - seas) %>% 
-ggplot(aes(x = time)) +
-    geom_segment(aes(x = time, xend = time, 
-                     y = 0, yend = sst_anom), 
-                 color = "royalblue", alpha = 0.25) +
-    geom_segment(aes(x = time, xend = time, 
-                       y = anom_thresh, yend = anom_hwe), 
-                 color = "darkred", alpha = 0.25) +
-    geom_line(aes(y = sst_anom, color = "Sea Surface Temperature Anomaly")) +
-    geom_line(aes(y = anom_hwe, color = "Heatwave Event")) +
-    geom_line(aes(y = anom_thresh, color = "MHW Threshold"), lty = 3, size = .5) +
-    geom_line(aes(y = 0, color = "Daily Climatology"), lty = 2, size = .5) +
-    scale_color_manual(values = color_vals) +
-    scale_linetype_manual(values = linetype_key, guide = "none") +
-    scale_x_date(date_labels = "%b", date_breaks = "1 month", expand = expansion(add = c(0,0))) +
-    scale_y_continuous(sec.axis = sec_axis(trans = ~as_fahrenheit(., data_type = "anomalies"), 
-                                           name = expression(degree*F))) +
-    guides(color = guide_legend(override.aes = list(linetype = linetype_key), nrow = 2)) + 
-    labs(x = "", 
-         y = expression("Temperature Anomaly"~~degree*C), 
-         subtitle = "Temperature Anomalies for an Exceptionally Warm Year",
-         caption = paste0("Climate reference period :  1982-2011")) +
-    theme(legend.title = element_blank(),
-          legend.position = "bottom")
-   
-
-
-# Show figure
+hw_anom_p <- year_hw_anoms(year_hw_dat = last_yr_heatwaves, temp_units = "F")
 hw_anom_p
-
 ```
 
 ## Seasonal Anomaly Map
@@ -880,6 +741,13 @@ hw_anom_p
 
 # Set time limits
 season_dates <- c(min(season_data$time), max(season_data$time))
+
+# Spatial Extent Info
+x_buffer <- c(-2.25, 2.25)
+y_buffer <- c(-0.75, 0.75)
+crop_x   <- st_bbox(region_extent)[c(1,3)] + x_buffer
+crop_y   <- st_bbox(region_extent)[c(2,4)] + y_buffer
+
 
 # Make data window for season
 data_window <- data.frame(lon = crop_x,
@@ -918,13 +786,14 @@ season_map <- ggplot() +
   scale_fill_distiller(palette = "RdYlBu", 
                        na.value = "transparent", 
                        limit = limit, 
-                       oob = scales::oob_squish) +
+                       oob = scales::oob_squish, 
+                       labels = scales::number_format(suffix = "\u00b0C")) +
   map_theme(legend.position = "bottom") +
   coord_sf(xlim = crop_x, 
            ylim = crop_y, 
            expand = T) +
   guides("fill" = guide_colorbar(
-    title = expression("Seasonally Averaged Temperature Anomaly"~degree*C),
+    title = expression("Seasonally Averaged Temperature Anomaly"),
     title.position = "top",
     title.hjust = 0.5,
     barwidth = unit(3, "in"),
@@ -965,7 +834,7 @@ expanded_area <- structure(c(crop_x, crop_y),
 
 
 # Perform masking
-months_masked <- map(display_months, mask_nc, expanded_area)
+months_masked <- map(display_months, mask_nc, expanded_area, rotate = FALSE)
 
 # Make plots for each
 month_plots <- imap(months_masked, function(month_avg_layer, month_id){
