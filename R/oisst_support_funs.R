@@ -1,4 +1,4 @@
-####  Support Funcitons for the Regional Temperature Report
+####  Support Functions for the Regional Temperature Report
 
 
 
