@@ -250,12 +250,12 @@ plotly_mhw_plots <- function(data){
                                        width = 2)) 
   
   # Axis Formatting
-  fig <- fig %>% layout(xaxis = list(title = ""),
-                        yaxis = list (title = "Temperature (degrees C)"))
+  fig <- fig %>% plotly::layout(xaxis = list(title = ""),
+                                yaxis = list (title = "Temperature (degrees C)"))
   
   
   # Legend formatting
-  fig <- fig %>% layout(legend = list(orientation = 'h'))
+  fig <- fig %>% plotly::layout(legend = list(orientation = 'h'))
   
   
   return(fig)
