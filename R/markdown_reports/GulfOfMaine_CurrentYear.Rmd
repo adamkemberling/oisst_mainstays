@@ -75,34 +75,30 @@ oisst_path <- path_fun("res", "OISST/oisst_mainstays")
 
 # Set ggplot theme for figures
 theme_set(theme_bw() + 
-            theme(
-              # Titles
-              plot.title = element_text(hjust = 0, face = "bold", size = 14),
-              plot.subtitle = element_text(size = 9),
-              plot.caption = element_text(size = 7.2, margin = margin(t = 20), color = "gray40"),
-              legend.title = element_text(size = 9),
-              legend.text = element_text(size = 7.5),
-              # Axes
-              axis.line.y = element_line(),
-              axis.ticks.y = element_line(), 
-              axis.line.x = element_line(),
-              axis.ticks.x = element_line(), 
-              axis.text = element_text(size = 11),
-              # Facets
-              strip.text = element_text(color = "white", 
-                                        face = "bold",
-                                        size = 11),
-              strip.background = element_rect(
-                color = "white", 
-                fill = "#00736D", 
-                size = 1, 
-                linetype="solid"))
-          )
-
-
-# Set theme up for maps
-map_theme <- gmRi::map_theme()
-
+  theme(
+    # Titles
+    plot.title = element_text(hjust = 0, face = "bold", size = 14),
+    plot.subtitle = element_text(size = 9),
+    plot.caption = element_text(size = 7.2, margin = margin(t = 20), color = "gray40"),
+    legend.title = element_text(size = 9),
+    legend.text = element_text(size = 7.5),
+    # Axes
+    axis.line.y = element_line(),
+    axis.ticks.y = element_line(), 
+    axis.line.x = element_line(),
+    axis.ticks.x = element_line(), 
+    axis.text = element_text(size = 11),
+    # Facets
+    strip.text = element_text(color = "white", 
+                              face = "bold",
+                              size = 11),
+    strip.background = element_rect(
+      color = "white", 
+      fill = "#00736D", 
+      size = 1, 
+      linetype="solid")
+    )
+  )
 
 # Polygons for mapping
 new_england <- ne_states("united states of america", returnclass = "sf")
@@ -132,6 +128,8 @@ tidy_name <- str_remove(tidy_name, "Cpr ")
 # Current Year
 current_yr <- year(Sys.Date())
 
+# Use panelset
+use_panelset()
 
 # Turn on the stylesheet:
 gmRi::use_gmri_style_rmd(css = "gmri_rmarkdown.css")
@@ -268,13 +266,13 @@ In addition to the daily average, we also look at how variable temperatures are.
 Common benchmarks for extreme events are the 10th and 90th percentile. Temperatures above the 90th percentile are among the hottest 10% of days in the reference period. Temperatures below the 10th percentile correspond to the coldest 10%. The remaining 80% of days fall somewhere in-between and showcase the range of temperatures we might expect to occur given the natural variability of the climate.
 
 ```{r}
+
+# Set plot colors:
 clim_colors <- c(
   "Daily Temperature"      = "gray80",
   "Climatological Average" = "gray10",
   "90th Percentile"        = "coral3",
-  "10th Percentile"        = "royalblue"
-  
-)
+  "10th Percentile"        = "royalblue")
 
 # pull one year for the lines, the reference period for points
 one_yr <- grid_data %>% filter(yr == 2021)
@@ -284,15 +282,14 @@ ref_yrs <- grid_data %>% filter(yr %in% c(1982:2011))
 ggplot(data = one_yr, aes(x = flat_date)) +
     geom_point(data = ref_yrs, aes(y = sst, color = "Daily Temperature"), alpha = 0.6) +
     geom_line(aes(y = seas, color = "Climatological Average"), size = 1) +
-    geom_textline(aes(y = mhw_thresh, color = "90th Percentile", label = "Heatwave Threshold"), linetype = 2, size = 4, hjust = 0.4) +
-    geom_textline(aes(y = mcs_thresh, color = "10th Percentile", label = "Coldspell Threshold"), linetype = 2, size = 4, hjust = 0.6) +
+    geom_textline(aes(y = mhw_thresh, color = "90th Percentile", label = "Heatwave Threshold"), linetype = 1, size = 4, hjust = 0.4, linewidth = 1) +
+    geom_textline(aes(y = mcs_thresh, color = "10th Percentile", label = "Coldspell Threshold"), linetype = 1, size = 4, hjust = 0.6, linewidth = 1) +
     scale_x_date(date_labels = "%b", date_breaks = "1 month", expand = expansion(add = c(0,0))) +
   scale_y_continuous(labels = number_format(suffix = " \u00b0C")) +
     scale_color_manual(values = clim_colors) +
     labs(x = "Day of the Year", y = "Sea Surface Temperature",
          title = str_c(tidy_name, " Daily Climatology"),
          subtitle = "Anticipated Daily Temperatures Based on a 1982-2011 Climate") +
-    #theme_gmri() +
     theme(
       legend.position = "bottom",
       legend.key.height = unit(.5, "lines"),
@@ -392,7 +389,7 @@ ggplot(monthly_temps, aes(x = time, y = 0)) +
         panel.grid = element_blank(),
         plot.caption = element_text(size = 7.2, margin = margin(t = 20), color = "gray40")
         ) +
-  labs(title = str_c(tidy_name, " - Monthly Sea Surface Temperature Anomalies"),
+  labs(title = str_c(tidy_name, "\nMonthly Sea Surface Temperature Anomalies"),
        x = "",
        caption = "Monthly Averages from 1982-2021  |  Climatology Period 1982-2011")
 ```
@@ -401,19 +398,15 @@ ggplot(monthly_temps, aes(x = time, y = 0)) +
 
 
 
-### Warming Rates {.panelset}
+### Warming Rates  
 
-```{r}
-# Use panelset
-use_panelset()
-```
 
 Seeing this change towards a warmer climate, it is then natural to ask how rapidly the change is happening. This is where we turn to warming rates. The warming trends below were calculated using all the available data for complete years beginning with 1982 through the end of 2021. 
 
 The overlaid trend lines then track how warming has increased with time. A dotted line has been included to show how the global average temperature has changed during the same period.
 
 
-### Warming Trends
+#### Warming Trends
 
 ```{r annual regressions}
 
@@ -640,7 +633,7 @@ The magnitude of this regime shift was `r r2_avg$avg_anom_c`C, or `r r2_avg$avg_
 #### Seasonal Patterns
 
 
-```{r}
+```{r, fig.height=7}
 
 # Doing seasons by meteorological Definitions
 quarter_summary <- region_timeseries %>% 
@@ -656,11 +649,11 @@ quarter_summary <- region_timeseries %>%
 # Plot
 quarter_summary %>% 
   ggplot(aes(year, area_wtd_anom)) +
-  geom_line(group = 1, color = "gray60", linetype = 1) +
+  geom_line(group = 1, color = "gray60", linetype = 3) +
   geom_point(size = 0.75) +
   geom_smooth(method = "lm", 
               aes(color = "Regional Trend"),
-              formula = y ~ x, se = F, linetype = 2) +
+              formula = y ~ x, se = F, linetype = 1) +
   stat_poly_eq(formula = y ~ x,
                color = gmri_cols("orange"),
                aes(label = paste(..eq.label..#, ..rr.label.., sep = "~~~"
@@ -716,7 +709,7 @@ ggplot(dat_combined, aes(x = `1982`, xend = `2021`, y = fct_rev(Area))) +
 
 
 
-### Marine Heatwaves {.panelset}
+### Marine Heatwaves  
 
 A marine heatwave is defined as a situation when seawater temperatures exceeds a seasonally-varying threshold (usually the 90th percentile) for at least 5 consecutive days. Successive heatwaves with gaps of 2 days or less are considered part of the same event. The heatwave threshold used below was 90%. The heatwave history for `r tidy_name` is displayed below:
 
@@ -900,6 +893,8 @@ hw_anom_p
 
 ### `r current_yr` in Context
 
+When `r current_yr` is overlaid against the daily values and climatological average for the region, we can see how temperatures compare to the history of the region.
+
 ```{r}
 # Plot this year among all previous
 this_yr_hw <- this_yr_hw %>% 
@@ -909,15 +904,22 @@ this_yr_hw <- this_yr_hw %>%
 # Make a plot
 ggplot(data = one_yr, aes(x = flat_date)) +
     geom_point(data = grid_data, aes(y = sst, color = "Daily Temperature"), alpha = 0.6) +
-    geom_textline(aes(y = seas, label = "Climatological Average"),
-                  linetype = 1, size = 4, hjust = 0.5) +
-    geom_line(aes(y = mhw_thresh, color = "90th Percentile"), linetype = 3, size = 0.5) +
-    geom_line(aes(y = mcs_thresh, color = "10th Percentile"), linetype = 3, size = 0.5) +
+    geom_textline(
+      aes(y = seas, 
+          label = "Climatological Average", 
+          color = "Climatological Average"),
+      linetype = 1, size = 4, hjust = 0.5) +
     geom_line(data = this_yr_hw,  
-              aes(flat_date, sst), size = 1, color = gmri_cols("orange")) +
+              aes(flat_date, sst, color = "2022 Temperatures"), size = 1) +
     scale_x_date(date_labels = "%b", date_breaks = "1 month", expand = expansion(add = c(0,0))) +
+    scale_color_manual(
+      values = c(
+        "Daily Temperature" = "gray80",
+        "Climatological Average" = "gray10",
+        "2022 Temperatures"= as.character(gmri_cols("orange"))
+      )
+    ) +
     scale_y_continuous(labels = number_format(suffix = " \u00b0C")) +
-    scale_color_manual(values = clim_colors) +
     labs(x = "Day of the Year", y = "Sea Surface Temperature",
          title = str_c(current_yr, " Temperatures in Context of the Last 40-Years"),
          subtitle = "Current year conditions suggest a persistance of warmer regime") +
@@ -935,21 +937,22 @@ ggplot(data = one_yr, aes(x = flat_date)) +
         title.hjust = 0.5,
         nrow = 1,
         title.position = "left",
-        label.position = "top", 
+        label.position = "top",
         override.aes = list(
-          color = c("gray50", "gray10", "coral3", "royalblue"),
-          shape = c(16, NA, NA, NA),  
-          linetype = c(0, 1, 2, 2),
-          alpha = c(1,1,1,1), 
-          label = c("", "", "", "")),
+          shape = c(16, NA, NA),
+          linetype = c(0, 1, 1),
+          alpha = c(1, 1, 1),
+          label = c("", "", "")),
         byrow = T))
 ```
 
 
 
-# 3: Mapping Global Temperatures
+# 3: Global Temperature Maps   
 
 The 2021 global sea surface temperature anomalies have been loaded and displayed below to visualize how different areas of the ocean experience swings in temperature.
+
+For perspective on where excess heat is distributed around the world, here first are maps of anomalies at a global perspective:
 
 ```{r}
 
@@ -962,12 +965,10 @@ anoms_2021 <- stack(anom_path)
 
 ```
 
-##  Global Anomalies {.panelset}
 
-For perspective on where excess heat is distributed around the world, here first are maps of anomalies at a global perspective:
-
-
-### Annual Average
+:::{.panelset}
+::: {.panel}
+## Annual Average {.panel-name}
 
 
 ```{r}
@@ -1005,18 +1006,18 @@ ggplot() +
     frame.colour = "black", 
     ticks.colour = "black")) +  
   coord_sf(expand = F) +
-  map_theme +
+  map_theme() +
   theme(legend.position = "right", 
         legend.title = element_text(angle = 90)) +
   labs(title = str_c("Global Temperature Anomalies - ", nc_year))
 ```
 
 
+:::
 
 
-
-
-### Winter
+::: {.panel}
+## Winter {.panel-name}
 
 ```{r}
 #### Making Averages for Seasons
@@ -1063,9 +1064,10 @@ season_stacks <- map(month_key, function(mon){
   
   
 })
+```
 
 
-
+```{r}
 # Plotting the seasons
 seas_anom_maps <- function(season, lab_years, temp_lim = 5){
   
@@ -1093,10 +1095,10 @@ seas_anom_maps <- function(season, lab_years, temp_lim = 5){
                                    frame.colour = "black", 
                                    ticks.colour = "black")) +  
     coord_sf(expand = F) +
-   map_theme +
+   map_theme() +
     theme(legend.position = "right", 
           legend.title = element_text(angle = 90)) +
-    labs(title = str_c(season, " - ", lab_years))
+    labs(title = str_c(season, ": ", lab_years))
   return(seas_map)
 
   
@@ -1109,41 +1111,51 @@ seas_anom_maps("Winter", "2020-2021", temp_lim = 2)
 
 ```
 
-### Spring
+:::
+
+
+::: {.panel}
+## Spring {.panel-name}
 
 
 ```{r}
 seas_anom_maps("Spring", "2021", temp_lim = 2)
 ```
 
-### Summer
+:::
+
+
+::: {.panel}
+## Summer {.panel-name}
 
 
 ```{r}
 seas_anom_maps("Summer", "2021", temp_lim = 2)
 ```
 
-### Fall
+:::
+
+
+::: {.panel}
+## Fall {.panel-name}
 
 
 ```{r}
 seas_anom_maps("Fall", "2021", temp_lim = 2)
 ```
 
+:::
+:::
 
-
-# 4: Mapping Regional Temperatures
+# 4: Regional Temperature Maps 
 
 The regional views of 2021's sea surface temperature anomalies have been loaded and displayed below to visualize how localized differences changed throughout the year.
-
-
-## Regional Anomalies {.panelset}
 
 
 ```{r}
 
 # # Expand the area out to see the larger patterns
-crop_x <- crop_x + c(-2.5, 2.5)
+crop_x <- crop_x + c(-2.5, 3.5)
 crop_y <- crop_y + c(-1.5, 1)
 
 # Make a new extent for cropping
@@ -1154,12 +1166,14 @@ region_extent_expanded <- st_sfc(st_polygon(list(
         c(crop_x[[2]], crop_y[[1]]), 
         c(crop_x[[1]], crop_y[[1]])))))
 
+# convert to sf
 region_extent_expanded <- st_as_sf(region_extent_expanded)
 ```
 
+:::{.panelset}
+::: {.panel}
+## Annual Average {.panel-name}
 
-
-### Annual Average
 
 ```{r}
 # Mask the annual average
@@ -1188,7 +1202,7 @@ ggplot() +
                                    barheight = unit(3, "inches"), 
                                    frame.colour = "black", 
                                    ticks.colour = "black")) +  
-  map_theme +
+  map_theme() +
   theme(legend.position = "right", 
         legend.title = element_text(angle = 90)) +
   coord_sf(xlim = crop_x, 
@@ -1196,8 +1210,10 @@ ggplot() +
   labs(title = str_c("Regional Temperature Anomalies - ", nc_year))
 ```
 
+:::
 
-### Winter
+::: {.panel}
+## Winter {.panel-name}
 
 ```{r}
 
@@ -1236,7 +1252,7 @@ plot_masked_season <- function(season, year_lab, temp_lim = 5){
                                    barheight = unit(3, "inches"), 
                                    frame.colour = "black", 
                                    ticks.colour = "black")) +  
-  map_theme +
+  map_theme() +
   theme(legend.position = "right", 
         legend.title = element_text(angle = 90)) +
     coord_sf(xlim = crop_x, 
@@ -1255,35 +1271,46 @@ plot_masked_season <- function(season, year_lab, temp_lim = 5){
 plot_masked_season("Winter", year_lab = "2020-2021", temp_lim = 3.5)
 ```
 
-### Spring
+:::
+
+
+::: {.panel}
+## Spring {.panel-name}
 
 ```{r}
 plot_masked_season("Spring", year_lab = "2021", temp_lim = 3.5)
 ```
 
+:::
 
-### Summer
+::: {.panel}
+## Summer {.panel-name}
 
 
 ```{r}
 plot_masked_season("Summer", year_lab = "2021", temp_lim = 3.5)
 ```
 
+:::
 
-### Fall
+::: {.panel}
+## Fall {.panel-name}
 
 
 ```{r}
 plot_masked_season("Fall", year_lab = "2021", temp_lim = 3.5)
 ```
 
+:::
 
 
-### Heatwave Progression
+
+::: {.panel}
+## Heatwave Progression {.panel-name}
 
 Looking specifically at the last heatwave event, we can step through how the event progressed over time, and developing pockets or warmer/colder water masses.
 
-```{r hw progression, eval = T}
+```{r hw progression, eval = F}
 
 # Identify the last heatwave event that happened
 last_event <- max(region_hw$mhw_event_no, na.rm = T)
@@ -1337,7 +1364,7 @@ hw_timeline <- region_hw %>%
 
 
 
-```{r hw progression animation, eval = T, animation.hook = 'gifski', fig.height=8, fig.width=9}
+```{r hw progression animation, eval = F, animation.hook = 'gifski', fig.height=8, fig.width=9}
 
 
 ####  Plot Settings:
@@ -1437,7 +1464,8 @@ walk(day_plots, print)
 
 ```
 
-
+:::
+:::
 
 # 5: Ranking Warming Rates
 
@@ -1515,7 +1543,7 @@ rates_stars <- st_as_stars(rates_masked)
 #           color = "black", 
 #           fill = "transparent", linetype = 2, size = 0.5) +
 #   scale_fill_viridis_c(option = "plasma", na.value = "transparent") +
-#   map_theme +
+#   map_theme() +
 #   coord_sf(xlim = crop_x, 
 #            ylim = crop_y, expand = F) +
 #   guides("fill" = guide_colorbar(
@@ -1607,7 +1635,7 @@ ranks_contour <-  st_contour(x = rank_stars, na.rm = T, breaks = seq(0.85, 1, by
 #                        na.value = "transparent",
 #                        limit = c(0.85, 1),
 #                        oob = scales::oob_squish) +
-#  map_theme +
+#  map_theme() +
 #   coord_sf(xlim = crop_x, 
 #            ylim = crop_y, expand = F) +
 #   guides("fill" = guide_colorbar(
@@ -1692,7 +1720,9 @@ From this we can see that the Fall temperatures have risen more than those of th
 # Run heatwave detection using new climate period
 heatwaves_91 <- pull_heatwave_events(region_timeseries, 
                                      threshold = 90, 
-                                     clim_ref_period = c("1991-01-01", "2020-12-31")) 
+                                     clim_ref_period = c("1991-01-01", "2020-12-31"))  %>% 
+  supplement_hw_data() %>% 
+  filter(doy != 366)
 
 
 
@@ -1711,10 +1741,6 @@ arrows <-
     y1 = c(1.25), 
     y2 = c(1.15)
   )
-
-# arrows
-
-
 
 # Plot the differences
 heatwaves_91 %>% 

@@ -3,13 +3,13 @@
 # the 'Run App' button above.
 #
 # Author : Adam Kemberling
-# Date: 4/14/2021
+# Last Update: 6/14/2022
 # 
 # NOTE: BROKEN
 # Process All the shapes ahead of time
 # Then Prepare the look up lists
 
-####  Packages  ####
+####  Packages:  ####
 library(lubridate)
 library(rnaturalearth)
 library(sf)
@@ -45,12 +45,9 @@ theme_set(theme_bw())
 # Polygons for mapping
 world <-  ne_countries() %>% st_as_sf(crs = 4326)
 
-# Build a Base map
-world_map <- ggplot() +
-    geom_sf(data = world, fill = "gray80", color = "white", size = 0.1) +
-    coord_sf(expand = FALSE) +
-    map_theme(axis.text.x = element_blank(),
-              axis.text.y = element_blank())
+
+
+#### Functions:  ####
 
 # Function to create lme bounding box to draw eyes over to region
 sf_to_rect <- function(sf_obj) {
@@ -200,18 +197,26 @@ region_maps <- map(region_shapes_l, function(group_fam){
     # Build Map of Extent
     lme_bb <- sf_to_rect(shape_poly)
 
-    # Build Plot
-    extent_map <- world_map +
+    # Build the Map
+    
+    # Build a Base map
+    extent_map <- ggplot() +
+      # Lay down the extent of the area
       geom_sf(data = shape_poly,
               fill = gmri_cols("gmri blue"),
-              color = gmri_cols("gmri_blue"),
-              alpha = 0.7) +
+              color = gmri_cols("gmri_blue")) +
+      # Then overlay the world map
+      geom_sf(data = world, fill = "gray80", color = "white", size = 0.1) +
+      # Then the highlight box
       geom_sf(data = lme_bb,
               color = gmri_cols("orange"),
               fill = "transparent",
               size = 1) +
       labs(title = area_title) +
-      theme(plot.title = element_text(hjust = 0.5, size = 16, color = "gray10"))
+      coord_sf(expand = FALSE) +
+      map_theme(axis.text.x = element_blank(),
+                axis.text.y = element_blank(),
+                plot.title = element_text(hjust = 0.5, size = 16, color = "gray10"))
 
 
     p <- extent_map
