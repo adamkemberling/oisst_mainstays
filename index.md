@@ -14,7 +14,7 @@ This index page serves as a link directory to temperature reports. Use the follo
 
  4. [Accessing OISST with gmRi package](https://adamkemberling.github.io/oisst_mainstays/R/markdown_reports/OISST_with_gmRi.html)
  
- 5. [Northeast Shelf Regional Sea Surface Temperature Update](https://adamkemberling.github.io/oisst_mainstays/R/markdown_reports/Marine_Regions_Temperature_Report.html)
+ 5. [Northeast Shelf Regional Sea Surface Temperature Update](https://adamkemberling.github.io/oisst_mainstays/R/markdown_reports/Northeast_shelf_update.html)
  
  6. [Impact of New Normal](https://adamkemberling.github.io/oisst_mainstays/R/markdown_reports/GOM_shifting_baselines.html)
 

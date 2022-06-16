@@ -44,7 +44,7 @@ source(here("R/oisst_support_funs.R"))
 
 
 #box paths
-box_paths <- research_access_paths()
+box_paths <- research_access_paths(mac_os = "mojave")
 
 
 # File Paths
@@ -97,7 +97,7 @@ The spatial extent for `r tidy_name` is displayed below. This bounding box is th
 # params$region <- "agulhas_current"
 
 # File paths for various extents based on params$region
-region_paths <- get_timeseries_paths(region_group = "lme")
+region_paths <- get_timeseries_paths(region_group = "lme", mac_os = "mojave")
 
 
 # Load the bounding box for Andy's GOM to show they align

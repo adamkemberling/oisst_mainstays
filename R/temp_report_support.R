@@ -505,7 +505,8 @@ map_study_area <- function(region_extent,
                            new_england_sf = NULL,
                            canada_sf = NULL,
                            greenland_sf = NULL,
-                           plot_title = NULL){
+                           plot_title = NULL,
+                           shape_linetype = 2){
   
   
   # Load country borders if NULL
@@ -549,7 +550,7 @@ map_study_area <- function(region_extent,
                  color = "gray80") +
     geom_sf(data = region_extent, 
             color = gmri_cols("gmri blue"), 
-            fill = gmri_cols("gmri blue"), alpha = 0.2, linetype = 2, size = 0.5) +
+            fill = gmri_cols("gmri blue"), alpha = 0.2, linetype = shape_linetype, size = 0.5) +
     coord_sf(xlim = crop_x, 
              ylim = crop_y, expand = T) +
     map_theme() +
@@ -965,7 +966,8 @@ year_hw_temps <- function(
     geom_line(aes(y = {{ hw_thresh_col }}, color = "MHW Threshold"), lty = 3, size = .5) +
     geom_textpath(aes(y = {{ clim_col }}), color = "gray30", label = "Climatological Mean", hjust = 0.5, lty = 2) +
     scale_color_manual(values = color_vals) +
-    scale_x_date(date_labels = "%b", date_breaks = "1 month", expand = expansion(mult = c(0,0))) +
+    #scale_x_date(date_labels = "%b", date_breaks = "1 month", expand = expansion(mult = c(0,0))) +
+    scale_x_date(date_labels = "%b %Y", date_breaks = "1 month", expand = expansion(mult = c(0,0))) +
     scale_y_continuous(labels =  number_format(suffix = temp_ops$temp_suff)) +
     guides(color = guide_legend(override.aes = list(linetype = linetype_key), nrow = 1)) +
     theme(legend.title = element_blank(),
@@ -1054,7 +1056,8 @@ year_hw_anoms <- function(year_hw_dat = this_yr, temp_units = "F"){
     geom_line(aes(y = 0, color = "Daily Climatology"), lty = 2, size = .5) +
     scale_color_manual(values = color_vals) +
     scale_linetype_manual(values = linetype_key, guide = "none") +
-    scale_x_date(date_labels = "%b", date_breaks = "1 month", expand = expansion(mult = c(0,0))) +
+    # scale_x_date(date_labels = "%b", date_breaks = "1 month", expand = expansion(mult = c(0,0))) +
+    scale_x_date(date_labels = "%b %Y", date_breaks = "1 month", expand = expansion(mult = c(0,0))) +
     guides(color = guide_legend(override.aes = list(linetype = linetype_key), nrow = 1)) +
     theme(legend.title = element_blank(),
           legend.position = "bottom") +
