@@ -391,7 +391,7 @@ ggplot(monthly_temps, aes(x = time, y = 0)) +
 
 
 
-### Warming Rates {.tabset}
+### Warming Rates
 
 
 Seeing this change towards a warmer climate, it is then natural to ask how rapidly the change is happening. This is where we turn to warming rates. The warming trends below were calculated using all the available data for complete years beginning with 1982 through the end of 2021. 
@@ -466,7 +466,7 @@ gom_rate <- str_c(rate_data$`GoM All C`$decadal_rate / 10, "\u00b0C / year")
 glob_rate <- str_c(rate_data$`Global All C`$decadal_rate / 10, "\u00b0C / year")
 
 
-fancy_title <- str_c("<span style='color:#00608A'>",tidy_name, "</span>", " Warming Faster than <span style='color:#407331'>Global Average</span>")
+fancy_title <- str_c("<span style='color:#00608A'>",tidy_name, "</span>", " Warming Faster than <span style='color:#407331'>Global Avg.</span>")
 
 
 fancy_subtitle <- str_c(tidy_name, "'s annual warming rate of <span style='color:#00608A'>",gom_rate, "</span>, is 2.5X the global average of <span style='color:#407331'>", glob_rate,"</span>.")
@@ -542,7 +542,7 @@ ggplot(data = annual_summary, aes(yr_as_dtime, area_wtd_anom)) +
 ```
 
 
-**Region Shift in Ocean Circulation**
+**Shift in Regional Ocean Circulation**
 
 Beginning around 2008, temperature in the region swung upward, and since 2010 most yearly temperatures have been over 1 degree above the hematological average of the previous 30-years. With some years experiencing temperatures more than 2 degrees C above that average.
 
@@ -701,7 +701,7 @@ ggplot(dat_combined, aes(x = `1982`, xend = `2021`, y = fct_rev(Area))) +
 
 
 
-### Marine Heatwaves {.tabset}
+### Marine Heatwaves 
 
 A marine heatwave is defined as a situation when seawater temperatures exceeds a seasonally-varying threshold (usually the 90th percentile) for at least 5 consecutive days. Successive heatwaves with gaps of 2 days or less are considered part of the same event. The heatwave threshold used below was 90%. The heatwave history for `r tidy_name` is displayed below:
 

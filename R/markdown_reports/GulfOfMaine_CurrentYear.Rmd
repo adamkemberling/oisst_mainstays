@@ -549,7 +549,7 @@ ggplot(data = annual_summary, aes(yr_as_dtime, area_wtd_anom)) +
 ```
 
 
-**Region Shift in Ocean Circulation**
+**Shift in Regional Ocean Circulation**
 
 Beginning around 2008, temperature in the region swung upward, and since 2010 most yearly temperatures have been over 1 degree above the hematological average of the previous 30-years. With some years experiencing temperatures more than 2 degrees C above that average.
 
@@ -796,8 +796,9 @@ hw_peaks <-  ggplot(wave_summary, aes(y = year, x = peak_intensity)) +
 
 # 2: `r current_yr` Observations
 
-
-### Temperatures of the Last Full Year (Interactive)
+::: {.panelset}
+::: {.panel}
+### Last Full Year (Interactive) {.panel-name}
 
 Daily temperatures for the last 365 days are displayed below with reference to how they fall against the marine heatwave and cold spell thresholds. 
 
@@ -858,7 +859,9 @@ last_yr_heatwaves %>%
 
 ```
 
-### `r year(Sys.Date())` Temperatures
+:::
+:::{.panel}
+### `r year(Sys.Date())` Temperatures {.panel-name}
 
 Temperatures for the current year can be seen against the same thresholds with the following plot:
 
@@ -875,8 +878,9 @@ hw_temp_p
 ```
 
 
-
-###  `r year(Sys.Date())` Anomalies
+:::
+:::{.panel}
+###  `r year(Sys.Date())` Anomalies {.panel-name}
 
 Changing from absolute temperatures to anomalies reveals the degree to which this year is departure from what we would have expected from the climatology of 1982-2011's temperatures.
 
@@ -890,8 +894,9 @@ hw_anom_p
 
 ```
 
-
-### `r current_yr` in Context
+:::
+:::{.panel}
+### `r current_yr` in Context {.panel-name}
 
 When `r current_yr` is overlaid against the daily values and climatological average for the region, we can see how temperatures compare to the history of the region.
 
@@ -946,7 +951,8 @@ ggplot(data = one_yr, aes(x = flat_date)) +
         byrow = T))
 ```
 
-
+:::
+:::
 
 # 3: Global Temperature Maps   
 
