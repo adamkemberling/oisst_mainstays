@@ -7,7 +7,7 @@ author:
     affiliation: Gulf of Maine Research Institute
     affiliation_url: https://www.gmri.org
 description: | 
-  Characteristics of a record setting year for ocean temperatures
+  Seasonal Patterns in Sea Surface Temperatures
 date: "Updated on: `r Sys.Date()`"
 editor_options: 
   chunk_output_type: console
