@@ -303,6 +303,99 @@ supplement_season_info <- function(regional_timeseries){
 }
 
 
+
+
+
+# Get details around meteorological seasons for text editing:
+season_text_details <- function(season_op, year_op){
+  
+  # Set color for the season based on the parameter:
+  season_col <- switch(season_op,
+                       "Spring" = gmri_cols("teal"),
+                       "Summer" = gmri_cols("green"),
+                       "Fall"   = gmri_cols("orange"),
+                       "Winter" = "lightblue")
+  
+  # Configure edges/centers of each season for label positioning
+  # Center Date for the 3-month period
+  season_cent <- switch(
+    EXPR = season_op,
+    "Spring" = "-04-15",
+    "Summer" = "-07-15",
+    "Fall"   = "-10-15",
+    "Winter" = "-01-15")
+  
+  # Left-hand date for polar plot geom
+  season_left <- switch(
+    EXPR = season_op,
+    "Spring" = "-03-01",
+    "Summer" = "-06-01",
+    "Fall"   = "-09-01",
+    "Winter" = "-12-01")
+  
+  # Right-hand date for polar plot geom
+  season_right <- switch(
+    season_op,
+    "Spring" = "-05-30",
+    "Summer" = "-08-30",
+    "Fall"   = "-11-30",
+    "Winter" = "-01-28")
+  
+  
+  # Make names for the months to pull based on the season and current year
+  season_months <- switch(
+    EXPR = season_op,
+    "Spring" = str_c("X", year_op, ".", c("03", "04", "05")),
+    "Summer" = str_c("X", year_op, ".", c("06", "07", "08")),
+    "Fall"   = str_c("X", year_op, ".", c("09", "10", "11")),
+    "Winter" = map2(c(year_op-1, year_op, year_op), 
+                    c("12","01","02"), ~ str_c("X", .x, ".", .y)))
+  
+  
+  # Names of start and end month for text:
+  season_range <- switch(
+    EXPR = season_op,
+    "Spring" = "March - May",
+    "Summer" = "June - August",
+    "Fall"   = "September - November",
+    "Winter" = "December - February")
+  
+  
+  # Season End cutoff using day of the year
+  season_end <- switch(
+    EXPR = season_op,
+    "Winter" = yday("2000-02-28"),
+    "Spring" = yday("2000-05-30"),
+    "Summer" = yday("2000-08-30"),
+    "Fall"   = yday("2000-11-30")
+  )
+  
+  
+  # Make a list:
+  season_details <- list(
+    month_range   = season_months,
+    left_lim     = season_left,
+    center_date  = season_cent,
+    right_lim    = season_right,
+    range_label  = season_range,
+    season_color = season_col,
+    season_end_doy = season_end
+    )
+  
+  # Return the lists
+  return(season_details)
+  
+  
+  
+}
+
+
+
+
+
+
+
+
 # Return Temperature and Anomaly info in both C and F
 temperature_summaries <- function(x){
   x %>% 
