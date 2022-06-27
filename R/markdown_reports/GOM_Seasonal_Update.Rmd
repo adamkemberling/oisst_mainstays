@@ -244,6 +244,8 @@ Over the past decade, scientists at [the Gulf of Maine Research Institute](https
 For analyses like this, it is important to be clear about the spatial extent that "defines" the Gulf of Maine (Figure 1), as different borders could produce different numbers. The spatial extent we use as the "Gulf of Maine" is displayed below. This area is consistent with reports done in previous years and in earlier publications.
 
 ```{r}
+#| fig.alt = "A overhead view of the Gulf of Maine region. Landmasses and political boundaries for the United States and Canada are displayed. A blue dotted line outlining a box with a transparent blue fill is shown to demark where satellite data for the analysis has been used."
+
 
 # Load the bounding box for Andy's GOM to show they align
 region_extent <- st_read(poly_path, quiet = TRUE)
@@ -265,7 +267,8 @@ gom_extent_p
 For the data within this seasonal report, we include data for `r params$season` that follows the meteorological definitions for the seasons. Under this system the first days of March, June, September, and December each mark the start of Meteorological Spring, Summer, Fall and Winter respectively.
 
 ```{r season circle}
-#| eval = TRUE
+#| eval = TRUE,
+#| fig.alt = "A circular plot with the twelve months around the border displays the currently selected season which is indicated by a curved bar with a highlight color to identify which months are included in the meteorological season selected."
 
 # Plot the currently selected season:
 plot_met_seasons(season_highlight = params$season)
