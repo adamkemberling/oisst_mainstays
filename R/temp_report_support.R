@@ -1281,7 +1281,9 @@ yearly_metric_plots <- function(temp_dat, temp_units, year_focus = "2021"){
 #' @export
 #'
 #' @examples
-heatwave_heatmap_plot <- function(hw_dat, temp_units){
+heatwave_heatmap_plot <- function(hw_dat, temp_units = "C", start_yr = 1981, end_yr = 2021){
+  
+  base_date <- as.Date("2000-01-01")
   
   # Set unit controls
   temp_ops <- switch(
@@ -1323,7 +1325,7 @@ heatwave_heatmap_plot <- function(hw_dat, temp_units){
     # geom_point(data = filter(grid_data, sst > mhw_thresh),
     #            aes(x = flat_date, y = year), size = .25)  +
     scale_x_date(date_labels = "%b", date_breaks = "1 month", expand = expansion(add = c(0,0))) +
-    scale_y_continuous(limits = c(1981.5, 2021.5), expand = expansion(add = c(0,0))) +
+    scale_y_continuous(limits = c(start_yr + .5, end_yr + .5), expand = expansion(add = c(0,0))) +
     scale_fill_distiller(palette = "RdBu", 
                          na.value = "transparent", 
                          limit = temp_limits, 
