@@ -282,8 +282,8 @@ ref_yrs <- grid_data %>% filter(yr %in% c(1982:2011))
 ggplot(data = one_yr, aes(x = flat_date)) +
     geom_point(data = ref_yrs, aes(y = sst, color = "Daily Temperature"), alpha = 0.6) +
     geom_line(aes(y = seas, color = "Climatological Average"), size = 1) +
-    geom_textline(aes(y = mhw_thresh, color = "90th Percentile", label = "Heatwave Threshold"), linetype = 1, size = 4, hjust = 0.4, linewidth = 1) +
-    geom_textline(aes(y = mcs_thresh, color = "10th Percentile", label = "Coldspell Threshold"), linetype = 1, size = 4, hjust = 0.6, linewidth = 1) +
+    geom_textline(aes(y = mhw_thresh, color = "90th Percentile", label = "Heatwave Threshold"), linetype = 2, size = 4, hjust = 0.4, linewidth = 1) +
+    geom_textline(aes(y = mcs_thresh, color = "10th Percentile", label = "Coldspell Threshold"), linetype = 2, size = 4, hjust = 0.6, linewidth = 1) +
     scale_x_date(date_labels = "%b", date_breaks = "1 month", expand = expansion(add = c(0,0))) +
   scale_y_continuous(labels = number_format(suffix = " \u00b0C")) +
     scale_color_manual(values = clim_colors) +
