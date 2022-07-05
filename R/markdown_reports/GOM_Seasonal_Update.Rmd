@@ -787,7 +787,8 @@ The heatwave event of 2022 was actually a continuation of an historical event, t
 
 # Pull out the heatwave event - most recent
 longest_hw <- region_hw %>% 
-  filter(mhw_event_no == max(region_hw$mhw_event_no, na.rm = T))
+  #filter(mhw_event_no == max(region_hw$mhw_event_no, na.rm = T))
+  filter(mhw_event_no == 97)
 
 # Event number = 97
 
