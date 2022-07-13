@@ -32,11 +32,24 @@ gom_oisst <- mutate(gom_oisst, time = as.Date(time)) %>%
 
 
 # Large Marine Ecosystems
-lme_names <- get_region_names("lme") # names
+
+# Get the list of names for the different LME's
+lme_names <- get_region_names("lme") 
+
+# Load the path information for the group
 lme_paths <- get_timeseries_paths("lme", mac_os = "mojave") # paths
-lme_oisst <- map(lme_names, ~ read_csv(lme_paths[[.x]][["timeseries_path"]],
-                                       guess_max = 1e5,
-                                       col_types = cols())) # data
+
+
+# Read the temperature csv files for each LME
+lme_oisst <- map(.x = lme_names, function(x){
+
+  read_csv(lme_paths[[.x]][["timeseries_path"]],
+           guess_max = 1e5,
+           col_types = cols())
+  
+  })
+
+# Do some additional tidying:
 lme_oisst <- map(lme_oisst, ~ mutate(.x, time = as.Date(time)) %>% drop_na())
 lme_oisst <- setNames(lme_oisst, lme_names)
 
@@ -44,8 +57,11 @@ lme_oisst <- setNames(lme_oisst, lme_names)
 # Add Gulf of Maine to the LME list
 lme_oisst[["gulf_of_maine"]] <- gom_oisst
 
-# Run heatwave events check
-lme_oisst <- map(lme_oisst, pull_heatwave_events, threshold = 90, clim_ref_period = c("1982-01-01", "2011-12-31"))
+# Run heatwave events check on each of them:
+lme_oisst <- map(.x = lme_oisst,
+                 .f = pull_heatwave_events, 
+                 threshold = 90, 
+                 clim_ref_period = c("1982-01-01", "2011-12-31"))
 
 
 
@@ -324,3 +340,4 @@ lme_geofacet_dat %>%
 
 ####  TweetR  ####
 
+install.packages()
