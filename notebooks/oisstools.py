@@ -1150,6 +1150,14 @@ def update_global_anomalies(yr_min, yr_max, box_root, var_name = "sst", referenc
       group.to_netcdf(out_path)
       print(f"Saving anomaly year: {year}")
 
+    
+  # Close connections
+  oisst.close()
+  oisst_clim.close()
+
+
+  
+
 
 
 #-----------------------------------------------------
