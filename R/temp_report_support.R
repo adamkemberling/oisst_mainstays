@@ -336,8 +336,8 @@ season_text_details <- function(season_op, year_op){
   # Right-hand date for polar plot geom
   season_right <- switch(
     season_op,
-    "Spring" = "-05-30",
-    "Summer" = "-08-30",
+    "Spring" = "-05-31",
+    "Summer" = "-08-31",
     "Fall"   = "-11-30",
     "Winter" = "-01-28")
   
@@ -365,20 +365,20 @@ season_text_details <- function(season_op, year_op){
   season_end <- switch(
     EXPR = season_op,
     "Winter" = yday("2000-02-28"),
-    "Spring" = yday("2000-05-30"),
-    "Summer" = yday("2000-08-30"),
+    "Spring" = yday("2000-05-31"),
+    "Summer" = yday("2000-08-31"),
     "Fall"   = yday("2000-11-30")
   )
   
   
   # Make a list:
   season_details <- list(
-    month_range   = season_months,
-    left_lim     = season_left,
-    center_date  = season_cent,
-    right_lim    = season_right,
-    range_label  = season_range,
-    season_color = season_col,
+    month_range    = season_months,
+    left_lim       = season_left,
+    center_date    = season_cent,
+    right_lim      = season_right,
+    range_label    = season_range,
+    season_color   = season_col,
     season_end_doy = season_end
     )
   
