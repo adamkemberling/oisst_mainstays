@@ -1,5 +1,5 @@
 ---
-title: "Gulf of Maine SST Report"
+title: "Gulf of Maine Current Year SST Report"
 author: 
   - first_name: "Adam"
     last_name: "Kemberling"
