@@ -151,16 +151,16 @@ region_hw <- region_hw %>%
 
 ```{r season_data prep}
 # Subset data for the season were looking at
-season_data <- region_hw %>% 
+this_season_data <- region_hw %>% 
   dplyr::filter(season_eng == params$season,
                 season_yr == params$year) 
 
 # Set seasonal end date so weeks don't bleed over
-first_day <- as.Date(min(season_data$time))
-last_day  <- as.Date(max(season_data$time))
+first_day <- as.Date(min(this_season_data$time))
+last_day  <- as.Date(max(this_season_data$time))
 
 # Set week start in the data so we can merge labels in accordingly later
-season_data <-  season_data %>% 
+this_season_data <-  this_season_data %>% 
   mutate(wk_start = floor_date(time, unit = "week"),
          wk_start = if_else(wk_start < first_day, first_day, wk_start),
          wk_start = as.Date(wk_start))
@@ -179,70 +179,61 @@ month_range <- switch(params$season,
 
 # 1. Get the overall averages across all years
 
-# Set the start year to use 1981 for winter
+# Set the start year, use 1981 if season is winter
 ssn_year_start <- ifelse(params$season == "Winter", 1981, 1982)
 
 
 # Get the average temperature for all years as a baseline
 # all_year_szn_avg 
-all_year_season_avg <- region_timeseries %>% 
+all_year_season_avg <- region_hw %>% 
   filter(season_yr %in% c(ssn_year_start:params$year),
          season_eng == params$season) %>% 
   group_by(season_eng) %>% 
-  summarise(avg_temp_c = mean(area_wtd_sst),
-            avg_anom_c = mean(area_wtd_anom),
-            avg_clim_c = mean(area_wtd_clim),
+  summarise(avg_temp_c = mean(sst),
+            avg_anom_c = mean(sst_anom),
+            avg_clim_c = mean(seas),
+            avg_temp_f = mean(sst_f),
+            avg_clim_f = mean(seas_f),
+            avg_anom_f = mean(anom_f),
             .groups = "drop") %>% 
-  mutate(
-    avg_temp_f = as_fahrenheit(avg_temp_c, data_type = "temperature"),
-    temp_label = str_c(round(avg_temp_c, 2), " \u00b0C  |  ", round(avg_temp_f, 2), " \u00b0F"))
+  mutate(temp_label = str_c(round(avg_temp_c, 2), " \u00b0C  |  ", round(avg_temp_f, 2), " \u00b0F"))
 
 
 
-# 2. Get Averages for each year, 
-# uses the max date for the season as date cutoff
-seasonal_avgs <- region_timeseries %>% 
-  filter(season_eng == params$season,
-         between(time, 
-                 as.Date(str_c(ssn_year_start, "-01-01")), 
-                 as.Date(last_day + 1))) %>% 
+# 2. Get Averages for each year individually, 
+# Use region_hw and its climatology 
+seasonal_avgs <- region_hw %>% 
+  filter(season_eng == params$season, 
+  season_yr %in% c(ssn_year_start:params$year)) %>% 
   group_by(season_yr, season) %>% 
   summarise(
     # Uses Area Weighted SST
-    mean_temp = mean(area_wtd_sst),
-    mean_clim = mean(area_wtd_clim),
-    mean_clim = median(mean_clim), # Makes sure any odd years are not different
-    mean_anom = mean_temp - mean_clim,
-    temp_f = as_fahrenheit(mean_temp),
-    clim_f = as_fahrenheit(mean_clim),
-    anom_f = as_fahrenheit(mean_anom, data_type = "anomalies"),
+    mean_temp = mean(sst),
+    mean_clim = mean(seas),
+    mean_clim = median(mean_clim), # Makes sure any odd years (leap year or incomplete) are not different
+    mean_anom = mean(sst_anom),
+    temp_f    = as_fahrenheit(mean_temp),
+    clim_f    = as_fahrenheit(mean_clim),
+    anom_f    = as_fahrenheit(mean_anom, data_type = "anomalies"),
     .groups = "drop") %>% 
   mutate(
      year = season_yr,
      yr = season_yr,
      season_center = as.Date(str_c(yr, season_cent)),
-     season_llim = as.Date(str_c(yr, season_left)),
-     season_rlim = as.Date(str_c(yr, season_right)),
-     anom_label = str_c(round(mean_anom, 2), " \u00b0C  |  ", round(anom_f, 2), " \u00b0F")
+     season_llim   = as.Date(str_c(yr, season_left)),
+     season_rlim   = as.Date(str_c(yr, season_right)),
+     anom_label    = str_c(round(mean_anom, 2), " \u00b0C  |  ", round(anom_f, 2), " \u00b0F")
   )
   
-
-
+  
+  
 # Rank the hottest years
 seasonal_ranks <- seasonal_avgs %>% 
   mutate(yr = factor(yr),
          year_rank = fct_reorder(.f = yr, .x = mean_temp, .fun = median, .desc = TRUE)) %>% 
   arrange(year_rank) %>% 
   mutate(rank = row_number(),
-         flag_year = ifelse(year_rank == params$year, "flag", "unflag")) %>% 
-  filter(rank <= 5)
-
-
-# Grab the most recent temp and anomaly for this season for text
-this_seas        <- filter(seasonal_avgs, yr == params$year)
-seas_temp        <- round(this_seas$mean_temp, 2)
-seas_anom        <- round(this_seas$mean_anom, 2)
-climate_baseline <- this_seas$mean_clim
+         flag_year = ifelse(year_rank == params$year, "flag", "unflag")) 
 
 ```
 
@@ -284,8 +275,7 @@ gom_extent_p
 
 For this seasonal report, we present an analysis of SST for `r params$season` `r month_range`.
 
-```{r season circle}
-#| eval = TRUE,
+```{r season circle, eval = FALSE}
 #| fig.alt = "A circular plot with the twelve months around the border displays the currently selected season which is indicated by a curved bar with a highlight color to identify which months are included in the meteorological season selected."
 
 # Plot the currently selected season:
@@ -300,13 +290,29 @@ For this seasonal report, we present an analysis of SST for `r params$season` `r
 
 ```{r season highlights}
 
-# Average Temp+Anom Stats for that season
-season_avg_temp <- round(mean(season_data$sst_f, na.rm = T), 2)
-season_avg_anom <- round(mean(season_data$anom_f, na.rm = T), 2)
+
+# Why is the math not adding up!?
+
+#--- 1. Calculation 1: Filters year, and filters time between the season start and season end
+# Grab the most recent temp and anomaly for this season for text
+this_seas <- filter(seasonal_avgs, yr == params$year)
+# season_temp <- mean(this_seas$temp_f)
+# season_anom <- mean(this_seas$anom_f)
+
+# What is the climatological average temperature
+climate_baseline <- mean(this_seas$clim_f)
+
+# Average Temp+Anom Stats for that season Used ib Text
+season_avg_temp <- round(mean(this_season_data$sst_f, na.rm = T), 2) # same as season_temp
+season_avg_anom <- round(mean(this_season_data$anom_f, na.rm = T), 2) # same as season_anom
+season_avg_clim <- mean(this_season_data$seas_f, na.rm = T) # Same as climate_baseline
 
 
 # What rank are we this year?
-current_rank <- seasonal_ranks %>% filter(yr == params$year) %>% pull(rank)
+current_rank <- seasonal_ranks %>% 
+  filter(yr == params$year) %>% pull(rank)
+
+# In-Text friendly version
 rank_labs <- switch(current_rank,
   "1" = "new",
   "2" = "2nd",
@@ -317,8 +323,7 @@ rank_labs <- switch(current_rank,
   "7" = "7th",
   "8" = "8th",
   "9" = "9th",
-  "10" = "10th"
-  )
+  "10" = "10th")
 
 # Get max anom year and max anom
 max_anom_yr <- seasonal_avgs %>% 
@@ -327,7 +332,7 @@ max_anom_yr <- seasonal_avgs %>%
   mutate(across(where(is.numeric), round, 3))
 ```
 
-The average SST for the Gulf of Maine during the `r tolower(params$season)` of `r params$year` was `r season_avg_temp`°F, which is `r season_avg_anom`°F above the long-term average (1982-2011) of `r round(as_fahrenheit(climate_baseline), 2)`°F.
+The average SST for the Gulf of Maine during the `r tolower(params$season)` of `r params$year` was `r season_avg_temp`°F, which is `r season_avg_anom`°F above the long-term average across all years (1982-2022) of `r round(climate_baseline, 3)`°F.
 
 It was the `r rank_labs` hottest `r tolower(params$season)` on record for the period of 1982-2022. 
 
@@ -342,7 +347,7 @@ The observed SST, long-term average SST, as well as departures from the long-ter
 
 
 # Format the start/end dates for weekly subsets
-week_labels <- season_data  %>% 
+week_labels <- this_season_data  %>% 
   # Determine bookends for weeks and trim to season bookends
   mutate(
     wk_end = ceiling_date(time, unit = "week"),
@@ -365,7 +370,7 @@ week_labels <- season_data  %>%
     
     
 # rejoin the temperatures to get weekly summaries
-week_data <- season_data %>%
+week_data <- this_season_data %>%
   select(time, sst, seas, sst_anom, hw_outcomes, wk_start) %>%
   left_join(week_labels, by = "wk_start") 
 
@@ -439,7 +444,7 @@ Looking at monthly averages (as opposed to week-by-week conditions), we see that
 
 ```{r}
 # Recreate Table for Monthly Averages
-monthly_avgs <- season_data %>% 
+monthly_avgs <- this_season_data %>% 
   group_by(month) %>% 
   summarise(
     temp_c = mean(sst),
@@ -500,10 +505,9 @@ month_summ_table
 # Get the rates of change for dynamic text
 
 # Decadal Rate
-yr_mod         <- lm(mean_temp ~ yr, seasonal_avgs)
+yr_mod         <- lm(temp_f ~ yr, seasonal_avgs)
 annual_rate    <- coef(yr_mod)[[2]]
-decadal_rate   <- round((annual_rate*10), 2)
-decadal_rate_f <- round(as_fahrenheit((annual_rate*10), "anomalies" ), 2)
+decadal_rate_f   <- round((annual_rate*10), 2)
 
 ```
 
@@ -526,7 +530,7 @@ seasonal_temp_p <- ggplot(seasonal_avgs,
              color = "darkblue", linetype = 2) + 
   geom_mark_ellipse(data = data.frame(x = 2016, y = all_year_season_avg$avg_temp_f),
                     aes(x, y, label = all_year_season_avg$temp_label), 
-                    description = str_c("1982-2021 Average ", params$season, " Temperature"), 
+                    description = str_c(ssn_year_start, "-", params$year," Average ", params$season, " Temperature"), 
                     label.colour = "darkblue",
                     color = "transparent", 
                     con.colour = "darkblue", 
@@ -592,7 +596,7 @@ seasonal_temp_dist <- ggplot(
   geom_segment(x = 2011, xend = 2011, y = 58,   yend = 59, color = "black") +
   annotate(x = 1997, y =60.25, label = "Climate-Reference Period", geom = "text", size = 3) +
   geom_hline(linetype = 1, size = 0.75, 
-             aes(yintercept = as_fahrenheit(climate_baseline), 
+             aes(yintercept = climate_baseline, 
                  color = "30-Year Climate Average")) + 
   scale_y_continuous(labels = number_format(suffix = " \u00b0F")) +
   labs(x = "",
@@ -613,13 +617,15 @@ seasonal_temp_dist
 
 ## How Does `r params$year` Compare
 
-`r params$year` is among the warmest `r tolower(params$season)`s seen in the Gulf of Maine during this 40+ year period. When compared against all previous `r tolower(params$season)`s for which we have reliable satellite data (i.e., back to 1982), this year ranks **\# `r current_rank`** for hottest on record.
+`r params$year` is among the warmest `r tolower(params$season)`s seen in the Gulf of Maine during this 40+ year period. When compared against all previous `r tolower(params$season)`s for which we have reliable satellite data (i.e., back to 1982), this year ranks **`r rank_labs`** among the hottest on record.
 
 ```{r, fig.height = 3}
 
 
 # Plot them
-temp_rankings_p <- ggplot(seasonal_ranks, aes(color = flag_year)) +
+temp_rankings_p <- seasonal_ranks %>% 
+  filter(rank <= 5) %>% 
+  ggplot(aes(color = flag_year)) +
   geom_link(aes(x = 0,
                 xend = anom_f,
                 y = rank,
@@ -817,7 +823,7 @@ The full heatwave event lasted a total of `r hw_length`, and during that period 
 ```{r}
 
 # Set time limits
-season_dates <- c(min(season_data$time), max(season_data$time))
+season_dates <- c(min(this_season_data$time), max(this_season_data$time))
 
 # Spatial Extent Info
 x_buffer <- c(-2.75, 2.75)
@@ -877,8 +883,24 @@ peak_date_lyr <- as.data.frame(x) %>%
 peak_date <- names(season_anoms)[peak_date_lyr] %>% 
   str_replace("X", "") %>% str_replace_all("[.]", "-")
 
-# check the map to confirm
+# Plot the map to confirm
 # plot(season_anoms[[peak_date_lyr]], main = peak_date)
+
+
+# # Make data window for Peak Temperatures
+# temp_data_window <- data.frame(lon = crop_x,
+#                           lat = crop_y,
+#                           time = c(as.Date(peak_date) - 2, as.Date(peak_date) +3))
+# 
+# # Load data
+# peak_temps <- oisst_window_load(
+#   data_window = temp_data_window, 
+#   anomalies = T, 
+#   mac_os = "mojave")
+
+#plot(as_fahrenheit(peak_temps$`2022`$X2022.05.16), main = "Observed Temperature")
+
+
 ```
 
 From a spatial perspective, the Gulf of Maine and surrounding areas experienced above average SSTs for much of the region during `r tolower(params$season)` `r params$year`, but with particularly warm patches to the south and east of Georges Bank. The highest daily temperature anomaly of any location this period was `r max_daily`°F, an exceptionally strong pattern of anomalies to the south and east of Georges Bank that occurred on May 16th. The highest seasonally averaged anomaly of any location was  `r max_season`°F and was similarly located.
@@ -891,7 +913,7 @@ bathy <- raster("~/Documents/Repositories/Points_and_contours/NEShelf_Etopo1_bat
 bathy_df <- as.data.frame(raster::coordinates(bathy))
 bathy_df$depth <- raster::extract(bathy, bathy_df)
 bathy_df$depth <- bathy_df$depth * -1
-contours_make <- c(100, 200)
+contours_make <- c(200)
 
 ```
 
@@ -947,7 +969,7 @@ season_map <- ggplot() +
     frame.colour = "black",
     ticks.colour = "black")) +
   labs(title = str_c("Seasonal Temperature Anomaly\n", params$season, ", ", params$year),
-       caption = "100m and 200m contours overlaid to show topographic details.")
+       caption = "200m contour overlaid to show topographic details.")
 
 # Show figure
 season_map
@@ -1074,11 +1096,11 @@ if(params$`Save Figures`){
          dpi = "retina", 
          bg = "transparent")
   
-  # Gom Extent Map
-  ggsave(plot = season_polar, 
-         filename = str_c(update_folder, "met_seasons.png"), 
-         dpi = "retina", 
-         bg = "transparent")
+  # # Gom Extent Map
+  # ggsave(plot = season_polar, 
+  #        filename = str_c(update_folder, "met_seasons.png"), 
+  #        dpi = "retina", 
+  #        bg = "transparent")
   
   
   # Weekly Report Table
