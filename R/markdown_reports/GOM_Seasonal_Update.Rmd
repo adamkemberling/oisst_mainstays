@@ -223,7 +223,7 @@ seasonal_avgs <- region_hw %>%
      season_center = as.Date(str_c(yr, season_cent)),
      season_llim   = as.Date(str_c(yr, season_left)),
      season_rlim   = as.Date(str_c(yr, season_right)),
-     anom_label    = str_c(round(mean_anom, 2), " \u00b0C  |  ", round(anom_f, 2), " \u00b0F")
+     anom_label    = str_c(round(anom_f, 2), " \u00b0F  |  ", round(mean_anom, 2), " \u00b0C")
   )
   
   
@@ -436,8 +436,6 @@ week_summ_table
 
 ```
 
-**Looking at the data this way reveals a stunning result:** SSTs in the Gulf of Maine rose above 40°F in late February, 5-6 weeks sooner than they have historically.
-
 
 ##  Monthly Statistics
 
@@ -514,9 +512,7 @@ decadal_rate_f   <- round((annual_rate*10), 2)
 
 The Gulf of Maine is an area of particular interest to the scientific community because of the remarkable rate of warming it has experienced in recent years.
 
-When looking at average `r tolower(params$season)` temperatures, there is a clear long-term increase, with SSTs warming at a rate of `r decadal_rate_f`°F per decade. Part of this trend is driven by the thermal regime shift we began to observe around 2008.
-
-Since then, both the seasonal average and most daily temperatures remain several degrees above the 30-year climatology.
+When looking at average `r tolower(params$season)` temperatures, there is a clear long-term increase, with SSTs warming at a rate of `r decadal_rate_f`°F per decade. A major factor driving this trend is a shift in the thermal regime that we began to observe around 2010.
 
 
 ```{r seasonal temperature change}
@@ -525,49 +521,50 @@ Since then, both the seasonal average and most daily temperatures remain several
 # Seasonal Temperature Trend Plot:
 seasonal_temp_p <- ggplot(seasonal_avgs, 
                           aes(yr, temp_f)) +
+  # Box for new regime
+  annotate(geom = "rect", xmin = 2010, xmax = Inf, ymin = -Inf, ymax = Inf, color = "transparent", fill = "darkred", alpha = 0.1) +
   geom_line(color = "gray20", linetype = 3, size = 0.5, alpha = 0.5) +
   geom_point(color = "gray20", size = 1, alpha = 0.8) +
-  # Benchmark the average across all years
-  geom_hline(data = all_year_season_avg, aes(yintercept = avg_temp_f), 
-             color = "darkblue", linetype = 2) + 
-  # Text noting the average across all years
-  geom_mark_ellipse(data = data.frame(x = 2016, y = all_year_season_avg$avg_temp_f),
-                    aes(x, y, label = all_year_season_avg$temp_label), 
-                    description = str_c(ssn_year_start, "-", params$year," Average ", params$season, " Temperature"), 
-                    label.colour = "darkblue",
-                    color = "transparent", 
-                    con.colour = "darkblue", 
-                    label.fill = "transparent", 
-                    label.fontsize = 8, 
-                    label.buffer = unit(0.25, "cm")) +
+  # # Benchmark the average across all years
+  # geom_hline(data = all_year_season_avg, aes(yintercept = avg_temp_f), 
+  #            color = "darkblue", linetype = 2) + 
+  # # Text noting the average across all years
+  # geom_mark_ellipse(data = data.frame(x = 2016, y = all_year_season_avg$avg_temp_f),
+  #                   aes(x, y, label = all_year_season_avg$temp_label), 
+  #                   description = str_c(ssn_year_start, "-", params$year," Average ", params$season, " Temperature"), 
+  #                   label.colour = "darkblue",
+  #                   color = "transparent", 
+  #                   con.colour = "darkblue", 
+  #                   label.fill = "transparent", 
+  #                   label.fontsize = 8, 
+  #                   label.buffer = unit(0.25, "cm")) +
   geom_smooth(formula = y~x, 
               linetype = 1,
               method = "lm", 
               color = "darkred", 
               se = FALSE) +
+  # Annotation for Warming Rate
   geom_mark_ellipse(aes(filter = yr == 1994, 
                         label = str_c(decadal_rate_f, " \u00b0F / Decade")), 
                     color = "transparent", 
                     description = str_c("40-Year ", params$season, " Warming Trend"), 
                     label.colour = "darkred",
                     con.colour =  "darkred",
-                    label.buffer = unit(0.001, "cm"), 
                     label.fill = "transparent", 
                     label.fontsize = 8) +
+  # Annotation for the current year
   geom_mark_ellipse(aes(filter = yr == params$year, 
                         label = anom_label),
                     color = "darkred",
-                    linetype = 2,
-                    description = str_c("Temperature Above\n1982-2011 climatological average"), 
+                    linetype = 1,
+                    description = str_c(params$year, "'s Temperature Above the\n1982-2011 climatological average"), 
                     label.colour = "darkred",
                     con.colour =  "darkred",
                     label.fill = "transparent", 
-                    label.buffer = unit(0.025, "cm"), 
+                    expand = unit(.125, "cm"), # circle radius
                     label.fontsize = 8) +
   scale_y_continuous(
     expand = expansion(add = c(1, 3)),
-    # sec.axis = sec_axis(trans = ~ as_fahrenheit(.), 
-    #                     labels =  number_format(suffix = " \u00b0F")),
     labels = number_format(suffix = " \u00b0F")) +
   scale_x_continuous(limits = c(1981, params$year+3)) +
   labs(x = "",
@@ -661,7 +658,7 @@ temp_rankings_p
 
 
 
-## Heatwave Temperature Timeseries
+## Marine Heatwave Timeline
 
 The most commonly used definition of a ["marine heatwave" (MHW)](http://www.marineheatwaves.org/all-about-mhws.html) is when daily average SSTs exceed the 90th percentile of a climatological (i.e., 30-year) average for at least 5 consecutive days. Successive heatwave gaps of 2 days or less are considered part of the same event.
 
@@ -690,7 +687,7 @@ num_hw_days <- sum(last_yr_heatwaves$mhw_event, na.rm = T)
 
 ```
 
-Using this broadly accepted definition, **the Gulf of Maine has experienced MHW conditions through `r tolower(params$season)` `r params$year`,** with only a 2-day reprieve in mid-May which was followed by a sharp climb in temperature soon after.
+Using this broadly accepted definition, **the Gulf of Maine has experienced MHW conditions through `r tolower(params$season)` `r params$year`** A brief reprieve in mid-May lasted less than two days, so it did not constitute a break in the heatwave event.
 
 ```{r}
 
@@ -701,9 +698,23 @@ hw_temp_p
 ```
 
 
+## Heatwave Anomaly Timeline
+
+Presenting SST conditions in terms of anomalies (figure below) as opposed to absolute values (figure above) illustrates in greater detail the magnitude of MHW conditions throughout the `r tolower(params$season)`. The most extreme anomalies the `r tolower(params$spring)` occurred in the second half of May, with temperatures exceeding $5°$F above the climatological average.
+
+
+```{r}
+hw_anom_p <- year_hw_anoms(year_hw_dat = last_yr_heatwaves, temp_units = "F")
+hw_anom_p
+
+# Still a hw, only 2 days
+# last_yr_heatwaves %>% filter(sst < mhw_thresh)
+```
+
 
 ## Heatmap of Temperature Anomalies and Heatwave Events
 
+Looking at the full record of daily SST anomalies in the Gulf of Maine (figure below), the distinct thermal regime shift beginning around 2010 is evident. Indeed, since 2012, the Gulf of Maine has experienced far more persistent MHW conditions (indicated by solid black lines) than at any other point in the satellite record. 
 
 ```{r}
 #| fig.height = 6
@@ -751,18 +762,6 @@ heatmap_current
 ```
 
 
-## Heatwave Anomaly Timeseries
-
-Presenting SST conditions in terms of anomalies (figure below) as opposed to absolute values (figure above) illustrates in greater detail the magnitude of MHW conditions throughout the `r tolower(params$season)`. The most extreme anomalies the `r tolower(params$spring)` occurred in the second half of May, with temperatures exceeding $4°$F above the climatological average. Not a single day in `r params$year` has been within $1.5°$F of that long-term average temperature.
-
-
-```{r}
-hw_anom_p <- year_hw_anoms(year_hw_dat = last_yr_heatwaves, temp_units = "F")
-hw_anom_p
-
-# Still a hw, only 2 days
-# last_yr_heatwaves %>% filter(sst < mhw_thresh)
-```
 
 
 
@@ -817,9 +816,6 @@ The full heatwave event lasted a total of `r hw_length`, and during that period 
 
 
 ## Spatial Distribution of Seasonal Anomalies
-
-
-
 
 
 
@@ -906,7 +902,7 @@ peak_date <- names(season_anoms)[peak_date_lyr] %>%
 
 ```
 
-From a spatial perspective, the Gulf of Maine and surrounding areas experienced above average SSTs for much of the region during `r tolower(params$season)` `r params$year`, but with particularly warm patches to the south and east of Georges Bank. The highest daily temperature anomaly of any location this period was `r max_daily`°F, an exceptionally strong pattern of anomalies to the south and east of Georges Bank that occurred on May 16th. The highest seasonally averaged anomaly of any location was  `r max_season`°F and was similarly located.
+From a spatial perspective, the Gulf of Maine and surrounding areas experienced above average SSTs for much of the region during `r tolower(params$season)` `r params$year`, but with particularly warm patches to the south and east of Georges Bank. The highest seasonally averaged anomaly of any location was  `r max_season`°F.
 
 ```{r contour details}
 # Add the bottom contours:
@@ -981,7 +977,7 @@ season_map
 
 ## Monthly Temperature Anomalies
 
-Average monthly temperature anomalies are displayed below. The warmest anomalies were concentrated just south of the domain studied in this analysis in March, but by April and May the waters south and east of Georges Bank and near the Northeast Channel were experiencing monthly-averaged SSTs >8°F warmer than the climate of the recent past (1982-2011).
+Average monthly temperature anomalies are displayed below. The warmest anomalies were concentrated just south of the domain studied in this analysis in March, but by April and May the waters south and east of Georges Bank and near the Northeast Channel were experiencing monthly-averaged SSTs >8°F warmer than during our climate reference period (1982-2011).
 
 ```{r month avgs, eval = TRUE}
 #| fig.width = 8,
