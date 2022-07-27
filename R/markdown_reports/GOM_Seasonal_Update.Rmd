@@ -82,6 +82,7 @@ showtext::showtext_auto()
 
 # Parameters
 params <- list(
+  #year = 2021,
   year = year(Sys.Date()),
   season = "Spring",
   `Save Data` = FALSE,
@@ -526,8 +527,10 @@ seasonal_temp_p <- ggplot(seasonal_avgs,
                           aes(yr, temp_f)) +
   geom_line(color = "gray20", linetype = 3, size = 0.5, alpha = 0.5) +
   geom_point(color = "gray20", size = 1, alpha = 0.8) +
+  # Benchmark the average across all years
   geom_hline(data = all_year_season_avg, aes(yintercept = avg_temp_f), 
              color = "darkblue", linetype = 2) + 
+  # Text noting the average across all years
   geom_mark_ellipse(data = data.frame(x = 2016, y = all_year_season_avg$avg_temp_f),
                     aes(x, y, label = all_year_season_avg$temp_label), 
                     description = str_c(ssn_year_start, "-", params$year," Average ", params$season, " Temperature"), 
