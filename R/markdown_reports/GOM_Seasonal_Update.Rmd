@@ -522,7 +522,7 @@ When looking at average `r tolower(params$season)` temperatures, there is a clea
 seasonal_temp_p <- ggplot(seasonal_avgs, 
                           aes(yr, temp_f)) +
   # Box for new regime
-  annotate(geom = "rect", xmin = 2010, xmax = Inf, ymin = -Inf, ymax = Inf, color = "transparent", fill = "darkred", alpha = 0.1) +
+  #annotate(geom = "rect", xmin = 2010, xmax = Inf, ymin = -Inf, ymax = Inf, color = "transparent", fill = "darkred", alpha = 0.1) +
   geom_line(color = "gray20", linetype = 3, size = 0.5, alpha = 0.5) +
   geom_point(color = "gray20", size = 1, alpha = 0.8) +
   # # Benchmark the average across all years
@@ -561,7 +561,7 @@ seasonal_temp_p <- ggplot(seasonal_avgs,
                     label.colour = "darkred",
                     con.colour =  "darkred",
                     label.fill = "transparent", 
-                    expand = unit(.125, "cm"), # circle radius
+                    expand = unit(.15, "cm"), # circle radius
                     label.fontsize = 8) +
   scale_y_continuous(
     expand = expansion(add = c(1, 3)),
@@ -717,7 +717,7 @@ hw_anom_p
 Looking at the full record of daily SST anomalies in the Gulf of Maine (figure below), the distinct thermal regime shift beginning around 2010 is evident. Indeed, since 2012, the Gulf of Maine has experienced far more persistent MHW conditions (indicated by solid black lines) than at any other point in the satellite record. 
 
 ```{r}
-#| fig.height = 6
+#| fig.height = 8
 base_date <- as.Date("2000-01-01")
 grid_dat <- region_hw %>% 
   mutate(year = year(time),
@@ -745,7 +745,7 @@ heatmap_p + labs(caption = "")
 ```
 
 ```{r}
-#| fig.height = 1.8
+#| fig.height = 2
 # Just the current year on its own:
 heatmap_current <- grid_dat %>% 
   #filter(yr == 2022) %>% 
@@ -1092,14 +1092,10 @@ if(params$`Save Figures`){
   # Gom Extent Map
   ggsave(plot = gom_extent_p, 
          filename = str_c(update_folder, "GOM_Extent.png"), 
+         height = unit(8, "in"),
+         width = unit(8, "in"),
          dpi = "retina", 
          bg = "transparent")
-  
-  # # Gom Extent Map
-  # ggsave(plot = season_polar, 
-  #        filename = str_c(update_folder, "met_seasons.png"), 
-  #        dpi = "retina", 
-  #        bg = "transparent")
   
   
   # Weekly Report Table
@@ -1115,19 +1111,17 @@ if(params$`Save Figures`){
   # Seasonal Temperature Plot
   ggsave(plot = seasonal_temp_p, 
          filename = str_c(update_folder, "Seasonal_temp_plot.png"), 
+         height = unit(5, "in"),
+         width = unit(8, "in"),
          dpi = "retina", 
          bg = "transparent")
   
   
-  # # Seasonal Anomalies Plot
-  # ggsave(plot = regional_anom_p, 
-  #        filename = str_c(update_folder, "Seasonal_anom_plot.png"), 
-  #        dpi = "retina", 
-  #        bg = "transparent")
-  
   # Seasonal Temp Rankings
   ggsave(plot = temp_rankings_p, 
          filename = str_c(update_folder, "Seasonal_temp_ranks_plot.png"), 
+         height = unit(4, "in"),
+         width = unit(8, "in"),
          dpi = "retina", 
          bg = "transparent")
 
@@ -1135,6 +1129,8 @@ if(params$`Save Figures`){
   # Heatwave Temperature Plot
   ggsave(plot = hw_temp_p, 
          filename = str_c(update_folder, "Heatwave_temp_plot.png"), 
+         height = unit(5, "in"),
+         width = unit(8, "in"),
          dpi = "retina", 
          bg = "transparent")
   
@@ -1142,30 +1138,40 @@ if(params$`Save Figures`){
   # Heatwave Anomaly Plot
   ggsave(plot = hw_anom_p, 
          filename = str_c(update_folder, "Heatwave_anom_plot.png"), 
+         height = unit(5, "in"),
+         width = unit(8, "in"),
          dpi = "retina", 
          bg = "transparent")
   
   # heatwave_showcase
   ggsave(plot = hw_showcase, 
          filename = str_c(update_folder, "Longest_Heatwave.png"), 
+         height = unit(8, "in"),
+         width = unit(8, "in"),
          dpi = "retina", 
          bg = "transparent")
   
   # heatmap_p
   ggsave(plot = heatmap_p, 
          filename = str_c(update_folder, "Heatwave_Heatmap.png"), 
+         height = unit(8, "in"),
+         width = unit(8, "in"),
          dpi = "retina", 
          bg = "transparent")
   
   # Season Map
   ggsave(plot = season_map, 
          filename = str_c(update_folder, "Seasonal_anom_map.png"), 
+         height = unit(8, "in"),
+         width = unit(8, "in"),
          dpi = "retina", 
          bg = "transparent")
   
   # monthly maps
   ggsave(plot = monthly_maps,
          filename = str_c(update_folder, "Monthly_anom_maps.png"), 
+         height = unit(5, "in"),
+         width = unit(8, "in"),
          dpi = "retina", 
          bg = "transparent")
   
