@@ -25,7 +25,7 @@ theme_set(theme_bw() +
               plot.title = element_text(hjust = 0, face = "bold", size = 14),
               plot.subtitle = element_text(size = 9),
               plot.caption = element_text(size = 8, margin = margin(t = 20), color = "gray40"),
-              plot.margin = unit(c(1, 1, 2, 1), "lines"),
+              plot.margin = unit(c(1, 1, 1, 1), "cm"),
               legend.title = element_text(size = 9),
               legend.text = element_text(size = 9),
               # Axes
@@ -1341,9 +1341,9 @@ year_hw_temps <- function(
     geom_textpath(aes(y = {{ clim_col }}), color = "gray30", label = "Climatological Mean", hjust = 0.5, lty = 2) +
     scale_color_manual(values = color_vals) +
     #scale_x_date(date_labels = "%b", date_breaks = "1 month", expand = expansion(mult = c(0,0))) +
-    scale_x_date(date_labels = "%b %Y", date_breaks = "1 month", expand = expansion(mult = c(0,0))) +
+    scale_x_date(date_labels = "%b %y", date_breaks = "1 month", expand = expansion(mult = c(0,0))) +
     scale_y_continuous(labels =  number_format(suffix = temp_ops$temp_suff)) +
-    guides(color = guide_legend(override.aes = list(linetype = linetype_key), nrow = 1)) +
+    guides(color = guide_legend(override.aes = list(linetype = linetype_key), nrow = 2)) +
     theme(legend.title = element_blank(),
           legend.position = "bottom") +
     labs(x = NULL, 
@@ -1431,8 +1431,8 @@ year_hw_anoms <- function(year_hw_dat = this_yr, temp_units = "F"){
     scale_color_manual(values = color_vals) +
     scale_linetype_manual(values = linetype_key, guide = "none") +
     # scale_x_date(date_labels = "%b", date_breaks = "1 month", expand = expansion(mult = c(0,0))) +
-    scale_x_date(date_labels = "%b %Y", date_breaks = "1 month", expand = expansion(mult = c(0,0))) +
-    guides(color = guide_legend(override.aes = list(linetype = linetype_key), nrow = 1)) +
+    scale_x_date(date_labels = "%b %y", date_breaks = "1 month", expand = expansion(mult = c(0,0))) +
+    guides(color = guide_legend(override.aes = list(linetype = linetype_key), nrow = 2)) +
     theme(legend.title = element_blank(),
           legend.position = "bottom") +
     scale_y_continuous(labels =  number_format(suffix = temp_ops$temp_suff)) +
