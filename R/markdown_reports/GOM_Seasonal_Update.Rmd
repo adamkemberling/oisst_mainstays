@@ -84,9 +84,9 @@ showtext::showtext_auto()
 params <- list(
   #year = 2021,
   year = year(Sys.Date()),
-  season = "Spring",
+  season = "Summer",
   `Save Data` = FALSE,
-  `Save Figures` = TRUE)
+  `Save Figures` = FALSE)
 
 
 #####  Parameter option switches:  ####
@@ -981,7 +981,7 @@ Average monthly temperature anomalies are displayed below. The warmest anomalies
 
 ```{r month avgs, eval = TRUE}
 #| fig.width = 8,
-#| fig.height = 6
+#| fig.height = 8
 
 
 # Show less contours b/c smaller

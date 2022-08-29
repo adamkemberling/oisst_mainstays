@@ -1,0 +1,202 @@
+---
+title: "Start to Finish Gulf of Maine Warming"
+author: 
+  - first_name: "Adam"
+    last_name: "Kemberling"
+    url: https://github.com/adamkemberling
+    affiliation: Gulf of Maine Research Institute
+    affiliation_url: https://www.gmri.org
+description: | 
+  Python and R Code Supporting Gulf of Maine Updates
+date: "`r Sys.Date()`"
+format: 
+  html:
+    code-fold: true
+    code-tools: true
+    df-print: kable
+    self-contained: true
+editor: source
+execute: 
+  echo: true
+  warning: false
+  message: false
+  fig.height: 6
+  fig.width: 6
+  fig.align: "center"
+  comment: ""
+---
+
+# Tracking Regional Warming using Satellite SST
+
+This document seeks to document the python and R joint workflow that is used to both monitor and track marine heatwaves in support of our Gulf of Maine Warming updates. The goal is to create a minimal example of the steps and necessary code.
+
+
+# Part 1: Data Acquisition
+
+The SST data we use is NOAA's  Optimally Interpolated Sea Surface Temperature Data. I find it easiest to download the yearly .nc (NetCDF) files from the Physical Science Laboratory Site:
+
+https://psl.noaa.gov/data/gridded/data.noaa.oisst.v2.highres.html
+
+These can be downloaded as yearly files, which are easy to load in together as one array using xarray.
+
+
+```{python}
+# Libraries
+import os
+import xarray as xr
+import numpy as np
+import pandas as pd
+
+# Locations to Files
+box_root        = "/Users/akemberling/Library/CloudStorage/Box-Box/"
+oisst_location  = f"{box_root}RES_Data/OISST/oisst_mainstays/annual_observations/"
+base_fname      = "sst.day.mean."
+file_ending     = ".v2.nc"
+
+# Set start and end years for the update
+start_yr = int(1981)
+end_yr   = int(2022)
+
+# Load the annual files for oisst
+fpaths = []
+for yr in range(start_yr, end_yr + 1):
+  fpaths.append(f'{oisst_location}{base_fname}{yr}{file_ending}')
+  
+# Lazy-load all years using xr.open_mfdataset
+oisst = xr.open_mfdataset(
+  fpaths, 
+  combine = "by_coords", 
+  parallel = True, 
+  chunks = {"time" : -1, "lon" : 30, "lat" : 15})
+oisst
+```
+
+
+# Part 2: Regional Climatology & Anomalies
+
+To get temperature anomalies we need to compare daily temperatures against a climatology. A Climatology tracks the average conditions across some reference period. In our case we use the 30-year period of 1982-2011.
+
+The next step, before processing the climatology, is to go from a global dataset that is a gridded array, to a 2d timeseries for a specific area. There are a number of ways to do this. In this example I file simply filter the lat & longitude ranges. 
+
+An alternative approach we use relies on using a shapefile/polygon to crop the data.This step introduces some additional python libraries {geopandas} & {regionmask}. The former package is used to load spatial polygons into python, and the latter is used to mask a gridded spatial dataset using a spatial polygon, restricting the data to just the cells that fall within the polygon. This shapefile workflow is not shown here.
+
+
+```{python}
+# Filter to the Gulf of Maine Extent
+oisst = oisst.sel(
+  # Using the same extent as the bounding box from the reports
+  lon = slice( (180-70.875), (180-65.375)),
+  lat = slice(40.375, 45.125)
+)
+oisst
+```
+
+
+
+## Create Climatology
+
+**Note:** In the broader "oisst_mainstays" project we've opted to use a modified day of year that preserves the position of dates regardless of whether it is a leap year or not. The following code uses the standard `dayofyear` that counts up from Jan 1.
+
+```{python}
+# Select the data from the reference period we want to use
+clim_in = oisst.sel(time = slice("1982-01-01", "2011-12-31"))
+
+# Group reference period dataon the modified ordinal day 
+# then get the mean sst of each day of year
+daily_clims = clim_in['sst'].groupby("time.dayofyear").mean('time', keep_attrs = True)
+daily_clims
+```
+
+
+## Generate Anomalies
+
+An anomaly is nothing more than the observed temperatures minus the climatological average. Temperatures above that average become positive anomalies and vice-versa. The following code will process anomalies globally using the climatology we just created.
+
+
+
+```{python}
+# Create a day of year coordinate
+# This will be used to match against the climatology
+doy_vector = oisst["time"].dt.dayofyear
+oisst = oisst.assign_coords(dayofyear = doy_vector)
+```
+
+First we define a function that matches the day of year to that of the climatology and performs that subtraction step. This is then applied to each day in the temperature dataset until all the anomalies have been calculated.
+
+```{python}
+# Create a function that will match day of year to climatology and subtract the from the observed sst
+def calc_anom_doy(daily_sst, daily_clims):
+    """
+    Return Anomaly for Matching Day of Year
+    
+    daily_sst : xarray data array of sea surface temperatures time datetime coordinate to pair with daily_clims
+    daily_clim : xarray data array of sea surface temperature climatologic means.
+    
+    """
+    return daily_sst - daily_clims.sel(dayofyear = daily_sst["dayofyear"])
+```
+
+
+```{python}
+# Get daily anomalies using the function we just wrote 
+daily_anoms = oisst.groupby('time').map(lambda x: calc_anom_doy(x, daily_clims))
+daily_anoms
+```
+
+
+**Note:**
+
+If you don't need anomalies in a gridded form, it is possible to calculate them on a 2d timeseries using the [{marineHeatWaves}](https://github.com/ecjoliver/marineHeatWaves) module for python or the [{heatwaveR}](https://robwschlegel.github.io/heatwaveR/) package in R.
+
+
+# Part 3: Gridded Data to Dataframe
+
+The next step is to convert the gridded information on sst, climate averages, and anomalies into a single timeseries.
+
+
+```{python}
+# Process Means & Convert to dataframes
+oisst_ts = oisst.sst.mean(["lat", "lon"]).to_dataframe().reset_index()
+clim_ts  = daily_clims.sst.mean(["lat", "lon"]).to_dataframe().reset_index()
+anom_ts  = daily_anoms.sst.mean(["lat", "lon"]).to_dataframe().reset_index()
+```
+
+
+```{python}
+# Why is the data all NaN?
+oisst
+```
+
+
+```{python}
+# clim_ts.rename(columns = {"sst" : "sst_clim"}).tail()
+oisst.sst.isel(time = 1).plot()
+
+import matplotlib.pyplot as plt
+plt.show()
+```
+
+
+```{python}
+# Format dataframes
+
+
+# Merge them
+clim_join = oisst_ts.merge(clim_df, on = "dayofyear")
+clim_join = clim_join
+
+anom_join = anom_df.merge(anom_wt_df, how = "left", on = ["time", "ddayofyear"])
+anom_join = anom_join.rename(columns = {"sst" : "sst_anom", f"area_wtd_sst" : "area_wtd_anom"})
+
+  # Join to the SST and Climatology dataframe to consolidate the update
+  update_ts = sst_and_clim.merge(anom_join, how = "left", on = ["time", "MOD"])
+
+# Join to the SST and Climatology dataframe to consolidate the update
+masked_ts = sst_and_clim.merge(anom_join, how = "left", on = ["time", "MOD"])
+
+
+```
+
+# Part 4: Marine Heatwaves
+
+There are libraries in python & in R that provide functionality for detecting marine heatwaves based on the definition of Hobday et al. 2016.

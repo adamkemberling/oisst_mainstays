@@ -19,12 +19,22 @@ library(gmRi)
 
 # OISST File Paths
 oisst_path <- shared.path(group = "RES_Data", folder = "OISST/oisst_mainstays/")
-
+oisst_path <- cs_path("res", subfolder = "OISST/oisst_mainstays")
 
 ####  Gulf of Maine area OISST  ####
 
+
 # General area for the Gulf of Maine
-gom_window <- data.frame(lon = c(-71, -66), lat = c(41, 44.5), time = as.Date(c("1981-08-01", "2020-12-31")))
+gom_window <- data.frame(lon = c(-71, -66), 
+                         lat = c(41, 44.5), 
+                         time = as.Date(c("1981-08-01", "2020-12-31")))
+
+# Gulf of Mexico:
+mex_window <- data.frame(
+  lon = c(),
+  lat = c(),
+  time = c(as.Date(c("1982-01-01", "2020-12-31")))
+)
 
 # load data as raster stack for particular area
 gom_oisst <- oisst_window_load(oisst_path = oisst_path,
@@ -32,11 +42,15 @@ gom_oisst <- oisst_window_load(oisst_path = oisst_path,
                                anomalies = FALSE)
 
 
+
 # Make annual averages
 gom_oisst_yrs <- map(gom_oisst, function(yr_stack){ yr_avg <- mean(yr_stack) }) %>% stack()
 
+
+
+
 #### Save it as Raster for Mackenzie  ####
-# 
+# config: lon = c(-71, -66), lat = c(41, 44.5), time = as.Date("1981-08-01", "2020-12-31")
 #one_off_path <- paste0(box_paths$res, "OISST/oisst_one_off_area_clips/oisst_gom_general_area_02042021.grd")
 
 # Set the dates as the z dimmension before saving
