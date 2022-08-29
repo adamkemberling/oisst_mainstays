@@ -1152,6 +1152,7 @@ def update_global_anomalies(yr_min, yr_max, box_root, var_name = "sst", referenc
 
     
   # Close connections
+  daily_anoms.close()
   oisst.close()
   oisst_clim.close()
 
@@ -1223,7 +1224,7 @@ def update_global_timeseries(yr_min, yr_max, box_root, var_name = "sst", referen
 
   # climatology
   clim_join = clim_df.merge(clim_wt_df, on = "modified_ordinal_day")
-  clim_join = clim_join.rename(columns = {"sst" : "sst_clim", f"area_wtd_sst" : "area_wtd_clim", "modified_ordinal_day" : "MOD"})
+  clim_join = clim_join.rename(columns = {"sst" : "sst_clim", "area_wtd_sst" : "area_wtd_clim", "modified_ordinal_day" : "MOD"})
 
   # Join sst and climatology
   sst_and_clim = sst_join.merge(clim_join, how = "left", on = "MOD")
