@@ -1,30 +1,28 @@
 ---
 title: "Gulf of Maine Seasonal Sea Surface Temperature Update"
-author: 
-  - first_name: "Adam"
-    last_name: "Kemberling"
-    url: https://github.com/adamkemberling
-    affiliation: Gulf of Maine Research Institute
-    affiliation_url: https://www.gmri.org
+author: "Adam Kemberling"
+url: "https://github.com/adamkemberling"
+affiliation: "Gulf of Maine Research Institute"
+affiliation_url: "https://www.gmri.org"
 description: | 
   Seasonal Patterns in Sea Surface Temperatures
 date: "Updated on: `r Sys.Date()`"
-editor_options: 
-  chunk_output_type: console
-output: 
-  distill::distill_article:
+format: 
+  html:
     toc: true
-    toc_depth: 2
-    toc_float: true
+    self-contained: true
+execute: 
+  echo: false
+  warning: false
+  message: false
+  comment: ""
+  fig.align: "center"
+editor: source
 ---
 
-```{r setup, include=FALSE}
-# knitr options
-knitr::opts_chunk$set(echo = FALSE, 
-                      message = F, 
-                      warning = F, 
-                      comment = "", 
-                      fig.align = "center")
+```{r}
+#| label: packages
+#| include: false
 
 ####  Packages  ####
 library(lubridate)
@@ -77,8 +75,9 @@ showtext::showtext_auto()
 `r gmRi::use_gmri_style_rmd(css = "gmri_rmarkdown.css")`
 
 
-```{r param setup}
-#| echo = FALSE
+```{r}
+#| label: param-setup
+#| echo: false
 
 # Parameters
 params <- list(
@@ -111,11 +110,14 @@ season_range <- season_deets$range_label
 ```
 
 
-```{r region_ts prep}
+```{r}
+#| label: region-ts-prep
+
+
 # Load timeseries of SST for Region
 region_timeseries <- read_csv(timeseries_path, 
                               col_types = cols(), 
-                              guess_max = 1e6) 
+                              guess_max = 1e5) 
 
 
 # Format timeseries for group estimates
@@ -126,12 +128,12 @@ region_timeseries <- region_timeseries %>%
     anom_f     = as_fahrenheit(area_wtd_anom, "anomalies")) %>% 
   distinct(time, .keep_all = T) %>% 
   supplement_season_info() %>% 
-  filter(year %in% c(1982:2022))
-```
+  filter(year %in% c(1982:params$year))
 
 
-```{r region_hw prep}
-# Get heatwave statuses for each day:
+
+####  Get heatwave statuses for each day:
+
 # Uses area weighted sst by default
 region_hw <- pull_heatwave_events(
   temperature_timeseries = region_timeseries,
@@ -147,10 +149,12 @@ region_hw <- region_hw %>%
     mhw_event == TRUE ~ 1,
     mcs_event == TRUE ~ 0,
     TRUE ~ 0.5))
-```
 
 
-```{r season_data prep}
+
+####  Season Data Prep
+
+
 # Subset data for the season were looking at
 this_season_data <- region_hw %>% 
   dplyr::filter(season_eng == params$season,
@@ -171,12 +175,12 @@ month_range <- switch(params$season,
   "Winter" = "(December 1st - February 28th)",
   "Spring" = "(March 1st - May 31st)",
   "Summer" = "(June 1st - August 31st)",
-  "Fall" =   "(September 1st - November 30th)"
-)
+  "Fall" =   "(September 1st - November 30th)")
 ```
 
 
-```{r seasonal temp summary}
+```{r}
+#| label: seasonal-temp-summary
 
 # 1. Get the overall averages across all years
 
@@ -252,10 +256,10 @@ Over the past decade, scientists at [the Gulf of Maine Research Institute](https
 For analyses like these, it is important to be clear about the spatial extent that "defines" the Gulf of Maine (Figure 1), as different borders could produce different numbers. The spatial extent we use as the "Gulf of Maine" is displayed below. This area is consistent with previous reports and publications GMRI has produced.
 
 ```{r}
-#| fig.width = 8,
-#| fig.height = 8,
-#| fig.alt = "A overhead view of the Gulf of Maine region. Landmasses and political boundaries for the United States and Canada are displayed. A blue dotted line outlining a box with a transparent blue fill is shown to demark where satellite data for the analysis has been used."
-
+#| label: gom-map
+#| fig.width: 8
+#| fig.height: 8
+#| fig.alt: "A overhead view of the Gulf of Maine region. Landmasses and political boundaries for the United States and Canada are displayed. A blue dotted line outlining a box with a transparent blue fill is shown to demark where satellite data for the analysis has been used."
 
 # Load the bounding box for Andy's GOM to show they align
 region_extent <- st_read(poly_path, quiet = TRUE)
@@ -276,8 +280,9 @@ gom_extent_p
 
 For this seasonal report, we present an analysis of SST for `r params$season` `r month_range`.
 
-```{r season circle, eval = FALSE}
-#| fig.alt = "A circular plot with the twelve months around the border displays the currently selected season which is indicated by a curved bar with a highlight color to identify which months are included in the meteorological season selected."
+```{r}
+#| label: season-circle-plot
+#| fig.alt: "A circular plot with the twelve months around the border displays the currently selected season which is indicated by a curved bar with a highlight color to identify which months are included in the meteorological season selected."
 
 # Plot the currently selected season:
 (season_polar <- plot_met_seasons(season_highlight = params$season))
@@ -289,7 +294,8 @@ For this seasonal report, we present an analysis of SST for `r params$season` `r
 ## Highlights
 
 
-```{r season highlights}
+```{r}
+#| label: season-highlights
 
 
 # Why is the math not adding up!?
@@ -344,7 +350,8 @@ In the below table, we highlight how the SST for each week this `r tolower(param
 The observed SST, long-term average SST, as well as departures from the long-term average (SST anomalies) are shown.
 
 
-```{r seasonal table prep}
+```{r}
+#| label: season-temp-table
 
 
 # Format the start/end dates for weekly subsets
@@ -399,9 +406,6 @@ week_summaries <- week_summaries %>%
   mutate(across(where(is.numeric), signif, 3)) 
 
 
-
-
-
 # Display Table for the weeks in this season
 week_summ_table <- week_summaries  %>% 
   select(
@@ -442,6 +446,8 @@ week_summ_table
 Looking at monthly averages (as opposed to week-by-week conditions), we see that May showed the largest deviation from the long-term average, with an average SST anomaly of 3.40°F. All days this season met the criteria to be considered a marine heatwave, and each month was 2.4°F or more above the 1982-2011 average. 
 
 ```{r}
+#| label: monthly-temp-table
+
 # Recreate Table for Monthly Averages
 monthly_avgs <- this_season_data %>% 
   group_by(month) %>% 
@@ -500,7 +506,9 @@ month_summ_table
 
 ## Seasonal Trends and Anomalies in Context
 
-```{r temp warming rates}
+```{r}
+#| label: seasonal-warming-rates
+
 # Get the rates of change for dynamic text
 
 # Decadal Rate
@@ -515,8 +523,8 @@ The Gulf of Maine is an area of particular interest to the scientific community 
 When looking at average `r tolower(params$season)` temperatures, there is a clear long-term increase, with SSTs warming at a rate of `r decadal_rate_f`°F per decade. A major factor driving this trend is a shift in the thermal regime that we began to observe around 2010.
 
 
-```{r seasonal temperature change}
-
+```{r}
+#| label: seasonal-temp-plot
 
 # Seasonal Temperature Trend Plot:
 seasonal_temp_p <- ggplot(seasonal_avgs, 
@@ -581,29 +589,40 @@ This period of faster warming is part of what appears to be a distinct regime in
 
 
 ```{r}
+#| label: yearly-temp-boxplots
 
 # Plotting Temperature Distribution with Climate Average
 
+
+# Adjust the height for climate reference period to match the season
+ref_height <- switch(params$season,
+  "Winter" = data.frame(x = 1982, xend = 2011, y = 45, yend = 45),
+  "Spring" = data.frame(x = 1982, xend = 2011, y = 58.5, yend = 58.5),
+  "Summer" = data.frame(x = 1982, xend = 2011, y = 68.5, yend = 68.5),
+  "Fall"   = data.frame(x = 1982, xend = 2011, y = 58, yend = 58)
+)
+
+
 # Plot the summers, use box plots for yearly distribution
-seasonal_temp_dist <- ggplot(
-  data = filter(region_timeseries, season_eng == params$season), 
-  aes(season_yr, area_wtd_f, group = season_yr)) +
-  geom_boxplot(color = "gray70") + 
-  geom_boxplot(data = filter(region_timeseries, season_eng == params$season, 
-                             season_yr >= 2010), color = "gray40") + 
-  geom_segment(x = 1982, xend = 2011, y = 58.5, yend = 58.5, color = "black") +
-  geom_segment(x = 1982, xend = 1982, y = 58,   yend = 59, color = "black") +
-  geom_segment(x = 2011, xend = 2011, y = 58,   yend = 59, color = "black") +
-  annotate(x = 1997, y =60.25, label = "Climate-Reference Period", geom = "text", size = 3) +
+all_season_dat <- filter(region_timeseries, season_eng == params$season)
+seasonal_temp_dist <- ggplot() +
+  geom_boxplot(data = all_season_dat, 
+               aes(season_yr, area_wtd_f, group = season_yr), color = "gray70") + 
+  geom_boxplot(data = filter(all_season_dat, season_yr >= 2010), 
+               aes(season_yr, area_wtd_f, group = season_yr), color = "gray40") + 
+  geom_segment(data = ref_height, aes(x = x, xend = xend, y = y, yend = yend), color = "black") +
+  geom_segment(data = ref_height, aes(x = x, xend = x, y = y-.5,   yend = y+.5), color = "black") +
+  geom_segment(data = ref_height, aes(x = xend, xend = xend, y = y-.5,   yend = y+.5), color = "black") +
+  annotate(x = 1997, y = ref_height$y + 1.5, label = "Climate-Reference Period", geom = "text", size = 3) +
   geom_hline(linetype = 1, size = 0.75, 
              aes(yintercept = climate_baseline, 
-                 color = "30-Year Climate Average")) + 
+                 color = "Reference Period Average")) + 
   scale_y_continuous(labels = number_format(suffix = " \u00b0F")) +
   labs(x = "",
        y = str_c(params$season, " Sea Surface Temperature"),
        title = str_c("Regime Shift in Distribution of ", params$season, " SST"),
        color = "") +
-  scale_color_manual(values = c("30-Year Climate Average" = "darkred")) +
+  scale_color_manual(values = c("Reference Period Average" = "darkred")) +
   theme(legend.position = c(0.8, 0.09), 
         legend.background = element_blank(),
         legend.key = element_blank())
@@ -619,7 +638,9 @@ seasonal_temp_dist
 
 `r params$year` is among the warmest `r tolower(params$season)`s seen in the Gulf of Maine during this 40+ year period. When compared against all previous `r tolower(params$season)`s for which we have reliable satellite data (i.e., back to 1982), this year ranks **`r rank_labs`** among the hottest on record.
 
-```{r, fig.height = 3}
+```{r}
+#| label: season-rank-plot
+#| fig.height: 3
 
 
 # Plot them
@@ -665,6 +686,8 @@ The most commonly used definition of a ["marine heatwave" (MHW)](http://www.mari
 
 
 ```{r}
+#| label: season-mhw-data
+
 # Pull this year's data, up until end of the season
 last_yr_heatwaves <- region_hw %>% 
   filter(
@@ -690,9 +713,12 @@ num_hw_days <- sum(last_yr_heatwaves$mhw_event, na.rm = T)
 Using this broadly accepted definition, **the Gulf of Maine has experienced MHW conditions through `r tolower(params$season)` `r params$year`** A brief reprieve in mid-May lasted less than two days, so it did not constitute a break in the heatwave event.
 
 ```{r}
+#| label: season-mhw-temps
 
 # Show figure
-hw_temp_p <- year_hw_temps(year_hw_dat = last_yr_heatwaves, temp_units = "F")
+hw_temp_p <- year_hw_temps(year_hw_dat = last_yr_heatwaves, temp_units = "F") + 
+  labs(title = str_c(params$year, " Gulf of Maine SST"),
+       subtitle = str_c("January through the end of ", params$season))
 hw_temp_p
 
 ```
@@ -704,7 +730,11 @@ Presenting SST conditions in terms of anomalies (figure below) as opposed to abs
 
 
 ```{r}
-hw_anom_p <- year_hw_anoms(year_hw_dat = last_yr_heatwaves, temp_units = "F")
+#| label: season-mhw-anoms
+
+hw_anom_p <- year_hw_anoms(year_hw_dat = last_yr_heatwaves, temp_units = "F")+ 
+  labs(title = str_c(params$year, " Gulf of Maine SST Anomalies"),
+       subtitle = str_c("January through the end of ", params$season))
 hw_anom_p
 
 # Still a hw, only 2 days
@@ -717,7 +747,10 @@ hw_anom_p
 Looking at the full record of daily SST anomalies in the Gulf of Maine (figure below), the distinct thermal regime shift beginning around 2010 is evident. Indeed, since 2012, the Gulf of Maine has experienced far more persistent MHW conditions (indicated by solid black lines) than at any other point in the satellite record. 
 
 ```{r}
-#| fig.height = 8
+#| fig.height: 8
+#| label: mhw-heatmap
+
+
 base_date <- as.Date("2000-01-01")
 grid_dat <- region_hw %>% 
   mutate(year = year(time),
@@ -745,10 +778,12 @@ heatmap_p + labs(caption = "")
 ```
 
 ```{r}
-#| fig.height = 2
+#| label: mhw-heatmap-2022
+#| fig.height: 2
+
+
 # Just the current year on its own:
 heatmap_current <- grid_dat %>% 
-  #filter(yr == 2022) %>% 
   heatwave_heatmap_plot(temp_units = "F", start_yr = 2021, end_yr = 2022) +
   scale_y_continuous(labels = "2022", 
                      breaks = 2022, 
@@ -770,9 +805,10 @@ heatmap_current
 The heatwave event of 2022 was actually a continuation of an historical event, the longest heatwave in the region's history. 
 
 ```{r}
-#| eval = TRUE,
-#| fig.height = 8,
-#| fig.width = 8
+#| label: longest-hw-p
+#| eval: true
+#| layout-nrow: 2
+#| fig.height: 6
 
 # Pull out the heatwave event - most recent
 longest_hw <- region_hw %>% 
@@ -796,6 +832,15 @@ event_temps <- year_hw_temps(year_hw_dat = longest_hw, temp_units = "F") +
        subtitle = str_c("MHW lasting ", hw_length, " days sets new record as longest single heatwave event.")) +
   guides(color = guide_legend(ncol = 2))
 
+
+# Plot
+event_temps 
+
+
+
+
+
+# Anomalies
 event_anoms <- year_hw_anoms(year_hw_dat = longest_hw, temp_units = "F") +
   scale_x_date(
     date_labels = "%b %y", 
@@ -805,8 +850,12 @@ event_anoms <- year_hw_anoms(year_hw_dat = longest_hw, temp_units = "F") +
   theme(legend.position = "none") +
   labs(title = NULL, subtitle = NULL)
 
-hw_showcase <- event_temps / event_anoms
-hw_showcase
+# Plot
+event_anoms
+
+# # Plot the complete MHW Event
+# hw_showcase <- event_temps  / event_anoms
+# hw_showcase
 
 ```
 
@@ -820,13 +869,14 @@ The full heatwave event lasted a total of `r hw_length`, and during that period 
 
 
 ```{r}
+#| label: seasonal-anom-stack
 
 # Set time limits
 season_dates <- c(min(this_season_data$time), max(this_season_data$time))
 
 # Spatial Extent Info
-x_buffer <- c(-2.75, 2.75)
-y_buffer <- c(-0.75, 0.75)
+x_buffer <- c(-2.75, 3.5)
+y_buffer <- c(-2, 1)
 crop_x   <- st_bbox(region_extent)[c(1,3)] + x_buffer
 crop_y   <- st_bbox(region_extent)[c(2,4)] + y_buffer
 
@@ -855,20 +905,34 @@ season_anoms <- stack(season_anoms)
 
 # Convert to F
 season_anoms <- as_fahrenheit(season_anoms, data_type = "anomalies")
+```
 
+
+
+
+```{r}
+#| label: season-anom-text
+
+####  Records for the Text  ####
 
 # Calculate the average for the season
 season_mean <- mean(season_anoms, na.rm = T)
 
-
-####  Records for the Text  ####
+# Get the maximum seasonal average temperature for each pixel
+max_season <- round(max(values(season_mean), na.rm = T), 2)
 
 # Get the Maximum Daily Temperature Value
 max_daily_actual  <- max(values(season_anoms), na.rm = T)
 max_daily  <- round(max(values(season_anoms), na.rm = T), 2)
+```
 
-# Get the maximum seasonal average temperature
-max_season <- round(max(values(season_mean), na.rm = T), 2)
+
+```{r}
+#| label: warmest-anom-map
+#| eval: false
+#| echo: false
+
+#### Where did the Most Extreme Heat Occur:
 
 # Where did the max daily temp happen?
 f <- function(x) which(x == max_daily_actual)[1] 
@@ -886,6 +950,9 @@ peak_date <- names(season_anoms)[peak_date_lyr] %>%
 # plot(season_anoms[[peak_date_lyr]], main = peak_date)
 
 
+
+####  What were the temperatures:
+
 # # Make data window for Peak Temperatures
 # temp_data_window <- data.frame(lon = crop_x,
 #                           lat = crop_y,
@@ -900,11 +967,15 @@ peak_date <- names(season_anoms)[peak_date_lyr] %>%
 #plot(as_fahrenheit(peak_temps$`2022`$X2022.05.16), main = "Observed Temperature")
 
 
+
+# NOTE:
+# Mean and Max Temps come from total cropped area***
 ```
 
-From a spatial perspective, the Gulf of Maine and surrounding areas experienced above average SSTs for much of the region during `r tolower(params$season)` `r params$year`, but with particularly warm patches to the south and east of Georges Bank. The highest seasonally averaged anomaly of any location was  `r max_season`°F.
+From a spatial perspective, the Gulf of Maine and surrounding areas experienced above average SSTs for much of the region during `r tolower(params$season)` `r params$year`, but with particularly warm patches to the south and east of Georges Bank. The highest seasonally averaged anomaly of any location above was  `r max_season`°F.
 
-```{r contour details}
+```{r}
+#| label: contour-details
 # Add the bottom contours:
 bathy <- raster("~/Documents/Repositories/Points_and_contours/NEShelf_Etopo1_bathy.tiff")
 
@@ -918,8 +989,9 @@ contours_make <- c(200)
 
 
 ```{r}
-#| fig.width = 8,
-#| fig.height = 8
+#| label: season-anom-map
+#| fig.width: 8
+#| fig.height: 8
 
 # Make it a stars class to plot with ggplot
 anoms_st <- st_as_stars(season_anoms)
@@ -979,9 +1051,11 @@ season_map
 
 Average monthly temperature anomalies are displayed below. The warmest anomalies were concentrated just south of the domain studied in this analysis in March, but by April and May the waters south and east of Georges Bank and near the Northeast Channel were experiencing monthly-averaged SSTs >8°F warmer than during our climate reference period (1982-2011).
 
-```{r month avgs, eval = TRUE}
-#| fig.width = 8,
-#| fig.height = 8
+```{r}
+#| label: monthly-avg-map
+#| eval: true
+#| fig.width: 8
+#| fig.height: 6
 
 
 # Show less contours b/c smaller
@@ -1075,6 +1149,9 @@ monthly_maps + plot_annotation(caption = "200m contour overlaid to show topograp
 
 
 ```{r}
+#| label: figure-saving
+
+
 # Export Figures
 if(params$`Save Figures`){
   
