@@ -440,6 +440,7 @@ def export_annual_update(cache_root, update_yr, oisst_update):
   
   # Save File to Output Path
   oisst_update.to_netcdf(path = out_path)
+  oisst_update.close()
   print(f"File Saved to {out_path}")
   
   

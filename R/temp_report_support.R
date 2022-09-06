@@ -1345,7 +1345,7 @@ year_hw_temps <- function(
     scale_y_continuous(labels =  number_format(suffix = temp_ops$temp_suff)) +
     guides(color = guide_legend(override.aes = list(linetype = linetype_key), nrow = 2)) +
     theme(legend.title = element_blank(),
-          legend.position = "bottom") +
+          legend.position = "bottom", legend.title = element_text(face = "bold")) +
     labs(x = NULL, 
          y = "Sea Surface Temperature")
   
@@ -1356,7 +1356,6 @@ year_hw_temps <- function(
   
   
 }
-
 
 
 
@@ -1444,6 +1443,171 @@ year_hw_anoms <- function(year_hw_dat = this_yr, temp_units = "F"){
   return(hw_anom_p)
   
 }
+
+
+
+
+
+
+#' @title Plot Heatwave Status Trend for Last Year
+#'
+#' @param year_hw_dat Heatwave status information with hwe details
+#' @param temp_units Flag for "C" or "F" for unit swapping
+#'
+#' @return
+#' @export
+#'
+#' @examples
+year_hw_temps_two <- function(
+    year_hw_dat,
+    temp_units = "F"){
+  
+  
+  # Augment Data
+  year_hw_dat <- mutate(year_hw_dat, 
+                        cs_thresh_f = as_fahrenheit(mcs_thresh),
+                        mhw_event_txt = if_else(mhw_event, "Marine Heatwave", "Non-Event"))
+  
+  
+  # Handling Temperature Units:
+  temp_ops <- switch (EXPR = temp_units,
+                      "C" = list(temp_col = expr(sst),
+                                 anom_col = expr(sst_anom),
+                                 seas_col = expr(seas),
+                                 hw_thresh = expr(mhw_thresh),
+                                 cs_thresh = expr(mcs_thresh),
+                                 hw_temp = expr(hwe),
+                                 temp_suff = " \u00b0C"),
+                      "F" = list(temp_col = expr(sst_f),
+                                 anom_col = expr(anom_f),
+                                 seas_col = expr(seas_f),
+                                 hw_thresh = expr(mhw_thresh_f),
+                                 cs_thresh = expr(cs_thresh_f),
+                                 hw_temp = expr(hwe_f),
+                                 temp_suff = " \u00b0F"))
+  
+  
+  # Assign to shorter names
+  temp_col <- temp_ops$temp_col
+  anom_col <- temp_ops$anom_col
+  clim_col <- temp_ops$seas_col
+  hw_thresh_col <- temp_ops$hw_thresh
+  cs_thresh_col <- temp_ops$cs_thresh
+  hw_temp_col <- temp_ops$hw_temp
+  
+  
+  # Set colors by name
+  color_vals <- c(
+    "Non-Event"       = "#0571B0",
+    "Marine Heatwave" = "darkred")
+  
+  
+  
+  # Build the Plot
+  hw_p <- ggplot(year_hw_dat) +
+    geom_path(aes(x = time, y = {{temp_col}}, color = mhw_event_txt, group = mhw_event_no)) +
+    geom_segment(aes(x = time, xend = time, y = {{clim_col}}, yend = {{temp_col}}, color = mhw_event_txt), alpha = 0.25) +
+    geom_textpath(aes(x = time, y = {{hw_thresh_col}}), color = "gray10", label = "Heatwave Threshold", hjust = .05, lty = 1 ) + 
+    geom_textpath(aes(x = time, y = {{clim_col}}), color = "gray10", label = "Climatological Mean", hjust = 0.5, lty = 1) +
+    geom_textpath(aes(x = time, y = {{cs_thresh_col}}), color = "gray10", label = "Cold Spell Threshold", hjust = 0.95, lty = 1) +
+    scale_color_manual(values = color_vals) +
+    scale_x_date(date_labels = "%b %y", 
+                 date_breaks = "1 month", 
+                 expand = expansion(mult = c(0,0))) +
+    scale_y_continuous(labels =  number_format(suffix = temp_ops$temp_suff)) +
+    theme(legend.position = "bottom", legend.title = element_text(face = "bold")) +
+    labs(x = NULL, 
+         color = "Daily Temperature Heatwave Status:",
+         y = "Sea Surface Temperature")
+  
+  return(hw_p)
+  
+  
+}
+
+
+
+#' @title Plot Heatwave Status Trend of Anomalies for Last Year
+#'
+#' @param year_hw_dat Heatwave status information with hwe details
+#' @param temp_units Flag for "C" or "F" for unit swapping
+#'
+#' @return
+#' @export
+#'
+#' @examples
+year_hw_anoms_two <- function(
+    year_hw_dat,
+    temp_units = "F"){
+  
+  
+  # Augment Data
+  year_hw_dat <- mutate(year_hw_dat, 
+                        cs_thresh_f = as_fahrenheit(mcs_thresh),
+                        mhw_event_txt = if_else(mhw_event, "Marine Heatwave", "Non-Event"))
+  
+  
+  # Handling Temperature Units:
+  temp_ops <- switch (EXPR = temp_units,
+                      "C" = list(temp_col = expr(sst),
+                                 anom_col = expr(sst_anom),
+                                 seas_col = expr(seas),
+                                 hw_thresh = expr(mhw_thresh),
+                                 cs_thresh = expr(mcs_thresh),
+                                 hw_temp = expr(hwe),
+                                 temp_suff = " \u00b0C"),
+                      "F" = list(temp_col = expr(sst_f),
+                                 anom_col = expr(anom_f),
+                                 seas_col = expr(seas_f),
+                                 hw_thresh = expr(mhw_thresh_f),
+                                 cs_thresh = expr(cs_thresh_f),
+                                 hw_temp = expr(hwe_f),
+                                 temp_suff = " \u00b0F"))
+  
+  
+  # Assign to shorter names
+  temp_col <- temp_ops$temp_col
+  anom_col <- temp_ops$anom_col
+  clim_col <- temp_ops$seas_col
+  hw_thresh_col <- temp_ops$hw_thresh
+  cs_thresh_col <- temp_ops$cs_thresh
+  hw_temp_col <- temp_ops$hw_temp
+  
+  
+  # Set colors by name
+  color_vals <- c(
+    "Non-Event"       = "#0571B0",
+    "Marine Heatwave" = "darkred")
+  
+  
+  
+  # Build the Plot
+  hw_p <- year_hw_dat %>% 
+    mutate(
+      hw_anom_thresh = {{ hw_thresh_col }} - {{ clim_col }},
+      cs_anom_thresh    = {{ cs_thresh_col }} - {{ clim_col }}) %>% 
+    ggplot() +
+    geom_path(aes(x = time, y = {{anom_col}}, color = mhw_event_txt, group = mhw_event_no)) +
+    geom_segment(aes(x = time, xend = time, y = 0, yend = {{anom_col}}, color = mhw_event_txt), alpha = 0.25) +
+    geom_textpath(aes(x = time, y = hw_anom_thresh), color = "gray10", label = "Heatwave Threshold", hjust = .5, lty = 1) + 
+    geom_textpath(aes(x = time, y = 0), color = "gray10", label = "Climatological Mean", hjust = 0.5, lty = 1) +
+    #geom_textpath(aes(x = time, y = cs_anom_thresh), color = "gray10", label = "Cold Spell Threshold", hjust = 0.95, lty = 1) +
+    scale_color_manual(values = color_vals) +
+    scale_x_date(date_labels = "%b %y", 
+                 date_breaks = "1 month", 
+                 expand = expansion(mult = c(0,0))) +
+    scale_y_continuous(labels =  number_format(suffix = temp_ops$temp_suff)) +
+    theme(legend.position = "bottom", legend.title = element_text(face = "bold")) +
+    labs(x = NULL, 
+         color = "Daily Temperature Heatwave Status:",
+         y = "Sea Surface Temperature")
+  
+  return(hw_p)
+  
+  
+}
+
+
 
 
 
