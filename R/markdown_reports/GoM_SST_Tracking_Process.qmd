@@ -88,7 +88,7 @@ oisst = oisst.sel(
   lon = slice( (180-70.875), (180-65.375)),
   lat = slice(40.375, 45.125)
 )
-oisst
+oisst#.load()
 ```
 
 
