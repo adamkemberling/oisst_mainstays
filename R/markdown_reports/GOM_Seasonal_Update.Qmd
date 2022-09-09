@@ -721,7 +721,9 @@ hw_temp_p
 
 ## Heatwave Anomaly Timeline
 
-Presenting SST conditions in terms of anomalies (figure below) as opposed to absolute values (figure above) illustrates in greater detail the magnitude of MHW conditions throughout the `r tolower(params$season)`. The most extreme anomalies the `r tolower(params$spring)` occurred in the second half of May, with temperatures exceeding $5°$F above the climatological average.
+Presenting SST conditions in terms of anomalies (figure below) as opposed to absolute values (figure above) illustrates in greater detail the magnitude of MHW conditions throughout the `r tolower(params$season)`. 
+
+The most extreme anomalies this `r tolower(params$season)` occurred in August, with temperatures exceeding $6°$F above the climatological average.
 
 
 
@@ -795,8 +797,19 @@ heatmap_current
 ```
 
 
+## Monthly Rankings Heatmap
 
+```{r}
+#| label: monthly-rank-plot
+#| fig.width: 8
+#| fig-height: 4.5
 
+# Plot each month's rankings
+month_rank_heatmap(hw_dat = grid_dat, 
+                   temp_units = "F",
+                   no_dates_before = "2022-09-01")
+
+```
 
 ## Longest Heatwave on Record
 
@@ -1047,13 +1060,14 @@ season_map
 
 ## Monthly Temperature Anomalies
 
-Average monthly temperature anomalies are displayed below. The warmest anomalies were concentrated just south of the domain studied in this analysis in March, but by April and May the waters south and east of Georges Bank and near the Northeast Channel were experiencing monthly-averaged SSTs >8°F warmer than during our climate reference period (1982-2011).
+Average monthly temperature anomalies are displayed below. The warmest anomalies were initially concentrated just south of the domain studied in this analysis in June, but by July temperatures within the Gulf of Maine were exceptionally hot, and by August waters in the Gulf of Maine and the surrounding areas were all experiencing monthly-averaged SST's that were >8°F warmer than during our climate reference period (1982-2011).
 
 ```{r}
 #| label: monthly-avg-map
 #| eval: true
 #| fig.width: 8
-#| fig.height: 6
+#| fig.height: 8
+#| fig.align: center
 
 
 # Show less contours b/c smaller

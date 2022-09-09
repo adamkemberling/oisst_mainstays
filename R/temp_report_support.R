@@ -1805,6 +1805,93 @@ heatwave_heatmap_plot <- function(hw_dat, temp_units = "C", start_yr = 1981, end
 
 
 
+#' @title Monthly ranking heatmap
+#'
+#' @param hw_dat Temperature data that can be grouped on yr and month for ranking
+#' @param temp_units "F" or "C"
+#' @param no_dates_before String indicating the end date to include, entered as "yyyy-mm-dd"
+#'
+#' @return
+#' @export
+#'
+#' @examples
+month_rank_heatmap <- function(hw_dat, temp_units = "F", no_dates_before = "2022-09-01"){
+  
+  
+  # Format the data to rak the months
+  month_hw_ranks <- hw_dat %>% 
+    filter(time < as.Date(no_dates_before)) %>% 
+    group_by(yr, month) %>% 
+    summarise(temp_c = mean(sst),
+              temp_f = mean(sst_f),
+              anom_c = mean(sst_anom),
+              anom_f = mean(anom_f),
+              .groups = "drop") %>% 
+    group_by(month) %>% 
+    arrange(desc(temp_c)) %>% 
+    mutate(month_rank = row_number()) %>% 
+    ungroup() %>% 
+    mutate(month = factor(month, levels = month.abb),
+           month = fct_rev(month))
+  
+  
+  # Set unit controls
+  temp_ops <- switch(
+    EXPR = temp_units,
+    "C" = list(anom_col = expr(anom_c),
+               temp_suff = "\u00b0C",
+               temp_limits = c(-3,3)),
+    "F" = list(anom_col = expr(anom_f),
+               temp_suff = "\u00b0F",
+               temp_limits = c(-5,5)))
+  
+  # Pull the parts to insert into plot
+  temp_limits <- temp_ops$temp_limits
+  anom_col <- temp_ops$anom_col
+  temp_suff <- temp_ops$temp_suff
+  
+  
+  
+  # Color limit for palettes
+  temp_breaks <- c(temp_limits[1], temp_limits[1]/2,  0, temp_limits[2]/2, temp_limits[2])
+  temp_labels <- str_c(c(str_c("< ", temp_limits[1]), temp_limits[1]/2, 0, temp_limits[2]/2, str_c("> ", temp_limits[2])), temp_suff)
+  
+  
+  
+  # Build the plot
+  month_heatmap <- ggplot(month_hw_ranks, 
+                          aes(yr, month, label = month_rank)) +
+    geom_tile(aes(fill = {{anom_col}})) +
+    geom_text(size = 3) +
+    scale_x_continuous(expand = expansion(add = c(0,0))) +
+    scale_fill_distiller(palette = "RdBu", 
+                         na.value = "transparent", 
+                         limit = temp_limits, 
+                         oob = scales::squish,
+                         breaks = temp_breaks, 
+                         labels = temp_labels) +
+    #5 inches is default rmarkdown height for barheight
+    guides("fill" = guide_colorbar(title = "Sea Surface Temperature Anomaly", 
+                                   title.position = "top", 
+                                   title.hjust = 0.5,
+                                   barwidth = unit(4, "inches"), 
+                                   frame.colour = "black", 
+                                   ticks.colour = "black")) +  
+    theme(legend.position = "bottom",
+          legend.margin = margin(0, 0, 0, 0),
+          legend.box.margin = margin(-10,-10,-10,-10)) +
+    labs(title = "Ranking Monthly Sea Surface Temperatures - Gulf of Maine",
+         x = "", 
+         y = "",
+         "\nClimate reference period : 1982-2011",
+         caption = "Relative rankings of each month displayed in their respective tiles.")
+  
+  
+  return(month_heatmap)
+  
+}
+
+
 
 
 
