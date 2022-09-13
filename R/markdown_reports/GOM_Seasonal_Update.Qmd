@@ -273,6 +273,7 @@ gom_extent_p <- map_study_area_color(
   greenland_sf = greenland) +
   labs(title = "Gulf of Maine Study Area")
 
+
 # Show figure
 gom_extent_p
 
@@ -282,6 +283,7 @@ For this seasonal report, we present an analysis of SST for `r params$season` `r
 
 ```{r}
 #| label: season-circle-plot
+#| eval: false
 #| fig.alt: "A circular plot with the twelve months around the border displays the currently selected season which is indicated by a curved bar with a highlight color to identify which months are included in the meteorological season selected."
 
 # Plot the currently selected season:
@@ -568,8 +570,11 @@ seasonal_temp_p <- ggplot(seasonal_avgs,
     expand = expansion(add = c(1, 3)),
     labels = number_format(suffix = " \u00b0F")) +
   scale_x_continuous(limits = c(1981, params$year+3)) +
-  labs(x = "",
-       y = str_c(params$season, " Sea Surface Temperature")) 
+  labs(title = str_c("Long-Term ", params$season, " Warming in the Gulf of Maine"),
+       x = "",
+       y = str_c(params$season, " Sea Surface Temperature"))  +
+  coord_cartesian(clip = "off") +
+  geom_logo(x_npc = 0.9, y_npc = -0.15, logo_height = 1, height_units = "cm")
 
 
 
@@ -616,7 +621,9 @@ seasonal_temp_dist <- ggplot() +
   scale_color_manual(values = c("Reference Period Average" = "darkred")) +
   theme(legend.position = c(0.8, 0.09), 
         legend.background = element_blank(),
-        legend.key = element_blank())
+        legend.key = element_blank()) +
+  coord_cartesian(clip = "off") +
+  geom_logo(x_npc = 0.9, y_npc = -0.15, logo_height = 1, height_units = "cm")
 
 
 
@@ -627,7 +634,7 @@ seasonal_temp_dist
 
 ## How Does `r params$year` Compare?
 
-`r params$year` is among the warmest `r tolower(params$season)`s seen in the Gulf of Maine during this 40+ year period. When compared against all previous `r tolower(params$season)`s for which we have reliable satellite data (i.e., back to 1982), this year ranks **`r rank_labs`** among the hottest on record.
+`r params$year` is among the warmest `r tolower(params$season)`s seen in the Gulf of Maine during this 40+ year period. When compared against all previous `r tolower(params$season)`s for which we have reliable satellite data (i.e., back to 1982), this year ranks **`r rank_labs`** among the hottest on record since 1982.
 
 ```{r}
 #| label: season-rank-plot
@@ -659,7 +666,10 @@ temp_rankings_p <- seasonal_ranks %>%
         legend.position = "none", 
         panel.grid.major.y = element_blank(),
         panel.grid.minor.y = element_blank(),
-        panel.grid.minor.x = element_blank())
+        panel.grid.minor.x = element_blank(),
+        plot.margin = margin(t = 20, l = 5, r = 5, b = 5)) +
+  coord_cartesian(clip = "off") +
+  geom_logo(x_npc = 0.9, y_npc = 1.15, logo_height = 1, height_units = "cm")
 
 
 temp_rankings_p
@@ -714,7 +724,9 @@ Using this broadly accepted definition, **the Gulf of Maine has experienced MHW 
 # Show MHW Status Through the Year:
 hw_temp_p <- year_hw_temps_two(year_hw_dat = last_yr_heatwaves, temp_units = "F") + 
   labs(title = str_c(params$year, " Gulf of Maine SST"),
-       subtitle = str_c("Temperatures through the end of ", params$season))
+       subtitle = str_c("Temperatures through the end of ", params$season))  +
+  coord_cartesian(clip = "off") +
+  geom_logo(x_npc = 0.9, y_npc = 1.1, logo_height = 1, height_units = "cm")
 hw_temp_p
 ```
 
@@ -737,7 +749,9 @@ The most extreme anomalies this `r tolower(params$season)` occurred in August, w
 # Show MHW Status Through the Year:
 hw_anom_p <- year_hw_anoms_two(year_hw_dat = last_yr_heatwaves, temp_units = "F") + 
   labs(title = str_c(params$year, " Gulf of Maine SST Anomalies"),
-       subtitle = str_c("Temperature Anomalies through the end of ", params$season))
+       subtitle = str_c("Temperature Anomalies through the end of ", params$season)) +
+  coord_cartesian(clip = "off") +
+  geom_logo(x_npc = 0.9, y_npc = 1.1, logo_height = 1, height_units = "cm")
 hw_anom_p
 ```
 
@@ -765,21 +779,24 @@ heatmap_p <- grid_dat %>%
   heatwave_heatmap_plot(temp_units = "F", start_yr = 1981, end_yr = 2022) +
   labs(title = "Gulf of Maine Heatwave Record") +
   theme(legend.position = "bottom",
-        legend.title = element_text(angle = 0)) +
+        legend.title = element_text(angle = 0),
+        plot.margin = margin(b = 0, t = 20)) +
   guides(fill = guide_colorbar(
     title = "Sea Surface Temperature Anomaly",
     title.position = "top", 
     title.hjust = 0.5, barwidth = unit(3.5, "in"), 
     barheight = unit(0.5, "cm"), 
     frame.colour = "black", 
-    ticks.colour = "black"))
+    ticks.colour = "black")) +
+  coord_cartesian(clip = "off") +
+  geom_logo(x_npc = 0.9, y_npc = 1.05, logo_height = 1, height_units = "cm")
 
 heatmap_p + labs(caption = "")
 ```
 
 ```{r}
 #| label: mhw-heatmap-2022
-#| fig.height: 2
+#| fig.height: 1.5
 
 
 # Just the current year on its own:
@@ -790,7 +807,8 @@ heatmap_current <- grid_dat %>%
                      limits = c(2021.5, 2022.5),
                      expand = expansion(add = c(0,0))) +
   theme(legend.position = "none",
-        legend.title = element_text(angle = 0)) +
+        legend.title = element_text(angle = 0),
+        plot.margin = margin(t = 0, b = 0)) +
   labs(title = "2022 Conditions")
 
 heatmap_current
@@ -807,7 +825,9 @@ heatmap_current
 # Plot each month's rankings
 month_rank_heatmap(hw_dat = grid_dat, 
                    temp_units = "F",
-                   no_dates_before = "2022-09-01")
+                   no_dates_before = "2022-09-01") +
+  coord_cartesian(clip = "off") +
+  geom_logo(x_npc = 0.9, y_npc = 1.15, logo_height = 1, height_units = "cm")
 
 ```
 
@@ -841,7 +861,10 @@ event_temps <- year_hw_temps_two(year_hw_dat = longest_hw, temp_units = "F") +
     guide = guide_axis(n.dodge = 1)) +
   labs(title = "Gulf of Maine's Record Heatwave",
        subtitle = str_c("MHW lasting ", hw_length, " days sets new record as longest single heatwave event.")) +
-  guides(color = guide_legend(ncol = 2))
+  theme(legend.position = "none") +
+  guides(color = guide_legend(ncol = 2)) +
+  coord_cartesian(clip = "off") +
+  geom_logo(x_npc = 0.9, y_npc = 1.1, logo_height = 1, height_units = "cm")
 
 
 # Plot
@@ -859,7 +882,9 @@ event_anoms <- year_hw_anoms_two(year_hw_dat = longest_hw, temp_units = "F") +
     expand = expansion(mult = c(0,0)), 
     guide = guide_axis(n.dodge = 1)) +
   theme(legend.position = "none") +
-  labs(title = NULL, subtitle = NULL)
+  labs(title = "Gulf of Maine's Record Heatwave", subtitle = "Temperature anomalies for the longest heatwave on record.") +
+  coord_cartesian(clip = "off") +
+  geom_logo(x_npc = 0.9, y_npc = 1.1, logo_height = 1, height_units = "cm")
 
 # Plot
 event_anoms
@@ -1060,13 +1085,13 @@ season_map
 
 ## Monthly Temperature Anomalies
 
-Average monthly temperature anomalies are displayed below. The warmest anomalies were initially concentrated just south of the domain studied in this analysis in June, but by July temperatures within the Gulf of Maine were exceptionally hot, and by August waters in the Gulf of Maine and the surrounding areas were all experiencing monthly-averaged SST's that were >8°F warmer than during our climate reference period (1982-2011).
+Average monthly temperature anomalies are displayed below. The warmest anomalies were initially concentrated just south of the domain studied in this analysis in June, but by July temperatures within the Gulf of Maine were exceptionally hot, and by August waters in the Gulf of Maine and the surrounding areas were all experiencing monthly-averaged SST's that were > 8°F warmer than during our climate reference period (1982-2011).
 
 ```{r}
 #| label: monthly-avg-map
 #| eval: true
 #| fig.width: 8
-#| fig.height: 8
+#| fig.height: 6
 #| fig.align: center
 
 
@@ -1151,8 +1176,13 @@ month_plots <- imap(months_masked, function(month_avg_layer, month_id){
   
 })
 
+# # assemble plot
+# monthly_maps <- (month_plots[[1]] | month_plots[[2]] | month_plots[[3]]) + plot_layout(guides = "collect")  & theme(legend.position = 'bottom') 
+
 # assemble plot
-monthly_maps <- (month_plots[[1]] | month_plots[[2]] | month_plots[[3]]) + plot_layout(guides = "collect")  & theme(legend.position = 'bottom') 
+monthly_maps <- (month_plots[[1]] | month_plots[[2]] | month_plots[[3]]) + 
+  plot_layout(guides = "collect")  & 
+  theme(legend.position = 'bottom', plot.margin = margin(t = 0, b = 0, r = 0.5, l = 0.5)) 
 
 
 monthly_maps + plot_annotation(caption = "200m contour overlaid to show topographic details.")

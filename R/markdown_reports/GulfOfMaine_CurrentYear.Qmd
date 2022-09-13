@@ -106,9 +106,6 @@ canada      <- ne_states("canada", returnclass = "sf")
 world       <- ne_countries(returnclass = "sf")
 greenland   <- ne_states(country = "greenland", returnclass = "sf")
 
-# Adding Logo to plot
-logo_path <- paste0(system.file("stylesheets", package = "gmRi"), "/gmri_logo.png")
-lab_logo <- magick::image_read(logo_path)
 ```
 
 
@@ -177,12 +174,13 @@ crop_y <- st_bbox(region_extent)[c(2,4)]
 
 
 # Map the study area
-map_study_area(region_extent = region_extent,
-               x_buffer =  c(-2, 2),
-               y_buffer =  c(-0.75, 0.75), 
-               new_england_sf = new_england, 
-               canada_sf = canada,
-               greenland_sf = greenland)
+map_study_area_color(
+  region_extent = region_extent,
+  new_england_sf = new_england,
+  canada_sf = canada,
+  greenland_sf = greenland) +
+  labs(title = "Gulf of Maine Study Area") +
+  geom_logo(x_npc = 0.125, y_npc = 0.925)
 
 ```
 
@@ -658,7 +656,7 @@ quarter_summary <- region_timeseries %>%
 # Plot
 quarter_summary %>% 
   ggplot(aes(year, area_wtd_anom)) +
-  geom_line(group = 1, color = "gray60", linetype = 3) +
+  geom_line(group = 1, color = "gray60", linetype = 1) +
   geom_point(size = 0.75) +
   geom_smooth(method = "lm", 
               aes(color = "Regional Trend"),
@@ -945,7 +943,10 @@ Temperatures for the current year can be seen against the same thresholds with t
 
 
 # Make Plot
-hw_temp_p <- year_hw_temps(year_hw_dat = this_yr_hw, temp_units = "C") + theme_gmri() + theme(legend.position = "bottom") + labs(color = "")
+hw_temp_p <- year_hw_temps_two(year_hw_dat = this_yr_hw, temp_units = "C") + 
+  theme_gmri() + 
+  theme(legend.position = "bottom") + 
+  labs(color = "")
 
 # Show Figure
 hw_temp_p
@@ -965,7 +966,10 @@ Changing from absolute temperatures to anomalies reveals the degree to which thi
 
 
 # Show figure
-hw_anom_p <- year_hw_anoms(year_hw_dat = this_yr_hw, temp_units = "C")+ theme_gmri() + theme(legend.position = "bottom") + labs(color = "")
+hw_anom_p <- year_hw_anoms_two(year_hw_dat = this_yr_hw, temp_units = "F") + 
+  #theme_gmri() +
+  theme(legend.position = "bottom") + 
+  labs(color = "")
 hw_anom_p
 
 ```
@@ -1054,9 +1058,9 @@ heatwaves_91 <- heatwaves_91 %>%
 arrows <- 
   tibble(
     x1 = as.Date(c("2000-07-15")),
-    x2 = as.Date(c("2000-08-28")),
+    x2 = as.Date(c("2000-08-26")),
     y1 = c(1.25), 
-    y2 = c(1.15)
+    y2 = c(1.125)
   )
 
 # Plot the differences
@@ -1073,7 +1077,7 @@ heatwaves_91 %>%
     data = arrows, aes(x = x1, y = y1, xend = x2, yend = y2),
     arrow = arrow(length = unit(0.08, "inch")), size = 0.5,
     color = "gray20", curvature = -0.3) +
-  annotate("text", x = as.Date("2000-06-01"), y = 1.225, label = "Fall Extremes\nMore Frequent") +
+  annotate("text", x = as.Date("2000-06-10"), y = 1.205, label = "Fall Extremes\nMore Frequent\nThan Spring") +
   labs(x = "", 
        y = "Shift in Expected Temperature \u00b0C",
        color = "") + 
