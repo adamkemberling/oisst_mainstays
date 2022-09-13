@@ -48,87 +48,87 @@ theme_set(theme_bw() +
 
 
 
-# Building a GMRI theme based on Wall street Journal and NYTimes theme
-# base settings from {ggthemes}
-theme_gmri <- function(base_size = 10, 
-                       bg_color = "lightblue", 
-                       base_family = "sans", 
-                       title_family = "sans",
-                       facet_color = "teal") {
-  # Color from gmRi palette, sets background color
-  #colorhex <- gmRi::gmri_cols()[bg_color]
-  facet_hex <- gmri_cols()[facet_color]
-  
-  # Set up theme
-  theme_foundation(
-    base_size = base_size, 
-    base_family = base_family) + 
-    theme(
-      
-      # Major Elements
-      line = element_line(linetype = 1, colour = "black"), 
-      rect = element_rect(fill = "transparent", 
-                          linetype = 0, 
-                          colour = NA), 
-      text = element_text(colour = "black"), 
-      title = element_text(family = title_family, size = 12), 
-      
-      # Axis elements
-      axis.text.x = element_text(colour = NULL), 
-      axis.text.y = element_text(colour = NULL), 
-      axis.ticks = element_line(colour = NULL), 
-      axis.ticks.y = element_blank(), 
-      axis.ticks.x = element_line(colour = NULL), 
-      axis.line = element_line(), 
-      axis.line.y = element_blank(), 
-      axis.text = element_text(size = 11),
-      axis.title = element_text(size = 12),
-      
-      # Legend Elements
-      legend.background = element_rect(), 
-      legend.position = "top", 
-      legend.direction = "horizontal", 
-      legend.box = "vertical", 
-      legend.title = element_text(size = 9),
-      legend.text = element_text(size = 9),
-      
-      # Panel/Grid Setup
-      panel.grid = element_line(colour = NULL, linetype = 3, color = "gray80"), 
-      panel.grid.major = element_line(colour = "black"), 
-      panel.grid.major.x = element_blank(), 
-      panel.grid.minor = element_blank(), 
-      
-      # Title and Caption Details
-      plot.title = element_text(hjust = 0, face = "bold", size = 14),
-      plot.subtitle = element_text(size = 9),
-      plot.caption = element_text(size = 7.2, margin = margin(t = 20), color = "gray40"),
-      #plot.margin = unit(c(1, 1, 1, 1), "lines"), 
-      plot.margin = unit(c(1, 1, 2, 1), "lines"),
-      
-      # Facet Details
-      strip.text = element_text(color = "white", face = "bold", size = 11),
-      strip.background = element_rect(
-        color = "white", 
-        fill = facet_hex, 
-        size = 1, 
-        linetype="solid"))
-}
+# # Building a GMRI theme based on Wall street Journal and NYTimes theme
+# # base settings from {ggthemes}
+# theme_gmri <- function(base_size = 10, 
+#                        bg_color = "lightblue", 
+#                        base_family = "sans", 
+#                        title_family = "sans",
+#                        facet_color = "teal") {
+#   # Color from gmRi palette, sets background color
+#   #colorhex <- gmRi::gmri_cols()[bg_color]
+#   facet_hex <- gmri_cols()[facet_color]
+#   
+#   # Set up theme
+#   theme_foundation(
+#     base_size = base_size, 
+#     base_family = base_family) + 
+#     theme(
+#       
+#       # Major Elements
+#       line = element_line(linetype = 1, colour = "black"), 
+#       rect = element_rect(fill = "transparent", 
+#                           linetype = 0, 
+#                           colour = NA), 
+#       text = element_text(colour = "black"), 
+#       title = element_text(family = title_family, size = 12), 
+#       
+#       # Axis elements
+#       axis.text.x = element_text(colour = NULL), 
+#       axis.text.y = element_text(colour = NULL), 
+#       axis.ticks = element_line(colour = NULL), 
+#       axis.ticks.y = element_blank(), 
+#       axis.ticks.x = element_line(colour = NULL), 
+#       axis.line = element_line(), 
+#       axis.line.y = element_blank(), 
+#       axis.text = element_text(size = 11),
+#       axis.title = element_text(size = 12),
+#       
+#       # Legend Elements
+#       legend.background = element_rect(), 
+#       legend.position = "top", 
+#       legend.direction = "horizontal", 
+#       legend.box = "vertical", 
+#       legend.title = element_text(size = 9),
+#       legend.text = element_text(size = 9),
+#       
+#       # Panel/Grid Setup
+#       panel.grid = element_line(colour = NULL, linetype = 3, color = "gray80"), 
+#       panel.grid.major = element_line(colour = "black"), 
+#       panel.grid.major.x = element_blank(), 
+#       panel.grid.minor = element_blank(), 
+#       
+#       # Title and Caption Details
+#       plot.title = element_text(hjust = 0, face = "bold", size = 14),
+#       plot.subtitle = element_text(size = 9),
+#       plot.caption = element_text(size = 7.2, margin = margin(t = 20), color = "gray40"),
+#       #plot.margin = unit(c(1, 1, 1, 1), "lines"), 
+#       plot.margin = unit(c(1, 1, 2, 1), "lines"),
+#       
+#       # Facet Details
+#       strip.text = element_text(color = "white", face = "bold", size = 11),
+#       strip.background = element_rect(
+#         color = "white", 
+#         fill = facet_hex, 
+#         size = 1, 
+#         linetype="solid"))
+# }
 
 
 
-# Set theme up for maps
-map_theme <- function(...){
-  list(
-    theme(
-      panel.border       = element_rect(color = "black", fill = NA),
-      plot.background    = element_rect(color = "transparent", fill = "transparent"),
-      line               = element_blank(),
-      axis.title.x       = element_blank(), # turn off titles
-      axis.title.y       = element_blank(),
-      legend.title.align = 0.5,
-      ...)
-  )
-}
+# # Set theme up for maps
+# map_theme <- function(...){
+#   list(
+#     theme(
+#       panel.border       = element_rect(color = "black", fill = NA),
+#       plot.background    = element_rect(color = "transparent", fill = "transparent"),
+#       line               = element_blank(),
+#       axis.title.x       = element_blank(), # turn off titles
+#       axis.title.y       = element_blank(),
+#       legend.title.align = 0.5,
+#       ...)
+#   )
+# }
 
 
 
@@ -785,7 +785,8 @@ map_study_area <- function(region_extent,
     geom_text(data = area_labs, aes(lon, lat, label = label, angle = angle), 
               size = 3, color = "black") +
     coord_sf(xlim = crop_x, 
-             ylim = crop_y, expand = T) +
+             ylim = crop_y, 
+             expand = T) +
     map_theme() +
     labs(title = plot_title)
   
@@ -925,7 +926,8 @@ map_study_area_color <- function(region_extent,
               color = "gray10", 
               fill = "transparent", alpha = 0.2, linetype = shape_linetype, size = 0.5) +
       coord_sf(xlim = crop_x, 
-               ylim = crop_y, expand = T) +
+               ylim = crop_y, 
+               expand = T) +
       map_theme(legend.position = "none") +
       labs(title = plot_title,
            caption = "Depth contours colored at 100m intervals to a maximum of 600m")
@@ -1432,7 +1434,7 @@ year_hw_anoms <- function(year_hw_dat = this_yr, temp_units = "F"){
     # scale_x_date(date_labels = "%b", date_breaks = "1 month", expand = expansion(mult = c(0,0))) +
     scale_x_date(date_labels = "%b %y", date_breaks = "1 month", expand = expansion(mult = c(0,0))) +
     guides(color = guide_legend(override.aes = list(linetype = linetype_key), nrow = 2)) +
-    theme(legend.title = element_blank(),
+    theme(#legend.title = element_blank(),
           legend.position = "bottom") +
     scale_y_continuous(labels =  number_format(suffix = temp_ops$temp_suff)) +
     labs(x = NULL, 
@@ -1589,7 +1591,8 @@ year_hw_anoms_two <- function(
     ggplot() +
     geom_path(aes(x = time, y = {{anom_col}}, color = mhw_event_txt, group = mhw_event_no)) +
     geom_segment(aes(x = time, xend = time, y = 0, yend = {{anom_col}}, color = mhw_event_txt), alpha = 0.25) +
-    geom_textpath(aes(x = time, y = hw_anom_thresh), color = "gray10", label = "Heatwave Threshold", hjust = .5, lty = 1) + 
+    geom_path(aes(x = time, y = hw_anom_thresh), color = "gray10", lty = 3) + 
+    # geom_textpath(aes(x = time, y = hw_anom_thresh), color = "gray10", label = "Heatwave Threshold", hjust = .33, lty = 1) + 
     geom_textpath(aes(x = time, y = 0), color = "gray10", label = "Climatological Mean", hjust = 0.5, lty = 1) +
     #geom_textpath(aes(x = time, y = cs_anom_thresh), color = "gray10", label = "Cold Spell Threshold", hjust = 0.95, lty = 1) +
     scale_color_manual(values = color_vals) +
@@ -1600,7 +1603,7 @@ year_hw_anoms_two <- function(
     theme(legend.position = "bottom", legend.title = element_text(face = "bold")) +
     labs(x = NULL, 
          color = "Daily Temperature Heatwave Status:",
-         y = "Sea Surface Temperature")
+         y = "Temperature Anomaly")
   
   return(hw_p)
   
