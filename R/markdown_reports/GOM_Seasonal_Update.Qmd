@@ -85,7 +85,7 @@ params <- list(
   year = year(Sys.Date()),
   season = "Summer",
   `Save Data` = FALSE,
-  `Save Figures` = FALSE)
+  `Save Figures` = TRUE)
 
 
 #####  Parameter option switches:  ####
@@ -616,7 +616,7 @@ seasonal_temp_dist <- ggplot() +
   scale_y_continuous(labels = number_format(suffix = " \u00b0F")) +
   labs(x = "",
        y = str_c(params$season, " Sea Surface Temperature"),
-       title = str_c("Regime Shift in Distribution of ", params$season, " SST"),
+       title = str_c("Regime Shift in the Distribution of ", params$season, " SST"),
        color = "") +
   scale_color_manual(values = c("Reference Period Average" = "darkred")) +
   theme(legend.position = c(0.8, 0.09), 
@@ -638,7 +638,7 @@ seasonal_temp_dist
 
 ```{r}
 #| label: season-rank-plot
-#| fig.height: 3
+#| fig.height: 4
 
 
 # Plot them
@@ -669,7 +669,7 @@ temp_rankings_p <- seasonal_ranks %>%
         panel.grid.minor.x = element_blank(),
         plot.margin = margin(t = 20, l = 5, r = 5, b = 5)) +
   coord_cartesian(clip = "off") +
-  geom_logo(x_npc = 0.9, y_npc = 1.15, logo_height = 1, height_units = "cm")
+  geom_logo(x_npc = 0.9, y_npc = 1.1, logo_height = 1, height_units = "cm")
 
 
 temp_rankings_p
@@ -1262,10 +1262,18 @@ if(params$`Save Figures`){
          dpi = "retina", 
          bg = "transparent")
   
-  # heatwave_showcase
-  ggsave(plot = hw_showcase, 
-         filename = str_c(update_folder, "Longest_Heatwave.png"), 
-         height = unit(8, "in"),
+  # heatwave_showcase temps:
+  ggsave(plot = event_temps, 
+         filename = str_c(update_folder, "Longest_Heatwave_temps.png"), 
+         height = unit(5, "in"),
+         width = unit(8, "in"),
+         dpi = "retina", 
+         bg = "transparent")
+  
+  # heatwave_showcase anoms:
+  ggsave(plot = event_anoms, 
+         filename = str_c(update_folder, "Longest_Heatwave_anoms.png"), 
+         height = unit(5, "in"),
          width = unit(8, "in"),
          dpi = "retina", 
          bg = "transparent")
