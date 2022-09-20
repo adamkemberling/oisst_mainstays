@@ -341,9 +341,8 @@ max_anom_yr <- seasonal_avgs %>%
   mutate(across(where(is.numeric), round, 3))
 ```
 
-The average SST for the Gulf of Maine during the `r tolower(params$season)` of `r params$year` was `r season_avg_temp`°F, which is `r season_avg_anom`°F above the long-term average across all years (1982-2022) of `r round(climate_baseline, 3)`°F.
+The average SST for the Gulf of Maine during the `r tolower(params$season)` of `r params$year` was `r season_avg_temp`°F. Making it the `r rank_labs` hottest `r tolower(params$season)` on record for the period of 1982-2022. These temperatures are `r season_avg_anom`°F above the long-term (1982-222) `r params$season` average of `r round(climate_baseline, 2)`°F.
 
-It was the `r rank_labs` hottest `r tolower(params$season)` on record for the period of 1982-2022. 
 
 ## Weekly Temperatures
 
@@ -470,7 +469,7 @@ month_full <- month.name[which(month.abb == peak_month$month)]
 ```
 
 
-Looking at monthly averages (as opposed to week-by-week conditions), we see that `r month_full` showed the largest deviation from the long-term climatological average, with an average SST anomaly of `r peak_month$anom_f`°F. All days this season met the criteria to be considered a marine heatwave, and each month was `r min(monthly_avgs$anom_f)`°F or more above the 1982-2011 average. 
+Looking at monthly averages (as opposed to week-by-week conditions), we see that `r month_full` showed the largest deviation from the long-term climatological average, with an average SST anomaly of `r peak_month$anom_f`°F. All days this season met the criteria to be considered a marine heatwave, and each month was `r min(monthly_avgs$anom_f)`°F or more above the 1982-2011 climatological average. 
 
 ```{r}
 #| label: monthly-temp-table
@@ -547,7 +546,7 @@ seasonal_temp_p <- ggplot(seasonal_avgs,
               color = "darkred", 
               se = FALSE) +
   # Annotation for Warming Rate
-  geom_mark_ellipse(aes(filter = yr == 1989, 
+  geom_mark_ellipse(aes(filter = yr == 1987, 
                         label = str_c(decadal_rate_f, " \u00b0F / Decade")), 
                     color = "transparent", 
                     description = str_c("40-Year ", params$season, " Warming Trend"), 
@@ -649,16 +648,19 @@ temp_rankings_p <- seasonal_ranks %>%
                 xend = anom_f,
                 y = rank,
                 yend = rank,
-                #size = stat(index)/2, 
-                alpha = stat(index)), 
-            show.legend = FALSE,
-            size = 2) +
-  geom_label(aes(x = anom_f, y = rank, label = year_rank)) +
+                #size = stat(index),
+                #alpha = stat(index)
+                ), 
+            size = 3,
+            show.legend = FALSE
+            ) +
+  geom_label(aes(x = anom_f, y = rank, label = year_rank), size = 4) +
   scale_y_reverse(breaks = seq(1, 5, 1), expand = expansion(add = c(0.5, 0.5))) +
   scale_x_continuous(
     labels = number_format(suffix = " \u00b0F"), 
     expand = expansion(mult = c(0,0.15))) +
-  scale_color_manual(values = c("flag" = as.character(gmri_cols("orange")), "unflag" = "gray60")) +
+  scale_color_manual(values = c("flag" = as.character(gmri_cols("orange")), 
+                                "unflag" = as.character(gmri_cols("gmri blue")))) +
   labs(x = "Temperature Anomaly",
        y = "Rank",
        title = str_c(params$season, " Temperature Anomalies, Ranked")) +
@@ -682,7 +684,7 @@ temp_rankings_p
 
 ## Marine Heatwave Timeline
 
-The most commonly used definition of a ["marine heatwave" (MHW)](http://www.marineheatwaves.org/all-about-mhws.html) is when daily average SSTs exceed the 90th percentile of a climatological (i.e., 30-year) average for at least 5 consecutive days. Successive heatwave gaps of 2 days or less are considered part of the same event.
+The most commonly used definition of a ["marine heatwave" (MHW)](http://www.marineheatwaves.org/all-about-mhws.html) is when daily average SST's exceed the 90th percentile of a climatological (i.e., 30-year) average for at least 5 consecutive days. Successive heatwave gaps of 2 days or less are considered part of the same event.
 
 
 
@@ -833,7 +835,7 @@ month_rank_heatmap(hw_dat = grid_dat,
 
 ## Longest Heatwave on Record
 
-The heatwave event of 2022 was actually a continuation of an historical event, the longest heatwave in the region's history. 
+This summer marked the conclusion of the Gulf of Maine’s longest heatwave event. 
 
 ```{r}
 #| label: longest-hw-p
@@ -895,7 +897,8 @@ event_anoms
 
 ```
 
-The full heatwave event lasted a total of `r hw_length`, and during that period temperatures were on average `r avg_hw_temp`°F what they were compared to the climate reference period.
+
+This event lasted a total of `r hw_length`, and during that period temperatures were on average `r avg_hw_temp`°F above temperatures observed during the climate reference period.
 
 
 
@@ -1008,7 +1011,7 @@ peak_date <- names(season_anoms)[peak_date_lyr] %>%
 # Mean and Max Temps come from total cropped area***
 ```
 
-From a spatial perspective, the Gulf of Maine and surrounding areas experienced above average SSTs for much of the region during `r tolower(params$season)` `r params$year`, but with particularly warm patches to the south and east of Georges Bank. The highest seasonally averaged anomaly of any location above was  `r max_season`°F.
+From a spatial perspective, the Gulf of Maine and surrounding areas experienced above average SST's for much of the region during `r tolower(params$season)` `r params$year`, but with particularly warm patches to the south and east of Georges Bank. The highest seasonally averaged anomaly of any location above was  `r max_season`°F.
 
 ```{r}
 #| label: contour-details
