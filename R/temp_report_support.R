@@ -891,7 +891,10 @@ map_study_area_color <- function(region_extent,
     
     # Add the bottom contours as color
     # Reclassify to discrete
-    bathy_reclass <- reclassify_bathy(bathy, depth_increments = -100, min_elev = -600, max_elev = 0)
+    bathy_reclass <- reclassify_bathy(bathy, 
+                                      depth_increments = -100, 
+                                      min_elev = -600, 
+                                      max_elev = 0)
     reclass_ras <- bathy_reclass$ras
     reclass_labs  <- bathy_reclass$labs
     
