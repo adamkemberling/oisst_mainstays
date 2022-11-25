@@ -1,0 +1,196 @@
+---
+title: "Making ERSSTv5 Timelines"
+author: "Adam A. Kemberling"
+date: "2/2/2022"
+format: 
+  html:
+    code-fold: true
+    code-tools: true
+    toc: true
+    toc-depth: 2
+    df-print: kable
+    self-contained: true
+editor: source
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Python in Rmarkdown
+
+```{python, eval = T}
+import xarray as xr
+import matplotlib.pyplot as plt
+import numpy as np
+import netCDF4
+import regionmask
+import geopandas as gp
+
+# RES_Data path
+res_path = "/Users/akemberling/Library/CloudStorage/Box-Box/RES_Data/"
+okn_path = "/Users/akemberling/Library/CloudStorage/Box-Box/NSF OKN Demo Data/"
+
+# Load ERSST
+ersst = xr.open_dataset(f"{res_path}ERSSTv5/sst.mnmean_2022_02_02.nc")
+
+# Load the Climatology
+ersst_clim = xr.open_dataset(f"{okn_path}ersst/ERSSTv5_1982_2011_clim.nc")
+
+
+# Get Anomalies
+ersst_anoms = ersst.groupby("time.month") - ersst_clim
+ersst_anoms = ersst_anoms.rename({"sst" : "sst_anom"})
+ersst_anoms
+
+```
+
+## Funcitons to Mask and to Area-Weight
+
+```{python, eval = T}
+
+# Function to make area-weighted means
+def area_weighted_means(grid_obj, var_name = "sst", sd = False):
+    """
+    Run an area-weighted average using an xarray dataset, the cell weights, and the variable of interest.
+    
+    Area of the cells is based on latitude and assumes a rectangular grid in lat/lon converting to km
+    
+    Args:
+        grid_obj     : xr.Dataset to calculate average of
+        var_name     : data variable
+        sd           : perform standard deviations?
+    
+    
+    
+    """
+    
+    # Pull an array of the variable of interest
+    array_var = getattr(grid_obj, var_name)
+    
+    
+    #  # From Julius Busecke
+    #  delta_lon = np.cos(array_var.lat * np.pi / 180) * 111e3
+    #  delta_lat = xr.ones_like(array_var.lon) * 111e3
+    #  cell_areas = delta_lon * delta_lat
+    
+    # From Source: xarray docs
+    # http://xarray.pydata.org/en/stable/examples/area_weighted_temperature.html
+    cell_areas = np.cos(np.deg2rad(array_var.lat))
+    cell_areas.name = "weights"
+    
+    # weight the array with the areas
+    grid_weighted = array_var.weighted(cell_areas)
+    
+    # Get the mean
+    if sd == False:
+        # print("Processing Area-Weighted Means")
+        weighted_vals = grid_weighted.mean(("lat", "lon"))
+        weighted_vals = weighted_vals.to_dataset(name = f"area_wtd_{var_name}")
+    
+#     # Standard deviation not a method available to weighted dataset
+#     elif sd == True:
+#         # print("Processing Area-Weighted Standard Deviations")
+#         weighted_vals = grid_weighted.std(("lat", "lon"))
+#         weighted_vals = weighted_vals.to_dataset(name = f"{var_name}_sd")
+    
+    return weighted_vals
+
+
+
+# Function to mask an xr.dataset and return a timeseries
+def calc_ts_mask(grid_obj, shp_obj, shp_name, var_name = "sst", climatology = False):
+  """
+  Return a timeseries using data that falls within shapefile. 
+  
+  Standard deviation
+  not included so that this function can be used for any period of time.
+  
+  Args:
+    grid_obj       : xr.Dataset of the desired input data to mask
+    shp_obj        : shapefile polygon to use as a mask
+    shp_name (str) : String to use as name when making mask
+    var_name (str) : Optional string identifying the variable to use
+    climatology (bool): Whether you are masking a cliimatology, informs naming conventions and
+    whether to process standard deviation
+  """
+
+  #### 1. Make the mask
+  area_mask = regionmask.Regions(shp_obj.geometry,
+                                 name = shp_name)
+
+  #### 2. Mask the array with gom_mask to get nan test
+  mask = area_mask.mask(grid_obj, lon_name = "lon", lat_name = "lat")
+
+  
+  #### 3. Extract data that falls within the mask
+  masked_ds = grid_obj.where(~np.isnan(mask))
+
+  
+  #### 4. Calculate timeseries mean
+
+  # Get the timeseries mean of the desired variable
+  if climatology == False:
+        
+    # area-weighted
+    masked_ts = area_weighted_means(masked_ds, var_name, sd = False)
+    
+    # Not area-weighted
+    masked_ts[var_name] = getattr(masked_ds, var_name).mean(dim = ("lat", "lon"))
+    
+   
+    
+  elif climatology == True:
+    
+    # area-weighted?
+    masked_ts = area_weighted_means(masked_ds, var_name, sd = False)
+    # masked_ts["clim_sd"] = area_weighted_means(masked_ds, var_name, sd = True)
+    
+    # Not area-weighted
+    masked_ts[var_name] = getattr(masked_ds, var_name).mean(dim = ("lat", "lon"))
+    masked_ts["clim_sd"] = getattr(masked_ds, var_name).std(dim = ("lat", "lon"))
+    
+    
+    
+
+  
+  #### 5. Change time index rownames to a column 
+
+  # Convert to Timeseries Dataframe
+  masked_ts_df = masked_ts.to_dataframe()
+
+  # Reset the index, rename variables
+  if climatology == False:
+    masked_ts_df = masked_ts_df.reset_index()[["time", f"area_wtd_{var_name}", var_name]]
+    
+  elif climatology == True:
+    clim_name = f"{var_name}_clim"
+    masked_ts_df = masked_ts_df.reset_index()[["modified_ordinal_day", f"area_wtd_{var_name}", var_name, "clim_sd"]]
+    masked_ts_df = masked_ts_df.rename(columns = {f"{var_name}" : f"{clim_name}", f"area_wtd_{var_name}" : "area_wtd_clim"})
+  
+  # Return the table as output
+  return masked_ts_df
+
+```
+
+
+## Mask ERSSTv5 with Gulf of Maine
+
+```{python}
+# Load Gulf of Maine
+shape_name = "apershing_gulf_of_maine"
+gom = gp.read_file(f"{res_path}Shapefiles/gmri_sst_focal_areas/{shape_name}.geojson")
+
+# Mask the
+gom_sst = calc_ts_mask(grid_obj = ersst, shp_obj = gom, shp_name = "Gulf of Maine", var_name = "sst")
+gom_anoms = calc_ts_mask(grid_obj = ersst_anoms, shp_obj = gom, shp_name = "Gulf of Maine", var_name = "sst_anom")
+
+# Merge
+gom_ersst = gom_sst.merge(gom_anoms, on = "time")
+
+# Save
+gom_ersst.to_csv(f"{res_path}ERSSTv5/ERSSTv5_anom_{shape_name}.csv", index = False)
+
+```
+
+

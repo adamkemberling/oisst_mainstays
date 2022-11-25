@@ -170,11 +170,20 @@ def cache_oisst(cache_month, update_yr, workspace = "local", verbose = True):
     # Cache Subdirectory Locations
     cache_locs = {
       "annual_obs"        : f"{_cache_root}annual_observations/",
-      "month_cache"       : f"{_cache_root}update_caches/{this_month}/"}
+      "month_cache"       : f"{_cache_root}update_caches/{update_yr}{this_month}/"}
     
     
     # Set the output location for where things should save to:
     month_cache = cache_locs["month_cache"]   
+    
+    # If it doesn't exist yet, create it
+    cacheExists = os.path.exists(month_cache)
+    
+    
+    if not cacheExists:
+        # Create a new directory because it does not exist 
+        os.makedirs(month_cache)
+        print(f"New directory {month_cache} has been created!")
     
     
     # This URL will grab the desired update month 
@@ -236,7 +245,7 @@ def cache_oisst(cache_month, update_yr, workspace = "local", verbose = True):
                 print(f"Caching Daily NETCDF File: {href}")
     
     
-    ####  Review Cache Files
+    ####  Review Cached Files
     
     # list for files that have preliminary data suffix
     prelim_dates = []
@@ -308,7 +317,7 @@ def cache_oisst(cache_month, update_yr, workspace = "local", verbose = True):
     
     
     # End Function
-    print(f"OISSTv2 Cache for {update_yr}/{this_month} Updated Succesfully.")
+    print(f"OISSTv2 Cache for {update_yr}{this_month} Updated Succesfully.")
           
           
           
@@ -318,7 +327,7 @@ def cache_oisst(cache_month, update_yr, workspace = "local", verbose = True):
 #  Build Annual File from Month Caches
 #
 #-----------------------------------------------------
-def build_annual_from_cache(last_month, this_month, workspace = "local", verbose = True):
+def build_annual_from_cache(update_yr, last_month, this_month, workspace = "local", verbose = True):
     """
     Assemble OISSTv2 Annual File Using Monthly Caches:
       
@@ -340,21 +349,22 @@ def build_annual_from_cache(last_month, this_month, workspace = "local", verbose
           
     ####  Cache Locations  ####
     
-    # Format month string
-    last_month = str(last_month).rjust(2, "0")
-    this_month = str(this_month).rjust(2, "0")
-    
-    # Set root with workspace
+    # Set path to cache with set_workspace
     box_root = set_workspace(workspace)
     
     # Global cache root
     _cache_root = set_cache_root(box_root)
     
+    # Format month string to have leading 0
+    last_month = str(last_month).rjust(2, "0")
+    this_month = str(this_month).rjust(2, "0")
+    
+    
     # Cache Subdirectory Locations
     cache_locs = {
       "annual_files"     : f"{_cache_root}annual_observations/",
-      "this_month"       : f"{_cache_root}update_caches/{this_month}/",
-      "last_month"       : f"{_cache_root}update_caches/{last_month}/"}
+      "this_month"       : f"{_cache_root}update_caches/{update_yr}{this_month}/",
+      "last_month"       : f"{_cache_root}update_caches/{update_yr}{last_month}/"}
     
     # Individual months
     annual_loc       = cache_locs["annual_files"]
@@ -371,9 +381,9 @@ def build_annual_from_cache(last_month, this_month, workspace = "local", verbose
     # Option 1 :  Using any month prior to build dataset from caches only
     month_folders = ["%.2d" % i for i in range(1, int(this_month) + 1)]
     for folder in month_folders:
-      for file in os.listdir(f"{_cache_root}update_caches/{folder}"):
+      for file in os.listdir(f"{_cache_root}update_caches/{update_yr}{folder}"):
         if file.endswith(".nc"):
-          daily_files.append(f"{_cache_root}update_caches/{folder}/{file}")
+          daily_files.append(f"{_cache_root}update_caches/{update_yr}{folder}/{file}")
     
     # Use open_mfdataset to access all the new downloads as one file
     oisst_update = xr.open_mfdataset(daily_files, combine = "by_coords")     
@@ -990,6 +1000,11 @@ def get_region_names(region_group):
      "jordan_basin",           "kelvin_seamount",        "manning_seamount",       "northern_coastal_shelf",
      "scotian_coastal_shelf",  "scotian_shelf",          "southern_coastal_shelf", "wikinson_basin"   
   ]
+  
+  
+  
+  # Group 6: Ecological Production Units matching ecodata::epu regions for NE US
+  ne_epu_regions = ["GB", "GOM", "MAB", "SS"]
 
 
   # Dictionary Lookup
@@ -997,7 +1012,8 @@ def get_region_names(region_group):
                     "lme"                  : lme_regions, 
                     "nmfs_trawl_regions"   : nmfs_regions,
                     "nelme_regions"        : nelme_regions,
-                    "gom_physio_regions"   : gom_physio_regions}
+                    "gom_physio_regions"   : gom_physio_regions,
+                    "epu"                  : ne_epu_regions}
                     
   # Return Selected List
   region_selections = region_catalog[region_group]
@@ -1040,14 +1056,16 @@ def get_timeseries_paths(box_root, region_list, region_group, polygons = False):
               "lme"                  : "_exterior.geojson",
               "nmfs_trawl_regions"   : ".geojson",
               "nelme_regions"        : "_sf.shp",
-              "gom_physio_regions"   : ".geojson"}
+              "gom_physio_regions"   : ".geojson",
+              "epu"                  : ".geojson"}
   
   # Path to different groups
   poly_extensions = {"gmri_sst_focal_areas" : f"{box_root}{poly_root}gmri_sst_focal_areas/{poly_start}",
                      "lme"                  : f"{box_root}{poly_root}large_marine_ecosystems/{poly_start}",
                      "nmfs_trawl_regions"   : f"{box_root}{poly_root}nmfs_trawl_regions/{poly_start}",
                      "nelme_regions"        : f"{box_root}{poly_root}NELME_regions/{poly_start}",
-                     "gom_physio_regions"   : f"{box_root}{poly_root}GulfOfMainePhysioRegions/single_regions/{poly_start}"}
+                     "gom_physio_regions"   : f"{box_root}{poly_root}GulfOfMainePhysioRegions/single_regions/{poly_start}",
+                     "epu"                  : f"{box_root}{poly_root}EPU/individual_epus/{poly_start}"}
                      
   
   
@@ -1069,7 +1087,8 @@ def get_timeseries_paths(box_root, region_list, region_group, polygons = False):
                            "lme"                  : f"{box_root}{ts_root}large_marine_ecosystems/{ts_start}",
                            "nmfs_trawl_regions"   : f"{box_root}{ts_root}nmfs_trawl_regions/{ts_start}",
                            "nelme_regions"        : f"{box_root}{ts_root}NELME_regions/{ts_start}",
-                           "gom_physio_regions"   : f"{box_root}{ts_root}GulfOfMainePhysioRegions/{ts_start}"}
+                           "gom_physio_regions"   : f"{box_root}{ts_root}GulfOfMainePhysioRegions/{ts_start}",
+                           "epu"                  : f"{box_root}{ts_root}EPU/{ts_start}"}
 
 
 

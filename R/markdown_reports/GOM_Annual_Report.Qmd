@@ -1,0 +1,1854 @@
+---
+title: "2021: Gulf of Maine's Warmest Year on Record"
+author: 
+  - first_name: "Adam"
+    last_name: "Kemberling"
+    url: https://github.com/adamkemberling
+    affiliation: Gulf of Maine Research Institute
+    affiliation_url: https://www.gmri.org
+description: | 
+  Characteristics of a record setting year for ocean temperatures
+date: "Updated on: `r Sys.Date()`"
+format: 
+  html:
+    code-fold: true
+    code-tools: true
+    toc: true
+    toc-depth: 2
+    df-print: kable
+    self-contained: true
+editor: source
+params: 
+  save_figures: 
+    label: "Save Figures?" 
+    value: FALSE
+---
+
+```{r setup, include=FALSE}
+
+# knitr options
+knitr::opts_chunk$set(echo = FALSE, 
+                      message = F, 
+                      warning = F, 
+                      comment = "", 
+                      fig.align = "center", 
+                      fig.height = 6, 
+                      fig.width = 8)
+
+####  Packages  ####
+library(lubridate)
+library(raster)
+library(here)
+library(rnaturalearth)
+library(scales)
+library(sf)
+library(stars)
+library(gmRi)
+library(heatwaveR)
+library(gt)
+library(gtExtras)
+library(patchwork)
+library(tidyverse)
+library(ggthemes)
+library(ggstream)
+library(ggforce)
+library(geomtextpath)
+library(ggHoriPlot)
+library(directlabels)
+library(tidytext)
+
+# Support Functions
+suppressPackageStartupMessages( source(here("R/oisst_support_funs.R"), verbose = FALSE) )
+suppressPackageStartupMessages( source(here("R/temp_report_support.R"), verbose = FALSE) )
+
+#box paths
+oisst_path <- cs_path("res", "OISST/oisst_mainstays")
+
+# What area is the report using?
+group_name <- "gmri_sst_focal_areas"
+region_name <- "apershing_gulf_of_maine"
+
+# File paths for various extents based on "apershing_gulf_of_maine"
+region_paths <- get_timeseries_paths(region_group = group_name, 
+                                     box_location = "cloudstorage")
+
+# Timeseries Path
+timeseries_path <- region_paths[[region_name]][["timeseries_path"]]
+
+# Polygon Path
+poly_path <- region_paths[[region_name]][["shape_path"]]
+region_extent <- read_sf(poly_path)
+
+# Pull extents for the region for cropping
+crop_x <- st_bbox(region_extent)[c(1,3)]
+crop_y <- st_bbox(region_extent)[c(2,4)]
+
+# Expand the area out to see the larger patterns, Used as plot limits
+crop_x_expanded <- crop_x + c(-2.25, 2.25)
+crop_y_expanded <- crop_y + c(-0.75, 0.75)
+
+# Make a new extent for cropping to larger area
+sfc <- make_cropbox(xlims = crop_x_expanded, ylims = crop_y_expanded)
+
+
+# Coastline Shapes
+new_england <- ne_states("united states of america", returnclass = "sf")
+canada      <- ne_states("canada", returnclass = "sf")
+world_sf    <- ne_countries(returnclass = "sf")
+greenland   <- ne_states(country = "greenland", returnclass = "sf")
+
+# Adding Logo to plots
+logo_path <- paste0(system.file("stylesheets", package = "gmRi"), "/gmri_logo.png")
+lab_logo <- magick::image_read(logo_path)
+
+# Adding it as an overlay:
+# grid::grid.raster(lab_logo, x = 0.05, y = 0.03, just = c('left', 'bottom'), width = unit(0.8, 'inches'))
+
+# Adding it as a grob
+# gmri_logo <- grid::rasterGrob(png::readPNG(logo_path))
+
+
+
+# Box Location to save hi-res images
+save_location <- cs_path("root", "GoM Seasonal Climate Update/annual_update_figures")
+```
+
+
+
+
+`r gmRi::use_gmri_style_rmd(css = "gmri_rmarkdown.css")`
+
+
+# 2021 Sea Surface Temperature
+
+##### An Exceptional Year
+
+2021 was an exceptionally warm year for the Gulf of Maine. It had the warmest fall on record for the area, and the second warmest summer. Much of the year the region experienced what would be considered "heatwave conditions". After compiling sea surface temperature data for the entire year we can now conclude that 2021 was the hottest year on Record for the Gulf of Maine.
+
+```{r load timeseries}
+# Load the timeseries
+region_timeseries <- read_csv(timeseries_path, 
+                              col_types = cols(), 
+                              guess_max = 1e6) %>% 
+  mutate(tod = format(time, format = "%H:%M:%S")) %>% 
+  filter(tod != "12:00:00") # removes the NCEI dates that leak through
+
+
+# Clean up the data - add labels
+region_timeseries <- region_timeseries %>% 
+  mutate(time = as.Date(time)) %>% 
+  distinct(time, .keep_all = T) %>% 
+  supplement_season_info() %>% 
+  filter(year %in% c(1982:2021))
+
+
+
+# Summarize by year to return mean annual anomalies and variance
+annual_summary <- region_timeseries %>% 
+  group_by(year) %>% 
+  temperature_summaries() %>% 
+  mutate(yr_as_dtime = as.Date(paste0(year, "-07-02")),
+         anom_direction = ifelse(area_wtd_anom > 0, "Hot", "Cold"))
+
+
+# Get heatwave statuses for each day:
+# Uses area weighted sst by default
+region_hw <- pull_heatwave_events(
+  temperature_timeseries = region_timeseries, 
+  threshold = 90, 
+  clim_ref_period = c("1982-01-01", "2011-12-31")) %>% 
+  supplement_hw_data() %>% 
+  filter(doy != 366)
+
+
+
+ # Last Calendar Year
+this_yr <- region_hw %>% 
+  filter(year(time) == 2021)
+
+
+
+# Set up the date within a year for Heatmap
+base_date <- as.Date("2000-01-01")
+grid_data <- region_hw %>% 
+  mutate(year = year(time),
+         yday = yday(time),
+         flat_date = as.Date(yday-1, origin = base_date),
+         yr_rev = factor(year),
+         yr_rev = fct_rev(yr_rev))
+```
+
+
+```{r warming rate generation}
+# # Global Temperature Anomaly Rates
+global_anoms <- read_csv(
+    paste0(oisst_path, "global_timeseries/global_anoms_1982to2011.csv"), 
+    guess_max = 1e6,
+    col_types = cols()) %>% 
+  mutate(year = year(time)) %>% 
+  filter(between(year, 1982, 2021))
+
+# summarize by year again
+global_summary <- global_anoms %>% 
+  group_by(year) %>% 
+  temperature_summaries() %>% 
+  mutate(yr_as_dtime = as.Date(paste0(year, "-07-02")),
+         anom_direction = ifelse(area_wtd_anom > 0, "Hot", "Cold"))
+
+
+####  Run Warming Rate regressions  ####
+rate_data <- list(
+  "GoM All F" = get_decadal_rates(temp_df = annual_summary, 
+                                temp_col = "area_wtd_f", 
+                                year_col = "year", 
+                                year_lim = c(1982, 2021), 
+                                area_name = "GoM", 
+                                degree_c = F),
+  "GoM All C" = get_decadal_rates(temp_df = annual_summary, 
+                                temp_col = "area_wtd_sst", 
+                                year_col = "year", 
+                                year_lim = c(1982, 2021), 
+                                area_name = "GoM", 
+                                degree_c = T),
+  "GoM 15" = get_decadal_rates(temp_df = annual_summary, 
+                                temp_col = "area_wtd_f", 
+                                year_col = "year", 
+                                year_lim = c(2007, 2021), 
+                                area_name = "GoM", 
+                                degree_c = F),
+  "Global All" = get_decadal_rates(temp_df = global_summary, 
+                                temp_col = "area_wtd_f", 
+                                year_col = "year", 
+                                year_lim = c(1982, 2021), 
+                                area_name = "Global", 
+                                degree_c = F),
+  "Global All C" = get_decadal_rates(temp_df = global_summary, 
+                                temp_col = "area_wtd_sst", 
+                                year_col = "year", 
+                                year_lim = c(1982, 2021), 
+                                area_name = "Global", 
+                                degree_c = T))
+
+
+
+
+```
+
+
+
+
+## Departure from Historic Conditions
+
+Thanks to some long-running temperature monitoring programs we are able to track monthly sea surface temperatures as far back as 1850. From this view we can see that recent temperatures are the warmest we've ever seen. 2021 setting the new record for the warmest temperature for the region.
+
+
+
+
+```{r}
+#| eval = TRUE,
+#| fig.alt = "Long term temperature record for the Gulf of Maine"
+
+# From temp_report_support.R
+ersst_yr <- load_annual_ersst()
+
+# Make Splines
+ersst_smooth <- as.data.frame(spline(ersst_yr$yr, ersst_yr$sst))
+ersst_smooth_f <- as.data.frame(spline(ersst_yr$yr, ersst_yr$sst_f))
+
+# plot it
+ersst_long_term_p <- ersst_yearly_plot(ersst_yr = ersst_yr, temp_units = "F")
+
+ersst_long_term_p
+grid::grid.raster(lab_logo, x = 0.05, y = 0.03, just = c('left', 'bottom'), width = unit(0.8, 'inches'))
+```
+
+## Newer Technology: Higher-Quality Data
+
+In 1981 the availability of a higher resolution temperature resource became available in the form of the Optimum Interpolation Sea Surface Temperature (OISSTv2) Satellite Data Record. Once the OISSTv2 data became available we gained access to a higher resolution record, and to the ability to validate past records through comparison. These two data sources now overlap for a period of 42 years and we can see visually that they are not far off:
+
+
+```{r oisst rates}
+
+# Get yearly averages for OISST
+oisst_yr <- region_hw %>% 
+  filter(between(yr, 1982, 2021)) %>% 
+  group_by(yr) %>% 
+  summarise(sst = mean(sst), 
+            sst_anom = mean(sst_anom, na.rm = T),
+            sst_f = as_fahrenheit(sst, "temperature"),
+            anom_f = as_fahrenheit(sst_anom, "anomalies"),
+            .groups = "drop")
+
+# Average Distance between OISST and ERSST in GOM
+temp_diffs <- ersst_yr %>% 
+  rename(ersst_sst = sst,
+         ersst_sst_f = sst_f,
+         ersst_anom = sst_anom,
+         ersst_anom_f = anom_f) %>% 
+  inner_join(oisst_yr, by = "yr") %>% 
+  mutate(temp_diff = ersst_sst - sst,
+         temp_diff_f = ersst_sst_f -sst_f)
+
+# Get temperature differences
+temp_difference <- temp_diffs %>% 
+  pull(temp_diff) %>% mean() %>% round(2)
+temp_difference_f <- temp_diffs %>% 
+  pull(temp_diff_f) %>% mean() %>% round(2)
+
+
+# Make Splines
+oisst_smooth <- as.data.frame(spline(oisst_yr$yr, oisst_yr$sst))
+oisst_smooth_f <- as.data.frame(spline(oisst_yr$yr, oisst_yr$sst_f))
+
+
+# Degrees F
+ersst_v_oisst <- ggplot() +
+  geom_line(data = ersst_smooth_f, aes(x, y, color = "ERSSTv5"),
+            group = 1, alpha = 0.4, linetype = 1) +
+  geom_point(data = ersst_yr, aes(yr, sst_f, color = "ERSSTv5"), 
+             size = 1) +
+ geom_line(data = oisst_smooth_f, aes(x, y, color = "OISSTv2"),
+            group = 1, alpha = 0.4, linetype = 1) +
+  geom_point(data = oisst_yr, aes(yr, sst_f, color = "OISSTv2"), 
+             size = 1) +
+  scale_color_gmri() +
+  scale_x_continuous(expand = expansion(add = c(2,10))) +
+  scale_y_continuous(
+     #expand = expansion(add = c(0.5,5)),
+     labels = number_format(suffix = " \u00b0F")) +
+  theme_gmri() +
+  guides(color = guide_legend(title.position = "top", title.hjust = 0.5)) +
+  facet_zoom(xlim = c(1982, 2021)) +
+  theme(legend.position = "bottom")  +
+  labs(x = "", y = "Sea Surface Temperature", 
+       color = "Temperature Data Source",
+       title = "Long-Term Temperature Record for the Gulf of Maine",
+       subtitle = "OISSTv2 Data Availability Overlap with ERSSTv5")
+
+
+
+# Can't add logo
+ersst_v_oisst # + add_gmri_logo(ersst_v_oisst, position = "bot_left", layer = 4)
+grid::grid.raster(lab_logo, x = 0.05, y = 0.03, just = c('left', 'bottom'), width = unit(0.8, 'inches'))
+```
+
+
+
+ERSST data is of a coarser resolution (monthly measurements at a 0.5 x 0.5 degree grid), and does not capture the warmer inshore dynamics as well as OISST (a bias to show colder temperature). For this reason, the OISSTv2 temperatures in this area are on average warmer. **Across the years where data from both sources is available, ERSSTv5 is on average `r temp_difference`$^oC$ or `r temp_difference_f`$^oF$ Colder than OISSTv2 data.** 
+
+
+
+## Placing 2021 into Context
+
+```{r}
+# Get the overall average and build labels
+all_year_avgs <- annual_summary %>% 
+  summarise(avg_temp_c = mean(area_wtd_sst),
+            avg_temp_f = mean(area_wtd_f),
+            avg_anom_c = mean(area_wtd_anom),
+            avg_anom_f = mean(area_wtd_anom_f),            
+            .groups = "drop") %>% 
+  mutate(temp_label = str_c(round(avg_temp_c, 2), " \u00b0C  |  ", round(avg_temp_f, 2), " \u00b0F"))
+
+```
+
+
+2021 was the hottest year on record for the Gulf of Maine, shifting the 1982-2021 warming rate to `r str_c(rate_data[["GoM All F"]][["decadal_rate"]], "\u00b0F / Decade")`. 
+
+
+```{r}
+
+
+# Only works in deg F, think its a limit thing...
+annual_temps_plot <- annual_avgs_annotated(
+  annual_avgs = annual_summary, 
+  all_years_average = all_year_avgs, 
+  rate_data = rate_data, 
+  focal_yr = 2021, 
+  temp_units = "F")
+
+
+# Display plot
+#annual_temps_plot <- add_gmri_logo(annual_temps_plot, position = "top_left", nudge_y = .35)
+annual_temps_plot
+grid::grid.raster(lab_logo, x = 0.05, y = 0.03, just = c('left', 'bottom'), width = unit(0.8, 'inches'))
+```
+
+
+
+
+## Warming Relative to the World
+
+While this report focuses on the Gulf of Maine, there is a recognition that this region is not unique in the fact that its temperatures are rising. The Earth as a whole is warming, and that change is being driven by anthropogenic influences to our atmosphere. The impacts of these changes however are not distributed evenly, and there are regions like ours that are warming at rates above the global average.
+
+
+```{r warming rates info}
+# Build Regression Equation Labels
+eq_all_c  <- rate_data[["GoM All C"]][["eq_label"]]
+eq_all    <- rate_data[["GoM All F"]][["eq_label"]]
+eq_15     <- rate_data[["GoM 15"]][["eq_label"]]
+eq_global <- rate_data[["Global All"]][["eq_label"]]
+eq_global_c <- rate_data[["Global All C"]][["eq_label"]]
+```
+
+
+```{r}
+# Fahrenheit plot
+temp_simplified <- global_rate_comparison(
+  annual_summary_dat = annual_summary, 
+  global_summary_dat = global_summary, 
+  eq_all = eq_all, 
+  eq_global = eq_global, 
+  temp_units = "F")
+
+# add logo
+# temp_simplified <- add_gmri_logo(temp_simplified, position = "bot_left")
+temp_simplified
+grid::grid.raster(lab_logo, x = 0.05, y = 0.03, just = c('left', 'bottom'), width = unit(0.8, 'inches'))
+
+```
+
+
+
+
+
+## Warming at an Accelerated Pace
+
+In recent years we've seen temperatures in the Gulf of Maine (and adjacent waters) to accelerate rapidly. Scientists believe this is partly due to changes in the behavior of the Gulf Stream Current which brings warm, salty water from the Gulf of Mexico & Florida Northward along the east coast of the US and eventually flowing Northeast past Nova Scotia.
+
+Scientists believe a regime shift has occurred in the Northwest Atlantic as a result of a Northward shift in the Gulf Stream, and a general weakening in the Atlantic Meridional Overturning Circulation Pattern (AMOC). This Northward shift in the Gulf stream does two things: 1) It brings more warm/salty water into the Gulf of Maine, & 2) It obstructs the flow of cold and relatively fresh water from entering the Gulf of Maine from the Labrador current and Scotian Shelf Water (SSW).
+
+These relative contribution of these two impacts may vary through time, but the result (in surface temperature terms) is similar: **a warmer Gulf of Maine.**
+
+```{r gom full warming, eval = T, fig.height=7}
+
+# Line color formatting
+line_colors <- setNames(
+  as.character(c(
+    gmri_cols("gmri blue"), 
+    gmri_cols("orange"))),  
+  c(eq_all, 
+    eq_15))
+
+
+# Gulf of Maine Warming
+gom_all_trend <- annual_summary %>%
+  ggplot(aes(year, area_wtd_anom_f)) +
+  geom_line(color = "gray10", size = 0.75, linetype = 1) +
+  geom_point(color = "gray10", size = 1) +
+  geom_smooth(
+    data = annual_summary %>%
+      mutate(`Warming Rate` = eq_all),
+    method = "lm",
+    formula = y ~ x, se = F,
+    aes(color = `Warming Rate`),
+    alpha = 0.90,
+    size = 1.5,
+    linetype = 1) +
+  scale_y_continuous(labels =  number_format(suffix = " \u00b0F")) +
+  scale_color_manual(values = line_colors) +
+  labs(title = "Gulf of Maine: Long-Term Warming Trend",
+       x = "",
+       y = "SST Anomaly",
+       caption = "")  +
+   theme(legend.position = c(0.25, 0.85),
+         legend.background = element_rect(color = "black", fill = "white"))
+
+
+# Gulf of Maine Warming - last 15 years
+gom_recent_trend <- annual_summary %>% 
+  ggplot(aes(year, area_wtd_anom_f)) +
+  geom_line(color = "gray10", size = 0.75, linetype = 1) +
+  geom_point(color = "gray10", size = 1) +
+  # Add regression lines
+  geom_smooth(
+    data = filter(annual_summary, year %in% c(2007:2021)) %>% 
+      mutate(`Warming Rate` = eq_15),
+    method = "lm",
+    formula = y ~ x, se = F,
+    aes(color = `Warming Rate`),
+    alpha = 0.90,
+    size = 1.5,
+    linetype = 1) +
+  scale_y_continuous(labels =  number_format(suffix = " \u00b0F")) +
+  scale_color_manual(values = line_colors) +
+  labs(title = "Gulf of Maine: Rapid Recent Warming",
+       x = "", 
+       y = "SST Anomaly",
+       caption = paste0("Anomalies calculated using 1982-2011 reference period."))  +
+   theme(legend.position = c(0.25, 0.85),
+         legend.background = element_rect(color = "black", fill = "white"))
+
+
+
+
+# Put them together
+gom_recent_warming <- (gom_all_trend / gom_recent_trend ) + 
+  plot_layout(guides = "collect")  & 
+  theme(legend.position = "bottom") &
+  guides(color = guide_legend(title.position = "top", ncol = 1, title.hjust = 0.5))
+
+gom_recent_warming
+```
+
+
+## Concerning Temperatures in Recent Years
+
+
+```{r}
+####  Annual Trend Plot  ####
+gom_anomaly_bars <- annual_summary %>% 
+  ggplot(aes(year, area_wtd_anom_f)) +
+    geom_col(aes(fill = anom_direction), color = "black", size = 0.25, alpha = 0.9) +
+    scale_fill_manual(values = c("Hot" = "#CA0020", "Cold" = "#0571B0")) +
+    theme_gmri() +
+    theme(legend.position = c(0.25, 0.85),
+          legend.background = element_rect(fill = "white", color = "black"), 
+          legend.key = element_rect(fill = "transparent", color = "transparent")) +
+    labs(title = "Gulf of Maine: Rapid Recent Warming",
+         #subtitle = "Recent Rate More Than Double the 40-Year Average",
+         fill = "Anomaly Type",
+         x = "", 
+         y = "Sea Surface Temperature Anomaly",
+         caption = paste0("Anomalies calculated using 1982-2011 reference period."))
+
+
+
+#gom_anomaly_bars <- add_gmri_logo(gom_anomaly_bars, position = "bot_left")
+
+gom_anomaly_bars
+grid::grid.raster(lab_logo, x = 0.05, y = 0.03, just = c('left', 'bottom'), width = unit(0.8, 'inches'))
+```
+
+
+### 2021: Record Daily Temperatures
+
+To add context on the severity of these sustained heatwaves, many of the individual daily temperatures throughout 2021 were themselves the hottest days on record.
+
+```{r}
+# Grab the hottest day for each day of the year
+hottest_days <- region_hw %>% 
+  group_by(doy) %>% 
+  slice_max(order_by = sst_anom, n = 1) %>% 
+  ungroup() 
+
+
+# Total Number in 2021
+hottest_2021 <- hottest_days %>% 
+  count(yr) %>% 
+  filter(yr == "2021") %>% 
+  pull(n)
+
+
+# # Daily Record Temperatures
+# hottest_days_plot <- hottest_days %>%
+#   mutate(is_21 = ifelse(yr == "2021", "2021", "1982-2020"),
+#          flat_date = as.Date("2021-01-01") + (doy - 1)) %>%
+#   ggplot(aes(x = flat_date, y = sst_f, color = is_21)) +
+#   geom_point() +
+#   scale_x_date(date_labels = "%b", date_breaks = "1 month", expand = expansion(add = c(0,0))) +
+#   scale_y_continuous(labels = number_format(suffix = deg_f)) +
+#   scale_color_manual(values = c("2021" = "darkred", "1982-2020" = "gray80")) +
+#   labs(x = "",
+#        y = "Sea Surface Temperature",
+#        title = "Hottest Days on Record",
+#        subtitle = "Gulf of Maine",
+#        color = "Record Setting Year",
+#        caption = "Temperature data covers period of 1982-2021")  +
+#    theme(legend.position = c(0.25, 0.85),
+#          legend.background = element_rect(color = "black", fill = "white")) +
+#   guides(color = guide_legend(title.position = "top", title.hjust = 0.5))
+# 
+# 
+# # hottest_days_plot <- add_gmri_logo(hottest_days_plot, "bot_left")
+# hottest_days_plot
+# grid::grid.raster(lab_logo, x = 0.05, y = 0.03, just = c('left', 'bottom'), width = unit(0.8, 'inches'))
+```
+
+Of the 365 days in a year, 2021 set a new record temperature on `r hottest_2021` or `r round((hottest_2021/365) * 100, 2)`% of the year. Many of these occurred in clusters of exceptionally warm periods that happened at various points throughout the year.
+
+
+
+```{r, fig.height=3}
+
+
+# What days set records in 2021
+records_21 <- hottest_days %>% 
+  filter(yr == "2021") %>% #count(month)
+  mutate(record_temp = TRUE) %>% 
+  select(yr, time, sst, seas, sst_anom, record_temp)
+
+
+# What percent of days in month were records:
+record_percents <- region_hw %>% 
+  filter(yr == "2021") %>% 
+  full_join(records_21) %>% 
+  mutate(record_temp = ifelse(record_temp == TRUE, TRUE, FALSE)) %>% 
+  group_by(yr, month) %>% 
+  summarise(n_days = n(),
+            n_records = sum(record_temp, na.rm = T),
+            .groups = "drop") %>% 
+  mutate(percent_records = (n_records / n_days),
+         highlight_oct = ifelse(month == "Oct", "100% Record Temp.", "filler")) %>% 
+  ggplot(aes(month, percent_records, #fill = highlight_oct)#, 
+             alpha = highlight_oct)
+         ) +
+  geom_col() +
+  # scale_fill_grey() +
+  geom_col(fill = as.character(gmri_cols("orange"))) +
+  scale_alpha_manual(values = c("100% Record Temp." = 1, "filler" = 0.4)) +
+  scale_y_continuous(labels = percent_format(), expand = expansion(add = c(0,0))) +
+  theme(legend.position = "none") +
+  labs(x = "", y = "Percent of Daily Temperatures", title = "2021: Record Temperatures as Percent of Each Month")
+
+
+record_percents
+
+```
+
+Six months in 2021 had record setting temperatures on at least 50% of the days in that month. 2021 was an exceptionally warm year in October, which set record temperatures on every day during that prolonged fall heatwave event.
+
+### 2021: Daily Temperatures and Heatwave Status
+
+```{r}
+
+# Dates of highest/lowest temp
+min_temp_date <- this_yr$time[which(this_yr$sst == min(this_yr$sst))]
+max_temp_date <- this_yr$time[which(this_yr$sst == max(this_yr$sst))]
+
+#min/max of climate and min/max of 2021
+ranges_c <- list(
+  "clim_range" = round(range(this_yr$seas), 2),
+  "temp_range" = round(range(this_yr$sst), 2))
+ranges_f <- map(ranges_c, function(x){ 
+  round(as_fahrenheit(x, data_type = "temperature"), 2) })
+
+
+# Differences in climate and temperature ranges
+diffs_c <- list(
+  "anom_range" = round(range(this_yr$sst_anom), 2),
+  "clim_diff"  = round(diff(ranges_c$clim_range), 2),
+  "temp_diff"  = round(diff(ranges_c$temp_range), 2),
+  "anom_diff"  = round(diff(range(this_yr$sst_anom)), 2))
+diffs_f <- map(diffs_c, function(x){ 
+  round(as_fahrenheit(x, data_type = "anomalies"), 2) })
+```
+
+
+The Gulf of Maine has a seasonal temperature cycle that experiences its lowest temperatures around March, and its peak summer highs in August. The difference between these two seasons is typically `r diffs_f$clim_diff`$^oF$ or `r diffs_c$clim_diff`$^oC$. In 2021 the temperature range was `r ranges_f$temp_range[1]` - `r ranges_f$temp_range[2]`$^oF$ or `r diffs_f$temp_diff`$^oF$, with temperature anomaly values ranging from `r diffs_f$anom_range[1]` - `r diffs_f$anom_range[2]`$^oF$.
+
+
+
+```{r single year lineplot}
+#| fig.alt = "Timelines of observed temperature and observed temperature anomalies for the year of 2021, and how they compare to the mean and 90th percentile of the climate reference period"
+
+
+# Plot the last 365 days
+hw_temp_p <- year_hw_temps(year_hw_dat = this_yr, temp_units = "F")
+
+
+
+# Plot with logo
+# add_gmri_logo(hw_temp_p, position = "top_left")
+hw_temp_p
+grid::grid.raster(lab_logo, x = 0.05, y = 0.03, just = c('left', 'bottom'), width = unit(0.8, 'inches'))
+
+
+
+```
+
+
+
+The highest temperatures anomalies spiked in the last days of June, capping off an already warm start to the year. A very-warm August and steady, above-average temperatures from early September through the end of the year helped solidify 2021 as the hottest year on record for the Gulf of Maine.
+
+
+
+### 2021: Heatwave Events
+
+```{r}
+
+# Get the Event numbers
+events_21 <-  this_yr %>% 
+  drop_na(mhw_event_no) %>% 
+  distinct(mhw_event_no) %>% 
+  pull(mhw_event_no)
+
+events_num <-  length(events_21)
+
+
+# Pull their data, including the days before and after
+events_dat <- filter(region_hw, mhw_event_no %in% as.character(events_21),
+                     yr == 2021)
+# Days in HW state
+days_hw <- nrow(events_dat)
+
+# How long on average
+avg_duration <- round(days_hw / events_num, digits = 0)
+```
+
+During 2021 there were `r events_num` marine heatwave event(s),  lasting a total of `r days_hw`. These events include one that carried over from the previous year and another that has persisted into 2022. The average duration for these events was `r avg_duration` days (excluding days in 2020 & 2022).
+
+
+
+```{r single year anom lineplot}
+
+
+
+# Plot with logo
+# add_gmri_logo(hw_anom_p, position = "top_left") 
+hw_anom_p <- year_hw_anoms(year_hw_dat = this_yr, temp_units = "F")
+hw_anom_p
+grid::grid.raster(lab_logo, x = 0.05, y = 0.03, just = c('left', 'bottom'), width = unit(0.8, 'inches'))
+
+
+
+
+# Make stacked figure
+year_timeline <- (hw_temp_p + theme(legend.position = "none")) / hw_anom_p
+
+
+```
+
+
+
+
+## Long-Term Heatwave Seasonality
+
+When looking at the last ~40 years of marine heatwave events here in the Gulf of Maine. We see that the frequency, duration, and intensity of heatwave events has increased. This year was no exception with `r days_hw` days meeting the criteria for heatwave status.
+
+
+
+```{r}
+
+# Plot heatmap
+heatwave_heatmap <- heatwave_heatmap_plot(hw_dat = grid_data, temp_units = "F")
+
+
+# Assemble pieces
+heatwave_heatmap
+#add_gmri_logo(heatwave_heatmap, position = "bot_left")
+grid::grid.raster(lab_logo, x = 0.05, y = 0.03, just = c('left', 'bottom'), width = unit(0.8, 'inches'))
+```
+
+
+
+##  Temperature Anomaly Horizons
+
+One way to think about the severity of these changes is to think about temperature horizons. A temperature horizon captures how long temperatures remain above certain thresholds. Each threshold is designated its own temperature, and in this way we can see how long within a year temperatures remained: 1 to 2 or as much as 4$^oC$ above normal.  
+
+
+
+```{r horizons f, eval = T}
+#| fig.alt = "Horizon plot of all years and their temperature anomaly horizons"
+
+# Filter outliers beyond 25th and 75th quantile
+cutpoints <- grid_data %>% 
+  mutate(
+    outlier = between(
+      anom_f,
+      quantile(anom_f, 0.25, na.rm = T)-
+        1.5 * IQR(anom_f, na.rm = T),
+      quantile(anom_f, 0.75, na.rm = T)+
+        1.5 * IQR(anom_f, na.rm = T))) %>% 
+  filter(outlier)
+
+# Set origin
+ori <- 0
+
+# Manually pick cut points
+sca <- seq(-5, 5, length.out = 9)
+sca_bins <- str_c(sca[1:(length(sca)-1)], " to ", sca[2:length(sca)], "\u00b0F")
+sca_labels <- rev(sca_bins)
+
+
+
+# Plot Horizon Plot Using All Years
+gom_annual_horizons <- anom_horizon_plot(
+    grid_data = filter(grid_data, yr <= 2021), 
+    origin = ori, 
+    scale_cutpoints = sca) +
+  labs(title = "Temperature Anomaly Horizons",
+       subtitle = "How deviation from the norm has become the new-normal",
+       caption = "Climatatological Reference Period: 1982-2011") 
+
+
+# Plot it
+gom_annual_horizons
+# add_gmri_logo(gom_annual_horizons, "bot_left")
+grid::grid.raster(lab_logo, x = 0.05, y = 0.03, just = c('left', 'bottom'), width = unit(0.8, 'inches'))
+
+```
+
+## Comparing the Gulf's Two Hottest Years
+
+If we pull the horizons of our two hottest years on record it makes it easier to contrast where either one experienced acute high temperature events, and where there were sustained periods of above average temperatures.
+
+Early into 2021 it was apparent that the year was on-par with the previous title-holder for warmest year on record.
+
+
+```{r hottest two years f, eval = T}
+#| fig.alt = "Single year horizon plots comparing 2012 and 2022"
+
+# cut out outliers and set cutpoints
+cutpoints_2 <- grid_data %>% 
+  filter(year %in% c("2012", "2021")) %>% 
+  mutate(
+    outlier = between(
+      anom_f,
+      quantile(anom_f, 0.25, na.rm=T)-
+        1.5*IQR(anom_f, na.rm=T),
+      quantile(anom_f, 0.75, na.rm=T)+
+        1.5*IQR(anom_f, na.rm=T))) %>% 
+  filter(outlier)
+
+
+
+# 2012
+hori_2012 <- grid_data %>% 
+  filter(year == "2012") %>% 
+  anom_horizon_plot(scale_cutpoints = cutpoints_2) +
+  facet_wrap(~year, strip.position = "top")
+  
+# 2021
+hori_2021 <- grid_data %>% filter(year == "2021") %>% 
+  anom_horizon_plot(scale_cutpoints = cutpoints_2) +
+  facet_wrap(~year, strip.position = "top") +
+  theme(plot.caption = element_text(colour = "gray25", size = 6)) +
+  labs(caption = "Climatatological Reference Period: 1982-2011")
+
+# Put them together as one figure
+comparison_horizons <- hori_2012 / hori_2021 + plot_layout(guides = "collect")
+
+# Do a bunch of formatting
+comparison_horizons <-comparison_horizons &
+  theme(
+    #Legend
+    legend.position = "top",
+    legend.key.height = unit(.5, "lines"),
+    legend.key.width = unit(3.75, "lines")) &
+   guides(fill = guide_legend(title = "Temperature Anomaly",
+                              title.hjust = 0.5, 
+                              title.position = "top",
+                              label.position = "bottom", 
+                              nrow = 1, 
+                              byrow = T, reverse = T)) &
+  plot_annotation(title = "Comparing the Gulf of Maine's Two Hottest Years", 
+                  subtitle = "Duration of temperature anomaly horizons, colored by their strength")
+
+
+
+
+# Plot it
+comparison_horizons
+grid::grid.raster(lab_logo, x = 0.08, y = 0.04, just = c('left', 'bottom'), width = unit(0.8, 'inches'))
+  
+```
+
+
+## Losing the Balance Between Hot and Cold
+
+Another way to visualize the climate transition that we are observing is by looking at the fraction of each year spent in different temperature ranges. Under a steady climate we would expect over the long-term to spend similar amounts of the year experiencing relatively warm & cold temperatures. These periods would balance themselves out and we would on-average have experienced something similar to the long-term climate.
+
+What we have been seeing in the Gulf of Maine recently has lost that sense of balance. Larger fractions of the year are shared by above average temperatures & cold spell events are becoming vanishingly rare.
+
+
+```{r stream F, eval = T}
+#| fig.alt = "Streamplot tracking fraction of each year spent in varying degrees of temperature anomalies"
+
+
+# Set Factor Order for Bins
+bin_order <- c(
+  "Less than -2", 
+  "-2 to -1",
+  "Within 1",
+  "1 to 2", 
+  "Greater than 2")
+
+# Set Colors
+bin_colors <- RColorBrewer::brewer.pal(n = length(bin_order), 
+                                       name = "RdBu")
+bin_colors <- rev(bin_colors)
+
+# Count Days in Bins
+day_types <- region_hw %>% 
+  mutate(
+    `Less than -2`   = if_else(anom_f <= -2, TRUE, FALSE),
+    `-2 to -1`     = if_else(between(anom_f, -2, -1), TRUE, FALSE),
+    `Within 1`     = if_else(between(anom_f, -1, 1), TRUE, FALSE),
+    `1 to 2`       = if_else(between(anom_f, 1, 2), TRUE, FALSE),
+    `Greater than 2` = if_else(anom_f >= 2, TRUE, FALSE)) %>% 
+  group_by(yr) %>% 
+  summarise(
+    `Less than -2`   = sum(`Less than -2`, na.rm = T),
+     `-2 to -1`    = sum(`-2 to -1`, na.rm = T),
+    `Within 1`     = sum(`Within 1`, na.rm = T),
+    `1 to 2`       = sum(`1 to 2`, na.rm = T),
+    `Greater than 2` = sum(`Greater than 2`, na.rm = T),
+    .groups = "drop") %>% 
+  pivot_longer(cols = "Less than -2":"Greater than 2", 
+               names_to = "Anomaly Strength", 
+               values_to = "day_total", 
+               values_drop_na = FALSE) %>% 
+  mutate(day_total = if_else(is.na(day_total), 0L, day_total),
+         `Anomaly Strength` = factor(`Anomaly Strength`, levels = bin_order))
+
+
+
+
+
+
+# Plot the Streamplot
+hw_streamplot <- ggplot(day_types, aes(yr, y = day_total, fill = `Anomaly Strength`)) +
+  geom_stream(type = "proportion") +
+  scale_x_continuous(breaks = seq(1980,2030, by = 10), 
+                     minor_breaks = seq(1975, 2030, by = 5), 
+                     expand = expansion(add = c(0,0))) +
+  scale_y_continuous(labels = scales::percent_format(), 
+                     expand = expansion(add = c(0,0))) + 
+  scale_fill_manual(values = setNames(bin_colors, bin_order)) + 
+  labs(y = "Percent of Year", x = "", fill = "", 
+       title = "A Warmer Gulf of Maine",
+       subtitle = "An increasing fraction of each year experiencing warm temperature anomalies",
+       caption = "Anomalies calculated using 1982-2011 climatology.") +
+  theme(
+    legend.position = "top",
+    legend.key.height = unit(.5, "lines"),
+    legend.key.width = unit(3.75, "lines"),
+    plot.margin = unit(c(.5,1,.3,.5), "cm"),
+    plot.title.position = "plot",
+    legend.margin = margin(c(7,0,0,0)),
+    legend.justification = "center") +
+   guides(fill = guide_legend(title = "Anomaly Strength \u00b0F",
+                             title.hjust = 0.5,
+                             title.position = "left",
+                             label.position = "bottom",
+                             nrow = 1,
+                             byrow = T))
+
+
+# Show figure
+hw_streamplot
+# add_gmri_logo(hw_streamplot, "bot_left")
+grid::grid.raster(lab_logo, x = 0.08, y = 0.04, just = c('left', 'bottom'), width = unit(0.8, 'inches'))
+```
+
+
+## Characterizing the Hottest Years
+
+There are a number of ways one might try to describe the extent and severity of temperature extremes. Aside from overall average temperatures there may be acute temperature surges that may have a larger impact than a prolonged warm period.
+
+
+
+
+```{r year panels f, eval = T}
+#| fig.alt = "4-panel plot comparing different features of hot years ranked by different metrics"
+
+
+# Plot the metrics of the hottest years:
+hottest_yr_panels <- yearly_metric_plots(temp_dat = grid_data, 
+                                         temp_units = "F", 
+                                         year_focus = "2021")
+
+
+# Display plot
+hottest_yr_panels
+grid::grid.raster(lab_logo, x = 0.08, y = 0.025, just = c('left', 'bottom'), width = unit(0.8, 'inches'))
+
+```
+
+
+
+
+## Mapping Record Temperatures
+
+2021 was an exceptionally warm year for many parts of the World, not just the Gulf of Maine. By taking the average temperature for the year for all years, we can rank how this year compares to previous years in the OISST data. For many places around the world this was one of the top 3 warmest years on record.
+
+```{r}
+# Load the rankings done in python, do some checking
+ranks_path <- str_c(oisst_path, 'temp_rankings/yrly_ranks_1982to2021.nc')
+
+#  Pull this year
+ranks_21 <- stack(ranks_path)[["X2021"]]
+
+# Reclassify the Ranks from ascending cold-warm to warmest -> coldest
+# Ranks are all integers so we just need to be sure that they are captured in the bounds we want
+reclass_df <- c(
+  # 0, 1.1, -1,  # Coldest Year
+  # 1.1, 2.1, -2,  # Second Coldest
+  # 2.1, 3.1, -3,  # Third Coldest
+  # 3.1, 4.1, -4,  # Fourth Coldest
+  # 4.1, 5.1, -5,  # Fifth Coldest
+  # 3.1, 35, NA, # Things to Mask
+  0, 35, NA, # Things to Mask
+  35.1, 36, 5, # Fifth Warmest
+  36.1, 37, 4, # Fourth Warmest
+  37.1, 38, 3, # Third Warmest
+  38.1, 39, 2, # Second Warmest
+  39.1, 40, 1  # Warmest
+  )
+
+# make reclassification matrix
+reclass_m <- matrix(reclass_df, ncol = 3, byrow = TRUE)
+
+# reclassify - masking middle values handled with reclassification
+ranks_reclass <- reclassify(ranks_21, reclass_m)
+
+# Make Stars for ggplot
+ranks_st <- st_as_stars(rotate(ranks_reclass))
+
+# Mutate to get levels as factors for legend
+ranks_st <- ranks_st %>% 
+  mutate(
+    temp_rank = case_when(
+      # X2021 == -1 ~ "Coldest",
+      # X2021 == -2 ~ "2nd Coldest",
+      # X2021 == -3 ~ "3rd Coldest",
+      # X2021 == -4 ~ "4th Coldest",
+      # X2021 == -5 ~ "5th Coldest",
+      X2021 == 5 ~ "5th Warmest",
+      X2021 == 4 ~ "4th Warmest",
+      X2021 == 3 ~ "3rd Warmest",
+      X2021 == 2 ~ "2nd Warmest",
+      X2021 == 1 ~ "Warmest",
+      #TRUE ~ "Not a Record Year" # Use as center color for divergent scale
+      TRUE ~ "NaN"),
+    temp_rank = fct_drop(temp_rank),
+    temp_rank = factor(temp_rank, levels = c(
+      "Warmest", "2nd Warmest", "3rd Warmest", "4th Warmest", "5th Warmest",
+      "Not a Record Year",
+      "5th Coldest", "4th Coldest", "3rd Coldest", "2nd Coldest", "Coldest"))) %>% 
+  select(-X2021) 
+
+
+# Make map
+ranks_map <- ggplot() +
+  geom_stars(data = ranks_st) +
+  geom_sf(data = world_sf, size = .25) +
+  # scale_fill_brewer(palette = "RdBu", na.value = "transparent") +
+  scale_fill_brewer(palette = "Reds", na.value = "transparent", direction = -1, na.translate = FALSE) +
+  scale_x_continuous(breaks = seq(-180, 180, 90), 
+                     expand = expansion(mult = c(0,0))) +
+  scale_y_continuous(breaks = seq(-90, 90, 30), 
+                     expand = expansion(mult = c(0,0))) +
+  labs(title = "Record Setting Temperatures of 2021",
+       fill = "2021 Ranking",
+       caption = "Temperature rankings cover period of 1982-2021") +
+  map_theme(axis.text.x = element_blank(), axis.ticks.x = element_blank())
+  
+ranks_map
+grid::grid.raster(lab_logo, x = 0.08, y = 0.16, just = c('left', 'bottom'), width = unit(0.8, 'inches'))
+```
+
+
+## Record Temperatures for New England
+
+
+If we look more closely at the Northeast US we can see that 2021 was an exceptional year for the area, with record temperatures covering a large portion of the area:
+
+
+```{r, eval = TRUE}
+# Zoom in on Northeast US
+northeast_records <- ggplot() +
+  geom_stars(data = ranks_st) +
+  geom_sf(data = new_england, size = .25) +
+  geom_sf(data = canada, size = .25) +
+  # scale_fill_brewer(palette = "RdBu", na.value = "transparent") + 
+  scale_fill_brewer(palette = "Reds", na.value = "transparent", direction = -1, na.translate = FALSE) + 
+  coord_sf(xlim = c(-80, -55), ylim = c(34, 49)) +
+  labs(x = "", y = "", fill = "2021 Ranking",
+       title = "Record Warm Temperatures",
+       subtitle = "From North Carolina to Newfoundland",
+       caption = "Temperature rankings cover period of 1982-2021")  +
+  map_theme()
+
+
+northeast_records
+grid::grid.raster(lab_logo, x = 0.08, y = 0.02, just = c('left', 'bottom'), width = unit(0.8, 'inches'))
+```
+
+## New England Anomalies
+
+The spatial variation in anomalies during this time was striking. The largest deviations in temperatures (unexpectedly hot temperatures) were concentrated off of Georges Bank:
+
+```{r}
+
+# Set time limits
+annual_dates <- as.Date(c("2021-01-01", "2021-12-31"))
+
+# Make data window for season
+data_window <- data.frame(lon = c(-81, -54.5),
+                          lat = c(33.5, 50),
+                          time = annual_dates)
+
+# Load data
+annual_anoms <- oisst_window_load(data_window = data_window, 
+                                  anomalies = T, 
+                                  box_location = "cloudstorage")
+annual_anoms <- stack(annual_anoms)
+annual_mean <- mean(annual_anoms, na.rm = T)
+
+
+# Change to F
+annual_mean_f <- calc(annual_mean, function(x) as_fahrenheit(x, data_type = "anomalies"))
+
+
+# Color limit for palettes
+temp_limits <- c(-6, 6)
+temp_breaks <- c(temp_limits[1], temp_limits[1]/2,  0, temp_limits[2]/2, temp_limits[2])
+temp_labels <- str_c(c(str_c("< ", temp_limits[1]), temp_limits[1]/2, 0, temp_limits[2]/2, str_c("> ", temp_limits[2])), "\u00b0F")
+
+
+# Make it a stars class to plot with ggplot
+anoms_st <- st_as_stars(annual_mean_f)
+
+#### 1. Map the Anomalies in Space
+annual_gom_map <- ggplot() +
+  geom_stars(data = anoms_st) +
+  geom_sf(data = new_england, fill = "gray90", size = .25) +
+  geom_sf(data = canada, fill = "gray90", size = .25) +
+  geom_sf(data = greenland, fill = "gray90", size = .25) +
+  geom_sf(data = region_extent, 
+          color = "black", 
+          linetype = 2, size = 1,
+          fill = "transparent") +
+  scale_y_continuous(breaks = seq(30, 50, by = 2)) +
+  scale_fill_distiller(palette = "RdBu", 
+                       na.value = "transparent", 
+                       limit = temp_limits, 
+                       labels = temp_labels,
+                       oob = scales::oob_squish) +
+  coord_sf(xlim = c(-78, -56.5), ylim = c(37.8, 48)) +
+  labs(title = "2021: Average Temperature Anomalies",
+       caption = "Anomalies calculated using 1982-2011 climatology.") +
+  map_theme(
+    legend.position = "bottom",
+    legend.title = element_text(angle = 0))+
+  guides("fill" = guide_colorbar(
+    title = "Average Temperature Anomaly ",
+    title.position = "top",
+    title.hjust = 0.5,
+    barwidth = unit(3, "in"),
+    frame.colour = "black",
+    ticks.colour = "black")) 
+
+# Show figure
+annual_gom_map
+grid::grid.raster(lab_logo, x = 0.05, y = 0.03, just = c('left', 'bottom'), width = unit(0.8, 'inches'))
+
+```
+
+
+## Global Temperature Anomalies
+
+
+```{r}
+
+# Set time limits
+annual_dates <- as.Date(c("2021-01-01", "2021-12-31"))
+
+# Make data window for season
+global_data_window <- data.frame(lon = c(-360, 180),
+                          lat = c(-90, 90),
+                          time = annual_dates)
+
+# Load data
+global_annual_anoms <- oisst_window_load(data_window = global_data_window, anomalies = T, box_location = "cloudstorage")
+global_annual_anoms <- stack(global_annual_anoms)
+global_annual_anoms <- setExtent(global_annual_anoms, extent(c(0, 360, -90, 90)))
+global_annual_mean <- mean(global_annual_anoms, na.rm = T)
+global_annual_mean <- rotate(global_annual_mean)
+
+# Change to F
+global_annual_mean_f <- calc(global_annual_mean, function(x) as_fahrenheit(x, data_type = "anomalies"))
+
+
+# Color limit for palettes
+temp_limits <- c(-3, 3)
+temp_breaks <- c(temp_limits[1], temp_limits[1]/2,  0, temp_limits[2]/2, temp_limits[2])
+temp_labels <- str_c(c(str_c("< ", temp_limits[1]), temp_limits[1]/2, 0, temp_limits[2]/2, str_c("> ", temp_limits[2])), "\u00b0F")
+
+
+# Map it
+
+# Make it a stars class to plot with ggplot
+global_anoms_st <- st_as_stars(global_annual_mean_f)
+
+#### 1. Map the Anomalies in Space
+annual_anom_map <- ggplot() +
+  geom_stars(data = global_anoms_st) +
+  geom_sf(data = world_sf, fill = "gray90", size = .25) +
+  scale_y_continuous(breaks = seq(-90, 90, by = 30)) +
+  scale_fill_distiller(palette = "RdBu", 
+                       na.value = "transparent", 
+                       limit = temp_limits, 
+                       breaks = temp_breaks,
+                       labels = temp_labels,
+                       oob = scales::oob_squish) +
+  labs(title = "2021: Average Temperature Anomalies",
+       caption = "Anomalies calculated using 1982-2011 climatology.") +
+  coord_sf(expand = FALSE) +
+  map_theme(
+    legend.position = "bottom",
+    legend.title = element_text(angle = 0),
+    axis.text.x = element_blank(),
+    axis.ticks.x = element_blank()) +
+  guides("fill" = guide_colorbar(
+    title = "Average Temperature Anomaly ",
+    title.position = "top",
+    title.hjust = 0.5,
+    barwidth = unit(3, "in"),
+    frame.colour = "black",
+    ticks.colour = "black")) 
+
+# Show figure
+annual_anom_map
+grid::grid.raster(lab_logo, x = 0.05, y = 0.03, just = c('left', 'bottom'), width = unit(0.8, 'inches'))
+
+```
+
+## Worldwide Temperature Changes
+
+
+If we look at the rates of change for each grid cell on Earth’s surface, rather than a plot of SST over time, it is possible to rank how each location on Earth is warming relative to others. By ranking those warming rates, and then taking the average ranking across the Gulf of Maine, we can obtain the average warming rank for our area compared to the rest of the globe.
+
+Prior GMRI research found that the Gulf of Maine had been warming at a faster rate than 99% of the world's oceans. This is still true when comparing warming rates across certain timescales, such as from 2004 to 2013 (when our initial warming study took place).
+
+Over a longer reference period, from 1982 to 2021, the warming rate of the Gulf of Maine, as a whole is still among the highest in the world — increasing at a rate of almost 0.05 °C per year, and faster than 96.2% of the world's oceans.
+
+However there can be significant spatial variability in this “ranked warming rate” across the Gulf of Maine. Warming rates across the region range from 0.014 °C per year to as high as 0.097 °C per year, meaning some locations over this longer time frame are still warming faster than 99.5% of the world’s oceans.
+
+This variability reflects the various physical oceanographic drivers influencing SST in the region, and in particular the [significant interannual variability in the Gulf Stream’s influence on Georges Bank](https://eos.org/features/why-is-the-gulf-of-maine-warming-faster-than-99-of-the-ocean).
+
+
+```{r load warming rates, eval = T}
+
+# # 1. Warming Rates and Rankings
+rates_path <- str_c(oisst_path, "warming_rates/annual_warming_rates1982to2021.nc")
+rates_nc <- stack(rates_path, varname = "annual_warming_rate")
+ranks_nc <- stack(rates_path, varname = "rate_percentile")
+
+
+
+# Get the rank information that go with each area
+ranks_masked <- mask_nc(ranks_nc, region_extent)
+rates_masked <- mask_nc(rates_nc, region_extent)
+region_ranks <- get_masked_vals(masked_ranks = ranks_masked, 
+                                masked_rates = rates_masked, 
+                                in_fahrenheit = T)
+
+
+# Prep it for text input.
+avg_rank <- region_ranks$`Mean Rank` * 100
+avg_rate <- region_ranks$`Mean Rate`
+low_rank <- region_ranks$`Min Rank` * 100
+low_rate <- region_ranks$`Min Rate`
+top_rank <- region_ranks$`Max Rank` * 100
+top_rank <- ifelse(top_rank == 100, "greater than or equal to 99.5", top_rank)
+top_rate <- region_ranks$`Max Rate`
+
+```
+
+
+
+
+```{r warming rates Fahrenheit}
+
+# Change to F
+world_rate_stars <- calc(rotate(rates_nc), function(x) as_fahrenheit(x, data_type = "anomalies")) %>% 
+  st_as_stars()
+
+
+# Color limit for palettes
+temp_limits <- c(-.1, .1)
+temp_breaks <- c(temp_limits[1], temp_limits[1]/2,  0, temp_limits[2]/2, temp_limits[2])
+temp_labels <- str_c(c(str_c("< ", temp_limits[1]), temp_limits[1]/2, 0, temp_limits[2]/2, str_c("> ", temp_limits[2])), "\u00b0F")
+
+                     
+# Northeast Shelf
+global_rates_zoom <- ggplot() +
+  geom_stars(data = world_rate_stars) +
+  geom_sf(data = new_england, color = "white", fill = "gray30", size = .05) +
+  geom_sf(data = canada, color = "white", fill = "gray30", size = .05) +
+  geom_sf(data = greenland, color = "white", fill = "gray30", size = .05) +
+  scale_y_continuous(breaks = seq(-90, 90, by = 5)) +
+  scale_x_continuous(breaks = seq(-180, 180, by = 10))+
+  scale_fill_distiller(palette = "RdBu", 
+                       na.value = "transparent", 
+                       limit = temp_limits, 
+                       breaks = temp_breaks, 
+                       labels = temp_labels,
+                       oob = oob_squish) +
+  map_theme() +
+  coord_sf(
+    xlim = c("xmin" = -77, "xmax" = -50),
+    ylim = c("ymin" = 32, "ymax" = 48),
+    expand = T) +
+  guides("fill" = guide_colorbar(
+    title = "Annual Warming Rate: 1982-2021",
+    title.position = "top", 
+    title.hjust = 0.5,
+    barwidth = unit(2.5, "in"),
+    frame.colour = "black",
+    ticks.colour = "black")) 
+
+
+# Global View
+global_rates <- ggplot() +
+  geom_stars(data = world_rate_stars) +
+  geom_sf(data = world_sf, color = "white", fill = "gray30", size = .1) +
+  scale_fill_distiller(palette = "RdBu", 
+                       na.value = "transparent", 
+                       limit = temp_limits, 
+                       breaks = temp_breaks, 
+                       labels = temp_labels,
+                       oob = oob_squish) +
+  map_theme(
+    axis.text.x = element_blank(),
+    axis.ticks.x = element_blank()) +
+  coord_sf(expand = F) +
+  scale_y_continuous(breaks = seq(-90, 90, by = 30)) +
+  guides("fill" = guide_colorbar(title = "Annual Warming Rate: 1982-2021",
+                                 title.position = "top", 
+                                 title.hjust = 0.5,
+                                 barwidth = unit(2.5, "in"),
+                                 frame.colour = "black",
+                                 ticks.colour = "black"))  
+
+
+# plot map
+rates_global_figure <- (global_rates_zoom | global_rates ) + 
+  plot_annotation(title = "Global SST Change", 
+                  caption = "Data Source: OISSTv2") +
+  plot_layout(guides = "collect") & 
+  theme(legend.position = "bottom")
+
+
+# plot patchwork
+rates_global_figure
+grid::grid.raster(lab_logo, x = 0.05, y = 0.03, just = c('left', 'bottom'), width = unit(0.8, 'inches'))
+```
+
+
+### Warming Rate Rankings
+
+
+Based on data from 1982-2021, the warming rates of Gulf of Maine have been some of the highest in the world. The area as a whole has been increasing at a rate of `r avg_rate`$^{\circ}F/year$ which is faster than `r avg_rank`% of the world's oceans.
+
+Over that same period locations within the Gulf of Maine have been warming at rates as low as `r low_rate`$^{\circ}F/year$ and as rapidly as `r top_rate`$^{\circ}F/year$, corresponding to ranks as low as `r low_rank`% and as high as `r top_rank`%.
+
+
+```{r highlighting gom warming rate, eval = TRUE}
+# for an expanded view need to use the global ranks
+world_rank_stars <- st_as_stars(rotate(ranks_nc))
+
+# Reclassify raster into 10% Bins
+world_ranks_binned <- world_rank_stars %>% 
+  mutate(
+    rank = Annual.Sea.Surface.Temperature.Warming.Rate.Rank,
+    rank_bin = cut(rank, breaks = seq(0, 1, by = 0.1))) %>% 
+  select(-c(rank, Annual.Sea.Surface.Temperature.Warming.Rate.Rank))
+
+# # Define the number of colors you want
+# nb.cols <- 10
+# mycolors <- RColorBrewer::brewer.pal(n = 10, "Reds")
+
+
+# Northeast Shelf
+global_ranks_zoom <- ggplot() +
+  geom_stars(data = world_ranks_binned) +
+  geom_sf(data = new_england, color = "white", fill = "gray30", size = .05) +
+  geom_sf(data = canada, color = "white", fill = "gray30", size = .05) +
+  geom_sf(data = greenland, color = "white", fill = "gray30", size = .05) +
+  scale_y_continuous(breaks = seq(-90, 90, by = 5)) +
+  scale_x_continuous(breaks = seq(-180, 180, by = 10))+
+  scale_fill_brewer(palette = "Spectral", direction = -1, na.value = "transparent") +
+  # scale_fill_viridis_d(option = "viridis", direction = 1, na.value = "transparent", na.translate = FALSE) +
+  map_theme() +
+  coord_sf(
+    xlim = c("xmin" = -77, "xmax" = -50),
+    ylim = c("ymin" = 32, "ymax" = 48),
+    expand = T) +
+  guides("fill" = guide_colorsteps(
+    title = "Warming Rate Percentile: 1982-2021",
+    title.position = "top", 
+    title.hjust = 0.5,
+    barwidth = unit(2.5, "in"),
+    frame.colour = "black",
+    ticks.colour = "black")) 
+
+
+# Global View
+global_ranks <- ggplot() +
+  geom_stars(data = world_ranks_binned) +
+  geom_sf(data = world_sf, color = "white", fill = "gray30", size = .1) +
+  scale_fill_brewer(palette = "Spectral", direction = -1, na.value = "transparent") +
+  # scale_fill_viridis_d(option = "viridis", direction = 1, na.value = "transparent", na.translate = FALSE) +
+  map_theme(
+    axis.text.x = element_blank(),
+    axis.ticks.x = element_blank()) +
+  coord_sf(expand = F) +
+  scale_y_continuous(breaks = seq(-90, 90, by = 30)) +
+  guides("fill" = guide_colorsteps(title = "Warming Rate Percentile: 1982-2021",
+                                 title.position = "top", 
+                                 title.hjust = 0.5,
+                                 barwidth = unit(2.5, "in"),
+                                 frame.colour = "black",
+                                 ticks.colour = "black")) 
+
+
+# plot map
+ranks_global_figure <- (global_ranks_zoom | global_ranks ) + 
+  plot_annotation(title = "Global SST Change Rankings", 
+                  caption = "Data Source: OISSTv2") +
+  plot_layout(guides = "collect") & 
+  theme(legend.position = "bottom")
+
+
+# plot patchwork
+ranks_global_figure
+grid::grid.raster(lab_logo, x = 0.05, y = 0.03, just = c('left', 'bottom'), width = unit(0.8, 'inches'))
+
+```
+
+
+
+## Fastest Warming Regions
+
+To get a better look at extremes we can mask values below the 80th percentile and look more closely at the differences among the fastest warming areas on Earth. Below only the fastest 20% of locations are shown, to  show more detail among the fastest warming areas.
+
+
+```{r}
+
+# Mask out where its under .8
+ranks_top20 <- ranks_nc
+ranks_top20[ranks_top20 < 0.8] <- NA
+
+
+# Make stars, bin by .25
+ranks_top_stars <- st_as_stars(rotate(ranks_top20))
+
+ranks_top_binned <- ranks_top_stars %>% 
+  mutate(
+    rank = Annual.Sea.Surface.Temperature.Warming.Rate.Rank,
+    rank_bin = cut(rank, breaks = seq(0.8, 1, by = 0.025))) %>% 
+  select(-c(rank, Annual.Sea.Surface.Temperature.Warming.Rate.Rank))
+
+# Remake maps
+
+
+# Northeast Shelf
+top_ranks_zoom <- ggplot() +
+  geom_stars(data = ranks_top_binned) +
+  geom_sf(data = new_england, color = "white", fill = "gray30", size = .05) +
+  geom_sf(data = canada, color = "white", fill = "gray30", size = .05) +
+  geom_sf(data = greenland, color = "white", fill = "gray30", size = .05) +
+  scale_y_continuous(breaks = seq(-90, 90, by = 5)) +
+  scale_x_continuous(breaks = seq(-180, 180, by = 10))+
+  scale_fill_viridis_d(option = "plasma", direction = 1, na.value = "gray10") +
+  map_theme() +
+  coord_sf(
+    xlim = crop_x_expanded,
+    ylim = crop_y_expanded,
+    expand = T) +
+  guides("fill" = guide_colorsteps(
+    title = "Warming Rate Percentile: 1982-2021",
+    title.position = "top", 
+    title.hjust = 0.5,
+    barwidth = unit(2.5, "in"),
+    frame.colour = "black",
+    ticks.colour = "black")) 
+
+
+# Global View
+top_ranks <- ggplot() +
+  geom_stars(data = ranks_top_binned) +
+  geom_sf(data = world_sf, color = "white", fill = "gray30", size = .1) +
+   scale_fill_viridis_d(option = "plasma", direction = 1, na.value = "gray10") +
+  map_theme(
+    axis.text.x = element_blank(),
+    axis.ticks.x = element_blank()) +
+  coord_sf(expand = F) +
+  scale_y_continuous(breaks = seq(-90, 90, by = 30)) +
+  guides("fill" = guide_colorsteps(title = "Warming Rate Percentile: 1982-2021",
+                                 title.position = "top", 
+                                 title.hjust = 0.5,
+                                 barwidth = unit(2.5, "in"),
+                                 frame.colour = "black",
+                                 ticks.colour = "black"))
+
+
+# plot map
+top_ranks_figure <- (top_ranks_zoom | top_ranks ) + 
+  plot_annotation(title = "Earth's Fastest Warming Ocean Regions", 
+                  caption = "Data Source: OISSTv2, rankings below 80th percentile masked.") +
+  plot_layout(guides = "collect") & 
+  theme(legend.position = "bottom")
+
+
+# plot patchwork
+top_ranks_figure
+grid::grid.raster(lab_logo, x = 0.05, y = 0.03, just = c('left', 'bottom'), width = unit(0.8, 'inches'))
+
+```
+
+
+
+
+
+## Comparing to Large Marine Ecosystems
+
+We are often asked when speaking to the degree of the Gulf of Maine is warming: 
+> "Where is it warming faster?"
+
+This question is challenging because the Gulf of Maine, and any area in the ocean has a unique size/shape/dynamic that makes them difficult to directly compare directly. To put the Gulf of Maine's warming into perspective against similar ecologically and oceanographically relevant units we can compare it against the [large marine ecosystems (LME)](https://www.lmehub.net/) of the world.
+ 
+```{r lme timeseries}
+# Load the LME timeseries to calculate rates of warming 
+lme_names <- get_region_names("lme") # names
+lme_paths <- get_timeseries_paths("lme", box_location = "cloudstorage") # paths
+
+# Data
+lme_oisst <- map(lme_names, ~ read_csv(lme_paths[[.x]][["timeseries_path"]], col_types = cols(), guess_max = 1e6)) 
+lme_oisst <- setNames(lme_oisst, lme_names)
+
+# Add Gulf of Maine Timeseries to the List with LME's
+lme_oisst[["gulf_of_maine"]] <- region_timeseries
+
+# Make sure dates are formatted
+lme_oisst <- map(lme_oisst, ~ mutate(.x, time = as.Date(time)))
+
+
+####  Warming Rates  ####
+lme_8221 <- map(lme_oisst, ~ mutate(.x, year = year(time)) %>% filter(year %in% c(1982:2021)))
+
+# Get warming rates
+lme_rates <- map_dfr(lme_8221, function(lme_data){
+  # Uses area weighted SST
+  lme_yearly <- group_by(lme_data, year) %>% 
+    summarise(sst = mean(area_wtd_sst, na.rm = T))
+  yrly_warming <- lm(sst ~ year, data = lme_yearly)
+  mod_details <- broom::tidy(yrly_warming)
+  yrly_rate <- mod_details[2,"estimate"]
+  names(yrly_rate) <- "annual_warming_rate_C"
+  yrly_rate
+}, .id = "Region") %>% 
+  arrange(desc(annual_warming_rate_C))
+
+
+# Pull out the top x
+rates_ordered <- lme_rates %>% 
+  mutate(`Warming Rank` = row_number(),
+         `Warming Rate F` = as_fahrenheit(annual_warming_rate_C, data_type = "anomalies"),
+         Region = str_replace_all(Region, "_", " "),
+         Region = str_to_title(Region)) %>% 
+  select(Region, `Warming Rank`, `Warming Rate C` = annual_warming_rate_C, `Warming Rate F`) 
+
+
+# Make table of top 10*
+lme_rank_table <- rates_ordered %>% 
+  slice(1:10) %>% 
+  mutate(across(where(is.numeric), round, 3)) %>% 
+  gt(rowname_col = "Region") %>% 
+   tab_header(
+    title = md("**Warming Rates of Large Marine Ecosystems**")) %>%
+  tab_stubhead(label = "Region") %>% 
+  tab_style(
+    style = list(
+      cell_fill(color = "gray90"),
+      cell_text(style = "oblique")),
+    locations = cells_body(
+      rows = Region == "Gulf Of Maine")) %>% 
+  tab_spanner(label = md("*Annual Temperature Change*"),
+              columns = c(`Warming Rate C`, `Warming Rate F`)) %>% 
+ 
+  cols_label(
+      `Warming Rate F` = "\u00b0F",
+      `Warming Rate C` = "\u00b0C") %>% 
+  tab_source_note(source_note = md("**Data Source:** *NOAA OISSTv2 Daily Sea Surface Temperature Data.*")) %>%                    
+  tab_source_note(source_note = md("**Notes:** *Temperatures adjusted for latitudinal distotion.*") ) %>%  
+  tab_footnote(
+    footnote = "Gulf of Maine not a true large marine ecosystem",
+    locations = cells_stub(rows = which(rates_ordered$Region == "Gulf Of Maine")) 
+  )
+
+
+# show table
+lme_rank_table
+```
+ 
+ 
+ 
+ 
+```{r mapping lme rates, eval = FALSE}
+
+# Netcdf of warming rates
+rates_path <- str_c(oisst_path, "warming_rates/annual_warming_rates1982to2021.nc")
+rates_nc <- stack(rates_path, varname = "annual_warming_rate")
+ranks_nc <- stack(rates_path, varname = "rate_percentile")
+
+
+
+# Get paths to the LME's and their timeseries
+lme_shapes <- map(lme_names, ~  read_sf(lme_paths[[.x]][["shape_path"]]))  %>% 
+  setNames(lme_names)
+
+# Include Gulf of Maine as a shape
+lme_shapes[["gulf_of_maine"]] <- region_extent
+
+
+
+# Mask with each to get warming %
+lme_rates_masked <- map(lme_shapes, ~ mask_nc(ras_obj = rates_nc, mask_shape = .x))
+lme_perc_masked <- map(lme_shapes, ~ mask_nc(ras_obj = ranks_nc, mask_shape = .x))
+
+
+# Put the percentiles and average rates in one table
+if( all(names(lme_rates_masked) == names(lme_perc_masked)) ){
+  percentile_table <- map2_dfr(lme_rates_masked, lme_perc_masked, function(rate_lme, perc_lme){
+    rate_val <- cellStats(rate_lme, mean, na.rm = T)
+    perc_val <- cellStats(perc_lme, mean, na.rm = T)
+    df_out <- data.frame(
+      "annual_rate" = rate_val,
+      "warming_percentile" = perc_val)
+    
+    return(df_out)
+    
+  }, .id = "ecosystem")
+}
+
+
+# # Check it out:
+# percentile_table %>% arrange(desc(warming_percentile)) %>% head()
+# percentile_table %>% arrange(desc(annual_rate)) %>% head()
+
+
+# Bizarre...
+
+# Put LME's in one collection
+lme_shape_tab <- bind_rows(lme_shapes)
+
+# Join with the  rates/ranks
+perc_tab <- percentile_table %>% 
+  mutate(name = str_replace_all(ecosystem, "_", " "),
+         name = str_to_title(name),
+         name = str_replace(name, "Of", "of"))
+
+# Add the percentile information, and map them
+lme_sf_ranks <- left_join(lme_shape_tab, perc_tab, by = c("name")) 
+
+ggplot() +
+  geom_sf(data = lme_sf_ranks, aes(fill = warming_percentile), color = "transparent") +
+  geom_sf(data = world_sf, size = 0.25) +
+  scale_fill_distiller(palette = "RdBu", direction = -1, na.value = "transparent") +
+  coord_sf(expand = FALSE) +
+  map_theme(legend.position = "bottom") +
+  guides(fill = guide_colorbar(
+    title.position = "top",
+    title.hjust = 0.5, 
+    barwidth = unit(4, "in"), 
+    frame.colour = "black")) +
+  labs(fill = "Warming Rate Percentile",
+       title = "")
+
+
+```
+ 
+
+
+
+
+## A Note on Data Sources:
+
+NOAA_ERSST_V5 data provided by the NOAA/OAR/ESRL PSL, Boulder, Colorado, USA, from their Web site at https://psl.noaa.gov/data/gridded/data.noaa.ersst.v5.html.
+
+NOAA High Resolution SST data provided by the NOAA/OAR/ESRL PSL, Boulder, Colorado, USA, from their Web site at https://psl.noaa.gov/data/gridded/data.noaa.oisst.v2.highres.html. 
+
+
+
+```{r, results='hide'}
+
+
+####  Saving Figures  ####
+if(params$save_figures){
+  
+  # ERSST timeline
+  ggsave(plot = ersst_long_term_p, filename = str_c(save_location, "ersst_long_term_temps.png"),
+         dpi = "retina", bg = "white")
+  
+  
+  # How ERSSt and OISST are different
+  ggsave(plot = ersst_v_oisst, filename = str_c(save_location, "ersst_and_oisst_temps.png"),
+         dpi = "retina", bg = "white")
+  
+  # How 2021 compares to long-term pattern
+  ggsave(plot = annual_temps_plot, filename = str_c(save_location, "annual_temps_plot.png"),
+         dpi = "retina", bg = "white")
+  
+  
+  # simplified temperature plot
+  ggsave(plot = temp_simplified, filename = str_c(save_location, "oisst_simple_trends.png"),
+         dpi = "retina", bg = "white")
+  
+  # accelerating warming plot
+  ggsave(plot = gom_recent_warming, filename = str_c(save_location, "oisst_recent_gomwarming.png"),
+         dpi = "retina", bg = "white")
+  
+  
+  # 2021 anomaly bar chart
+  ggsave(plot = gom_anomaly_bars, filename = str_c(save_location, "oisst_gom_anom_bars.png"),
+         dpi = "retina", bg = "white")
+  
+  
+  # 2021 Record daily temperatures
+  ggsave(plot = hottest_days_plot,
+         filename = str_c(save_location, "2021_hottest_days.png"),
+         dpi = "retina", bg = "white")
+  
+  # Percentage of record temperatures bars
+  ggsave(plot = record_percents,
+         filename = str_c(save_location, "2021_percent_record_bars.png"),
+         dpi = "retina", bg = "white")
+  
+  
+  
+  # Full Year Temperatures
+  ggsave(plot = hw_temp_p, filename = str_c(save_location, "oisst_lastyr_temps.png"),
+         dpi = "retina", bg = "white")
+  
+  
+  
+  # Full Year Anomalies
+  ggsave(plot = hw_anom_p, filename = str_c(save_location, "oisst_lastyr_anoms.png"),
+         dpi = "retina", bg = "white")
+  
+  
+  
+  # Full year timeline of temps and anomalies
+  ggsave(plot = year_timeline, filename = str_c(save_location, "oisst_lastyr_timeline.png"),
+         dpi = "retina", bg = "white")
+  
+  
+  # Heatwave status heatmap
+  ggsave(plot = heatwave_heatmap, filename = str_c(save_location, "oisst_gom_heatmap.png"),
+         dpi = "retina", bg = "white")
+  
+  
+  # All year temperature horizons
+  ggsave(plot = gom_annual_horizons, filename = str_c(save_location, "oisst_gom_horizons.png"),
+         dpi = "retina", bg = "white")
+  
+  
+  # 2021 | 2012 horizons
+  ggsave(plot = comparison_horizons, filename = str_c(save_location, "gom_hottest_horizons.png"),
+         dpi = "retina", bg = "white")
+  
+  
+  # streamplot
+  ggsave(plot = hw_streamplot, filename = str_c(save_location, "gom_anomaly_streamplot.png"),
+         dpi = "retina", bg = "white")
+  
+  
+  # record years panels
+  ggsave(plot = hottest_yr_panels, 
+         filename = str_c(save_location, "gom_hottest_year_panels.png"),
+         dpi = "retina", bg = "white")
+  
+  # Annual Temperature Anomalies Map(s)
+  ggsave(plot = annual_gom_map, 
+         filename = str_c(save_location, "gom_annual_anom_map.png"),
+         dpi = "retina", bg = "white")
+  
+  # Global version
+  ggsave(plot = annual_anom_map, 
+         filename = str_c(save_location, "global_annual_anom_map.png"),
+         dpi = "retina", bg = "white")
+  
+  # Ranks maps
+  ggsave(plot = ranks_map, filename = str_c(save_location, "record_years_map.png"),
+         dpi = "retina", bg = "white")
+  
+  
+  # northeast warmest years
+  ggsave(plot = northeast_records, filename = str_c(save_location, "record_years_ne_map.png"),
+         dpi = "retina", bg = "white")
+  
+  
+  # Global warming rates
+  ggsave(plot = rates_global_figure, filename = str_c(save_location, "global_rates_map.png"),
+         dpi = "retina", bg = "white")
+  
+  
+  # global warming rankings
+  ggsave(plot = ranks_global_figure, filename = str_c(save_location, "global_ranks_map.png"),
+         dpi = "retina", bg = "white")
+  
+  # top 20% rankings
+  ggsave(plot = top_ranks_figure, filename = str_c(save_location, "ranks_top20.png"),
+         dpi = "retina", bg = "white")
+  
+  
+  
+  # LME Report Table
+  gtsave(data = lme_rank_table, 
+         filename = str_c(save_location, "lme_warming_table.png"))
+
+
+  
+  
+  
+  
+}
+
+
+
+  
+```
+
+
+
+```{r celsius dump, eval = FALSE}
+# GoM vs. Global Rates
+temp_simp_c <- global_rate_comparison(
+  annual_summary_dat = annual_summary, 
+  global_summary_dat = global_summary, 
+  eq_all = eq_all_c, 
+  eq_global = eq_global_c, 
+  temp_units = "C")
+
+ggsave(plot = temp_simp_c, 
+       filename = str_c(save_location, "celsius_global_rate.png"),
+       dpi = "retina", bg = "white")
+
+
+# Yearly HW Metrics
+panels_c <- yearly_metric_plots(temp_dat = grid_data, 
+                                temp_units = "C", 
+                                year_focus = "2021")
+
+ggsave(plot = panels_c, 
+       filename = str_c(save_location, "celsius_year_comparison.png"),
+       dpi = "retina", bg = "white")
+
+
+
+
+# 2021 mhw status
+hw_temp_p_c <- year_hw_temps(year_hw_dat = this_yr, temp_units = "C")
+
+ggsave(plot = hw_temp_p_c, 
+       filename = str_c(save_location, "celsius_hw_status.png"),
+       dpi = "retina", bg = "white")
+
+
+
+
+# heatmap
+heatmap_c <- heatwave_heatmap_plot(hw_dat = grid_data, temp_units = "C")
+
+ggsave(plot = heatmap_c, 
+       filename = str_c(save_location, "celsius_heatmap.png"),
+       dpi = "retina", bg = "white")
+```
+
+
+`r insert_gmri_footer()`

@@ -17,6 +17,7 @@ docker-compose.override.yaml
 *.csv
 *.docx
 local_data/
+R/markdown_reports/local_report_data/
 
 # Data folders
 annual_anomalies/*

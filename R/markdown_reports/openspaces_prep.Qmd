@@ -1,0 +1,595 @@
+---
+title: "OpenSpaces Data Prep"
+author: 
+  - first_name: "Adam"
+    last_name: "Kemberling"
+    url: https://github.com/adamkemberling
+    affiliation: Gulf of Maine Research Institute
+    affiliation_url: https://www.gmri.org
+description: | 
+  Sea Surface Trend Preparation for OpenSpaces Presentation
+date: "Updated on: `r Sys.Date()`"
+format: 
+  html:
+    code-fold: true
+    code-tools: true
+    toc: true
+    toc-depth: 2
+    df-print: kable
+    self-contained: true
+editor: source
+---
+
+```{r setup, include=FALSE}
+# knitr options
+knitr::opts_chunk$set(echo = TRUE, 
+                      message = F, 
+                      warning = F, 
+                      comment = "", 
+                      fig.align = "center", 
+                      fig.height = 6, 
+                      fig.width = 8)
+
+####  Packages  ####
+library(lubridate)
+library(raster)
+library(terra)
+library(here)
+library(rnaturalearth)
+library(scales)
+library(sf)
+library(stars)
+library(gmRi)
+library(patchwork)
+library(tidyverse)
+library(virtualspecies)
+
+# Support Functions
+suppressPackageStartupMessages( source(here("R/oisst_support_funs.R"), verbose = FALSE) )
+suppressPackageStartupMessages( source(here("R/temp_report_support.R"), verbose = FALSE) )
+
+#box paths
+oisst_path <- cs_path("res", "OISST/oisst_mainstays")
+
+
+# What area is the report using?
+group_name <- "gmri_sst_focal_areas"
+region_name <- "apershing_gulf_of_maine"
+
+# Temp palette:
+temp_pal <- rev(RColorBrewer::brewer.pal(n = 10, name = "RdBu"))
+```
+
+```{r}
+gmRi::use_gmri_style_rmd()
+```
+
+
+
+# Contents:
+
+ 1. Progression of Anomalies in NE Atlantic (annual, seasonal)    
+ 2. Representation of Warming Rates    
+ 3. Thermal habitat of BSB   
+ 4. Movement of BSB?
+
+
+## Prepare Monthly SST Data {.tabset .tabset-pills}
+
+Looking at it from a thermal preference angle, there is the possibility to look at temperature suitability. This could be summer or winter displays of temperature envelopes that fit their thermal preferences.
+
+**Reference on Habitat Suitability**
+https://journals.plos.org/plosone/article/file?id=10.1371/journal.pone.0147627&type=printable
+
+
+
+```{r}
+# Load Raster
+month_sst <- raster::stack(str_c(oisst_path, "monthly_averages/oisst_monthly.nc"), varname = "sst")
+
+# Rename
+names(month_sst) <- str_replace_all(str_sub(names(month_sst), 2, -1), "[.]", "-")
+
+# Plot
+plot(rotate(month_sst$X1981.09.30), col = temp_pal)
+```
+
+
+### 1. Pull September Averages
+
+```{r}
+# Pull Just September:
+month_sept <- month_sst[[which(str_sub(names(month_sst), 7, 8) == "09")]]
+
+plot(month_sept$X1981.09.30, col = temp_pal, main = "September 1981")
+```
+
+
+
+
+### 2. Crop to Our Area
+
+```{r}
+# Cropping Extent  
+crop_extent <- make_cropbox(xlims = c(-79, -56), 
+                            ylims = c(32, 51))
+#st_crs(crop_extent) <- crs(month_sst)
+
+# Crop it
+gom_monthly <- mask_nc(month_sept, mask_shape = crop_extent, rotate = T)
+
+# Plot a tester:
+plot(gom_monthly$X1981.09.30, col = temp_pal, main = "September 1981")
+```
+
+
+### 3. Consolidate Into Decades
+
+
+```{r}
+
+# Decades
+decades <- list(
+  "1990s" = 199,
+  "2000s" = 200,
+  "2010s" = 201)
+
+
+# Get the mean temp for each decade
+temp_decades <- map(decades, function(decade_id){
+  year_layers <- which(str_sub(names(gom_monthly), 2, 4) == decade_id)
+  decade_dat <- gom_monthly[[year_layers]]
+  decade_mean <- mean(decade_dat, na.rm = T)
+  return(decade_mean)
+  
+  
+}) %>% stack()
+
+plot(temp_decades$X1990s, main = "1990's September", col = temp_pal)
+```
+
+
+### 4. Cover Data from the Great Lakes
+
+
+```{r}
+
+# Make a shape for the area
+lakes_cover <- make_cropbox(xlims = c(-80, -75),
+                            ylims = c(43, 45))
+
+
+#lakes_ras <- mask(temp_decades[[1]], lakes_cover, inverse = TRUE)
+
+# Mask that region
+temp_decades <- mask(temp_decades, lakes_cover, inverse = TRUE)
+plot(temp_decades$X1990s, main = "1990's September", col = temp_pal) 
+```
+
+
+
+
+###  5. Enhance the Resolution
+
+
+
+
+```{r}
+# Resample to Finer Resolution
+# Helps it look better if the grid makes squares
+s <- raster(nrow = 1400, 
+            ncol = 2000, 
+            xmn = extent(crop_extent)[1], 
+            xmx = extent(crop_extent)[2], 
+            ymn = extent(crop_extent)[3], 
+            ymx = extent(crop_extent)[4])
+
+# Resample to higher resolution
+temp_hires <- raster::resample(temp_decades, s)
+
+# check one
+plot(temp_hires$X1990s, main = "1990's September (Resampled)", col = temp_pal)
+```
+
+
+### 6. Mask with Land
+
+```{r}
+# Now that the resolution is sharper we'll want to crop it so that it doesn't look
+# So blocky next to the coast:
+
+# Read in shapefile for coasts of US and Canada:
+library(rgeoboundaries)
+
+# Canada:
+canada_sf <- ne_states("canada", returnclass = "sf")
+
+# USA with MD messed up
+# us_sf <- ne_states("united states of america", returnclass = "sf")
+
+# USA with better States
+us_sf <- gb_adm1(country = "usa", type = "sscgs")
+
+# Filter to our area
+new_england <- us_sf %>% filter(shapeISO %in% str_c("US-", c("ME", "NH", "MA", "CT", "MD", "PA", "NY", "VT", "NC", "SC", "VA", "WV", "DE", "SC")))
+
+# Join them
+north_america <- bind_rows(list(mutate(canada_sf, country = "Canada"),
+                                mutate(us_sf, country = "United States")))
+
+# North America Zoom Extent
+na_bbox <- c(xmin = -82, 
+             ymin = 29, 
+             xmax = -54, 
+             ymax = 52)
+north_cropped <- st_crop(north_america, na_bbox)
+
+
+# # Map it
+# ggplot(north_america) + 
+#   geom_sf(fill = "gray60", color = "white", size = 0.25) +
+#   coord_sf(xlim = c(-82, -53), ylim = c(29, 52), expand = F, crs = 4326) 
+
+
+
+# Mask that region
+temp_coasts <- mask(temp_hires, north_cropped, inverse = TRUE)
+plot(temp_coasts$X1990s, 
+     main = "1990's September - coastline smoothed", 
+     col = temp_pal, 
+     xlim = c(-75, -60),
+     ylim = c(40, 48)) 
+
+```
+
+
+
+##  Decadal Temperature Shifts {.tabset .tabset-pills}
+
+
+The decadal average temperatures for the region are as follows:
+
+### 1990's
+
+```{r}
+plot(temp_coasts$X1990s, main = "Average SST 1990's", col = temp_pal)
+```
+
+### 2000's
+
+```{r}
+plot(temp_coasts$X2000s, main = "Average SST 2000's", col = temp_pal)
+```
+
+### 2010's
+
+```{r}
+plot(temp_coasts$X2010s, main = "Average SST 2010's", col = temp_pal)
+```
+
+ 
+# Thermal Preference Curves
+
+Knowing that the temperatures globally are changing, it is logical to anticipate species to adjust their movements and behaviors to follow their thermal preferences.
+
+From historical datasets and experiments we are able to determine the range of temperatures that species need and/or prefer in order to live. 
+
+Knowing these limits then lets us project onto a map where those conditions exist and where conditions are less-tolerable.
+
+```{r}
+
+# Get temperature range for study area as a vector
+temp_range <- seq(min(values(gom_monthly), na.rm = T),
+                  #max(values(gom_monthly), na.rm = T),
+                  36,
+                  by = .1)
+
+
+
+
+# Function to make preference rasters:
+make_pref_ras <- function(in_ras, ras_name, p1, p2, alpha, gamma){
+  
+  # Make a new raster that we can swap values from  
+  pref_ras <- in_ras[[ras_name]]
+
+  # Assign values based on preference curve
+  values(pref_ras) <- betaFun(
+    values(pref_ras),
+    p1 = p1,
+    p2 = p2,
+    alpha = alpha,
+    gamma = gamma)
+  
+  return(pref_ras)
+
+  
+}
+```
+
+
+
+## Black Seas Bass {.tabset .tabset-pills}
+
+Black Sea Bass have a thermal preference (from fall survey data) of 18-25C or 64-77F.
+
+
+```{r}
+# Use the betaFun(), feed it temperature vector min/max and curve shape
+bsb_beta <- betaFun(
+  x = temp_range,
+        p1 = 18, 
+        # p2 = 25, # Lab venture
+        p2 = 32, # Expanded thermal preference
+        alpha = 1, 
+        gamma = 1)
+
+
+# Show the temp  preference
+plot(bsb_beta ~ temp_range, type = "l", main = "Black Sea Bass\nFall Temperature Preference", ylab = "Preference", xlab = "Temperature Range")
+
+
+
+
+
+
+# Run thermal preference for each year
+hires_list <- unstack(temp_coasts) %>% setNames(names(temp_coasts))
+bsb_prefs <- imap(hires_list, make_pref_ras, p1 = 18, p2 = 25, alpha = 1, gamma = 1)
+
+```
+
+### Sea Bass 1990's
+
+```{r}
+plot(bsb_prefs$X1990s, 
+     main = "1990's Black Sea Bass Thermal Preference", 
+     col = terrain.colors(14, rev = T), 
+     xlim = c(-78, -63), 
+     ylim = c(35.5,46))
+```
+
+### Sea Bass 2000's
+
+```{r}
+
+plot(bsb_prefs$X2000s, 
+     main = "2000's Black Sea Bass Thermal Preference", 
+     col = terrain.colors(14, rev = T), 
+     xlim = c(-78, -63), 
+     ylim = c(35.5,46))
+```
+
+
+### Sea Bass 2010's
+
+```{r}
+plot(bsb_prefs$X2010s, 
+     main = "2010's Black Sea Bass Thermal Preference", 
+     col = terrain.colors(14, rev = T), 
+     xlim = c(-78, -63), 
+     ylim = c(35.5,46))
+```
+
+
+ 
+## Lobster {.tabset .tabset-pills}
+
+Lobster have a thermal preference (lab venture) of 11-22C.
+ 
+ 
+```{r}
+# Use the betaFun(), feed it temperature vector min/max and curve shape
+lob_beta <- betaFun(
+  x = temp_range,
+        p1 = 11, 
+        p2 = 22, 
+        alpha = 1, 
+        gamma = 1)
+
+
+# Show the temp  preference
+plot(lob_beta ~ temp_range, type = "l", main = "Lobster\nFall Temperature Preference", ylab = "Preference", xlab = "Temperature Range")
+
+# Run thermal preference for each year
+lob_prefs <- imap(hires_list, make_pref_ras, p1 = 11, p2 = 22, alpha = 1, gamma = 1)
+
+```
+
+### Lobster 1990's
+
+```{r}
+plot(lob_prefs$X1990s, 
+     main = "1990's Lobster Thermal Preference", 
+     col = terrain.colors(14, rev = T), 
+     xlim = c(-75.25, -60), 
+     ylim = c(37.5,48))
+```
+
+### Lobster 2000's
+
+```{r}
+
+plot(lob_prefs$X2000s, 
+     main = "2000's Lobster Thermal Preference", 
+     col = terrain.colors(14, rev = T), 
+     xlim = c(-75.25, -60), 
+     ylim = c(37.5,48))
+```
+
+
+### Lobster 2010's
+
+```{r}
+plot(lob_prefs$X2010s, 
+     main = "2010's Lobster Thermal Preference", 
+     col = terrain.colors(14, rev = T), 
+     xlim = c(-75.25, -60), 
+     ylim = c(37.5,48))
+```
+
+ 
+## Global Warming Rates
+
+
+```{r}
+# Load warming rates
+annual_rates <- raster::stack(str_c(oisst_path, "warming_rates/annual_warming_rates1982to2021.nc"),
+                              varname  = "annual_warming_rate")
+
+
+# Plot Rates
+plot(rotate(annual_rates), 
+     main = "Annual Warming Rate | 1982-2021", 
+     col = terrain.colors(14))
+
+```
+
+## Local Rates
+
+```{r}
+# # Crop to local area:
+rates_gom <- mask_nc(ras_obj = annual_rates, mask_shape = crop_extent, rotate = T)
+
+# Mask that region
+rates_gom <- mask(rates_gom, lakes_cover, inverse = TRUE)
+
+# Resample to higher resolution
+rates_hires <- raster::resample(rates_gom, s)
+
+# Plot Rates
+plot(rates_hires, 
+     main = "Annual Warming Rate | 1982-2021", 
+     col = terrain.colors(14))
+
+
+
+```
+
+
+
+## Global Warming Ranks
+
+
+```{r}
+# Plot Ranks:
+annual_ranks <- raster::stack(str_c(oisst_path, "warming_rates/annual_warming_rates1982to2021.nc"),
+                              varname  = "rate_percentile")
+plot(annual_ranks, 
+     main = "Warming Rate Percentile | 1982-2021", 
+     col = terrain.colors(14))
+
+```
+
+
+## Local Ranks
+
+```{r}
+
+# # Crop to local area:
+ranks_gom <- mask_nc(ras_obj = annual_ranks, mask_shape = crop_extent, rotate = T)
+
+# Mask that region
+ranks_gom <- mask(ranks_gom, lakes_cover, inverse = TRUE)
+
+# Resample to higher resolution
+ranks_hires <- raster::resample(ranks_gom, s)
+
+# Plot Ranks
+plot(ranks_hires, 
+     main = "Warming Rate Percentile | 1982-2021", 
+     col = terrain.colors(14))
+```
+
+
+
+## Bounding the gulf Stream?
+
+
+---
+
+# Saving Geotiffs
+
+To make the data available to openspaces the requested filetype is a GeoTiff
+
+This stackoverflow question asks details around how those can be saved from R:
+https://gis.stackexchange.com/questions/257204/saving-geotiff-from-r
+
+More information on GDAL GeoTiff options can be found here:
+https://gdal.org/drivers/raster/gtiff.html
+
+```{r, echo = T}
+# Folder location
+out_location <- here::here("R/markdown_reports/Openspaces_data")
+
+# List of things to save
+tiff_list <- list(
+  "sst1990" = temp_coasts$X1990s,
+  #"sst2000" = temp_coasts$X2000s,
+  "sst2010" = temp_coasts$X2010s,
+  "bsb1990" = bsb_prefs$X1990s,
+  #"bsb2000" = bsb_prefs$X2000s,
+  "bsb2010" = bsb_prefs$X2010s,
+  "lob1990" = lob_prefs$X1990s,
+  #"lob2000" = lob_prefs$X2000s,
+  "lob2010" = lob_prefs$X2010s#,
+  # "annualrates" = rates_hires$Annual.Sea.Surface.Temperature.Warming.Rate,
+  # "annualranks" = ranks_hires$Annual.Sea.Surface.Temperature.Warming.Rate.Rank
+)
+
+# Saving Something
+test_save <- tiff_list[1]
+```
+
+
+
+### Idea 1.: Saving Raster Values as Tiffs
+
+As a starting point for testing, each file was exported as a geotiff file using the values of the data. This was not the desired result, but gave us geo-referenced tiff files that can be formatted using python/GDAL
+
+
+```{r}
+# Save a geotiff
+iwalk(tiff_list, function(x, y){
+  writeRaster(x, filename = str_c(out_location, "/", y, ".tif"), options=c('TFW=YES'), overwrite = TRUE)
+  message(str_c("Saving geoTiff: ", y))
+})
+
+```
+
+### Step 2. Add Colormaps to Geotiffs
+
+For the openspaces images we want the rasters to be multi-band color tiffs, not single-band rasters with the data values. The attempt here is to create an encoding for how colors should display
+
+
+
+
+
+
+```{python, eval = FALSE}
+
+# Load rasterio
+import rasterio as rio
+import os
+
+
+# Check directory:
+os. getcwd()
+
+# Load one of the fiff files
+input_Dir = 'R/markdown_reports/generated_46.tif'
+src = rasterio.open(input_Dir)
+show(src,cmap="magma")
+
+
+# Set Color Levels
+levels = [0, 0.01, 0.02, 0.04, 0.8, 1, 2, 4, 7, 17, 70, 500]
+    clrs = ['#E3E8E81A','#3DFDFF8C', '#3CFAFF', '#6A95FF', '#E61AFE8C', '#FF04FF', '#f4ded9', '#f4dbaa', '#eda14f', '#e87511', '#b55400', '#633b11']
+    
+cmap, norm = colors.from_levels_and_colors(levels, clrs,extend='max')
+
+show(src,cmap=cmap,norm=norm,interpolation='bilinear')
+
+
+```
+
