@@ -43,7 +43,7 @@ theme_set(theme_bw() +
               strip.background = element_rect(
                 color = "#00736D", 
                 fill = "#00736D", 
-                size = 1, 
+                linewidth = 1, 
                 linetype="solid")))
 
 
@@ -1183,6 +1183,7 @@ annual_avgs_annotated <- function(annual_avgs, all_years_average, rate_data, foc
 #' @param eq_all Text label describing the region and warming rate information
 #' @param eq_global Global counterpart to eq_all
 #' @param temp_units C or F to indicate display units
+#' @param String to replace "GoM" when using a region other than Gulf of Maine, Sets the plot title as well
 #'
 #' @return
 #' @export
@@ -1193,8 +1194,12 @@ global_rate_comparison <- function(
     global_summary_dat,
     eq_all,
     eq_global,
-    temp_units = "F"
+    temp_units = "F",
+    region_label = "Gulf of Maine"
   ){
+  
+  # Change Region Label:
+  eq_all <- str_replace(eq_all, "GoM", region_label)
   
   
   # Handling Temperature Units:
@@ -1249,7 +1254,7 @@ global_rate_comparison <- function(
     scale_color_manual(values = line_colors) +
     scale_x_continuous(limits = c(1982, 2021), expand = expansion(add = c(4,2))) +
     scale_y_continuous(labels =  number_format(suffix = temp_ops$temp_suff)) +
-    labs(title = "Gulf of Maine:",
+    labs(title = str_c(region_label, ":"),
          subtitle = "Annual Sea Surface Temperature Anomalies",
          x = "Year", y = "Sea Surface Temperature Anomaly",
          caption = "Anomalies calculated using 1982-2011 reference period.") +

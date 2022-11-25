@@ -1,0 +1,141 @@
+---
+title: "Netcdf with python"
+author: "Adam Kemberling"
+format: 
+  html:
+    toc: true
+    self-contained: true
+execute: 
+  echo: false
+  warning: false
+  message: false
+  comment: ""
+  fig.align: "center"
+---
+
+## Quarto
+
+Quarto enables you to weave together content and executable code into a finished document. To learn more about Quarto see <https://quarto.org>.
+
+# Load Libs
+
+When you click the **Render** button a document will be generated that includes both content and the output of embedded code. You can embed code like this:
+
+```{python}
+import xarray as xr
+import datetime
+import regionmask
+import numpy as np
+import pandas as pd
+import geopandas as gpd
+import matplotlib.pyplot as plt
+
+```
+
+## Load Netcdf
+
+```{python}
+
+# Path to netcdf, example VIIRS Chl-a
+
+# Path to resource
+# https://coastwatch.noaa.gov//erddap/griddap/noaacwNPPN20S3ASCIDINEOFDaily.html
+
+# url to download
+#  https://coastwatch.noaa.gov//erddap/griddap/noaacwNPPN20S3ASCIDINEOFDaily.nc?chlor_a%5B(2022-10-22T12:00:00Z):1:(2022-10-24T12:00:00Z)%5D%5B(0.0):1:(0.0)%5D%5B(89.95834):1:(-89.95834)%5D%5B(-179.9583):1:(179.9583)%5D
+
+# Local path
+nc_path = "local_report_data/noaacwDaily_viirs_chla.nc"
+
+# Open nc, if its many paths use xr.open_mfdataset([FILELIST])
+ds = xr.open_dataset(nc_path)
+ds
+
+
+```
+
+## Load Shapefile
+
+```{python}
+
+# Directory where shapefiles are for me
+shapefiles_dir = "/Users/akemberling/Library/CloudStorage/Box-Box/RES_Data/Shapefiles/large_marine_ecosystems/"
+
+# Full path
+shape_path = f"{shapefiles_dir}california_current_full.geojson"
+
+# Load Shape
+shape_sf = gpd.read_file(shape_path)
+
+# Plot it
+shape_sf.plot()
+#plt.show()
+```
+
+## Mask Shape
+
+First cell is the masking function. Uses regionmask library to mask using the shapefile, then xarray is used to take mean of data within the mask.
+
+```{python}
+def calc_ts_mask(grid_obj, shp_obj, shp_name, var_name = "chlor_a"):
+  """
+  Return a timeseries using data that falls within shapefile. 
+  
+  Standard deviation
+  not included so that this function can be used for any period of time.
+  
+  Args:
+    grid_obj       : xr.Dataset of the desired input data to mask
+    shp_obj        : shapefile polygon to use as a mask
+    shp_name (str) : String to use as name when making mask
+    var_name (str) : Optional string identifying the variable to use 
+  """
+
+  #### 1. Make the mask
+  area_mask = regionmask.Regions(shp_obj.geometry,
+                                 name = shp_name)
+
+  #### 2. Mask the array with gom_mask to get nan test
+  mask = area_mask.mask(grid_obj, lon_name = "longitude", lat_name = "latitude")
+
+  
+  #### 3. Extract data that falls within the mask
+  masked_ds = grid_obj.where(~np.isnan(mask))
+
+  
+  #### 4. Calculate timeseries mean
+
+  # Get the timeseries mean of the desired variable
+  # (Not area-weighted)
+  masked_ts = getattr(masked_ds, var_name).mean(dim = ("latitude", "longitude"))
+    
+
+  #### 5. Change time index rownames to a column 
+
+  # Convert to Timeseries Dataframe
+  masked_ts_df = masked_ts.to_dataframe()
+
+  # Reset the index, rename variables
+  masked_ts_df = masked_ts_df.reset_index()[["time", var_name]]
+  
+  # Return the table as output
+  return masked_ts_df
+
+
+```
+
+## Run Masking Function to Get Area Mean
+
+```{python}
+
+# Calculate a timeseries
+masked_ts = calc_ts_mask(
+  grid_obj = ds, 
+  shp_obj = shape_sf, 
+  shp_name = "California Current", 
+  var_name = "chlor_a"
+)
+
+# Look at it
+masked_ts.head()
+```

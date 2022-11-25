@@ -23,7 +23,6 @@ execute:
   comment: ""
 ---
 
-
 ```{r}
 # Packages
 library(lubridate) # date support
@@ -101,7 +100,6 @@ logo_path <- paste0(system.file("stylesheets", package = "gmRi"), "/gmri_logo.pn
 lab_logo <- magick::image_read(logo_path)
 ```
 
-
 ```{r params formatting}
 
 # Set the shapefile to use as a parameter
@@ -128,9 +126,7 @@ gmRi::use_gmri_style_rmd(css = "gmri_rmarkdown.css")
 showtext::showtext_auto()
 ```
 
-
-
-#  `r paste(tidy_name, current_yr)`: Sea Surface Temperature
+# `r paste(tidy_name, current_yr)`: Sea Surface Temperature
 
 This report was created to track the sea surface temperature regimes for the Northeastern US continental shelf, an area sampled as part of the NMFS Northeast trawl survey.
 
@@ -138,11 +134,9 @@ Satellite sea surface temperature data used was obtained from the National Cente
 
 **DISCLAIMER:** Any data within 2-weeks of the current date are subject to revision and may change. Please use caution when reporting information that contains these values.
 
-
 ### `r tidy_name` On a Map
 
 Whenever discussing the `r tidy_name` in this report, we refer to the following spatial extent displayed below. The coordinates of this bounding box are the same coordinates used to clip the sea surface temperature data.
-
 
 ```{r}
 # Load the bounding box for Andy's GOM to show they align
@@ -166,17 +160,11 @@ map_study_area(region_extent = st_union(region_extent),
 
 ```
 
-
-
-
-
 # 1: Temperature History
 
-Using the coordinates shown above we can create an area-specific temperature history. For any day of the year since **September of 1981**, data is available to calculate the average sea surface temperature within that area for each day. 
+Using the coordinates shown above we can create an area-specific temperature history. For any day of the year since **September of 1981**, data is available to calculate the average sea surface temperature within that area for each day.
 
-Additionally, we can compare observed temperatures against the expected conditions based on a climatology using a specified  reference period. The standard reference period used for the climatology here is 1982-2011, a 30-year period.
-
-
+Additionally, we can compare observed temperatures against the expected conditions based on a climatology using a specified reference period. The standard reference period used for the climatology here is 1982-2011, a 30-year period.
 
 ```{r load data}
 # Load the timeseries
@@ -251,7 +239,7 @@ global_summary <- global_anoms %>%
 
 ## Climatological Patterns of the `r tidy_name`
 
-Daily climatologies are a record of daily averages based on the day of the year. They record what the average temperature has been for each day of the year, across the specified reference period. 
+Daily climatologies are a record of daily averages based on the day of the year. They record what the average temperature has been for each day of the year, across the specified reference period.
 
 In addition to the daily average, we also look at how variable temperatures are. This variability is used to benchmark how "rare" extreme events are to determine whether they are part of a natural cycle or not.
 
@@ -306,11 +294,9 @@ ggplot(data = one_yr, aes(x = flat_date)) +
         byrow = T))
 ```
 
-
 ### Working in Anomalies
 
-Using the climatology as a reference, we can see hot much "hotter" or "colder" a given day is than what we would on average expect. This difference from the average is what we call anomalies. 
-
+Using the climatology as a reference, we can see hot much "hotter" or "colder" a given day is than what we would on average expect. This difference from the average is what we call anomalies.
 
 In the table below, `Sea Surface Temperature` is the mean temperature observed for that date averaged across all cells within the area. `Climate Avg.` & `Climate SD` are the climate means and standard deviations for a 1982-2011 climatology. `Temperature Anomaly` is the daily observed sea surface temperature minus the climate mean.
 
@@ -345,8 +331,6 @@ mar1 <- region_timeseries %>%
   distinct(sst_clim) %>% 
   pull(sst_clim)
 ```
-
-
 
 ### Detecting Long-Term Changes
 
@@ -387,17 +371,11 @@ ggplot(monthly_temps, aes(x = time, y = 0)) +
        caption = "Monthly Averages from 1982-2021  |  Climatology Period 1982-2011")
 ```
 
-
-
-
-
 ### Warming Rates
 
-
-Seeing this change towards a warmer climate, it is then natural to ask how rapidly the change is happening. This is where we turn to warming rates. The warming trends below were calculated using all the available data for complete years beginning with 1982 through the end of 2021. 
+Seeing this change towards a warmer climate, it is then natural to ask how rapidly the change is happening. This is where we turn to warming rates. The warming trends below were calculated using all the available data for complete years beginning with 1982 through the end of 2021.
 
 The overlaid trend lines then track how warming has increased with time. A dotted line has been included to show how the global average temperature has changed during the same period.
-
 
 #### Warming Trends
 
@@ -455,7 +433,6 @@ yearly_temp_smooth <-  as.data.frame(spline(annual_summary$yr_as_dtime, annual_s
   mutate(x = as.Date(x, origin = "1970-01-01"))
 
 ```
-
 
 ```{r annual trend plot}
 
@@ -541,7 +518,6 @@ ggplot(data = annual_summary, aes(yr_as_dtime, area_wtd_anom)) +
 
 ```
 
-
 **Shift in Regional Ocean Circulation**
 
 Beginning around 2008, temperature in the region swung upward, and since 2010 most yearly temperatures have been over 1 degree above the hematological average of the previous 30-years. With some years experiencing temperatures more than 2 degrees C above that average.
@@ -620,11 +596,9 @@ ggplot(data = annual_summary, aes(year, area_wtd_anom)) +
 
 ```
 
-
 The magnitude of this regime shift was `r r2_avg$avg_anom_c`C, or `r r2_avg$avg_anom_f`F. Bringing average yearly temperatures up from the 30-year average of `r clim_avg$avg_c`C to `r r2_avg$avg_c`C, or `r clim_avg$avg_f`F to `r r2_avg$avg_f`F.
 
 #### Seasonal Patterns
-
 
 ```{r, fig.height=7}
 
@@ -699,19 +673,13 @@ ggplot(dat_combined, aes(x = `1982`, xend = `2021`, y = fct_rev(Area))) +
                      labels = number_format(suffix = " \u00b0C"))
 ```
 
-
-
-### Marine Heatwaves 
+### Marine Heatwaves
 
 A marine heatwave is defined as a situation when seawater temperatures exceeds a seasonally-varying threshold (usually the 90th percentile) for at least 5 consecutive days. Successive heatwaves with gaps of 2 days or less are considered part of the same event. The heatwave threshold used below was 90%. The heatwave history for `r tidy_name` is displayed below:
 
 **Note:** For the figures below heatwave events were determined using the methods of Hobday et al. 2016 and implemented using the R package [{heatwaveR}](https://robwschlegel.github.io/heatwaveR/).
 
-
-
 #### Heatwave Events
-
- 
 
 ```{r, fig.height = 6}
 # Plot heatmap
@@ -724,7 +692,6 @@ heatwave_heatmap
 ```
 
 #### Heatwave Trends
-
 
 ```{r, fig.width=8}
 #### Annual Heatwave Summary Details
@@ -785,13 +752,11 @@ hw_peaks <-  ggplot(wave_summary, aes(y = year, x = peak_intensity)) +
 
 ```
 
-
 # 2: `r current_yr` Observations
-
 
 ### Temperatures of the Last Full Year (Interactive)
 
-Daily temperatures for the last 365 days are displayed below with reference to how they fall against the marine heatwave and cold spell thresholds. 
+Daily temperatures for the last 365 days are displayed below with reference to how they fall against the marine heatwave and cold spell thresholds.
 
 ```{r}
 # # Option 1: Grab last 365 days
@@ -801,7 +766,6 @@ Daily temperatures for the last 365 days are displayed below with reference to h
 # last_yr_heatwaves <- region_hw %>% filter(time >= last_year)
 # last_yr <- year(last_yr)
 ```
-
 
 ```{r}
 # # Option 2: Grab last Full Year:
@@ -822,8 +786,6 @@ last_year <- 2021
 last_yr_heatwaves <-  region_hw %>% filter(year(time) == last_year)
 ```
 
-
-
 ```{r}
 # Get number of heatwave events and total heatwave days for last year
 # How many heatwave events:
@@ -840,8 +802,6 @@ num_hw_days <- sum(this_yr_hw$mhw_event, na.rm = T)
 
 ```
 
-
-
 ```{r mhw plotly}
 
 # Plot the interactive timeseries
@@ -854,7 +814,6 @@ last_yr_heatwaves %>%
 
 Temperatures for the current year can be seen against the same thresholds with the following plot:
 
-
 ```{r mhw ggplot}
 
 # Make Plot
@@ -866,9 +825,7 @@ hw_temp_p
 
 ```
 
-
-
-###  `r year(Sys.Date())` Anomalies
+### `r year(Sys.Date())` Anomalies
 
 Changing from absolute temperatures to anomalies reveals the degree to which this year is departure from what we would have expected from the climatology of 1982-2011's temperatures.
 
@@ -879,7 +836,6 @@ hw_anom_p <- year_hw_anoms(year_hw_dat = this_yr_hw, temp_units = "C")
 hw_anom_p
 
 ```
-
 
 ### `r current_yr` in Context
 
@@ -936,10 +892,7 @@ ggplot(data = one_yr, aes(x = flat_date)) +
         byrow = T))
 ```
 
-
-
-
-# 3: Global Temperature Maps   
+# 3: Global Temperature Maps
 
 The 2021 global sea surface temperature anomalies have been loaded and displayed below to visualize how different areas of the ocean experience swings in temperature.
 
@@ -956,11 +909,9 @@ anoms_2021 <- stack(anom_path)
 
 ```
 
-
-:::{.panelset}
-::: {.panel}
+::: panelset
+::: panel
 ## Annual Average {.panel-name}
-
 
 ```{r}
 
@@ -1002,12 +953,9 @@ ggplot() +
         legend.title = element_text(angle = 90)) +
   labs(title = str_c("Global Temperature Anomalies - ", nc_year))
 ```
-
-
 :::
 
-
-::: {.panel}
+::: panel
 ## Winter {.panel-name}
 
 ```{r}
@@ -1057,7 +1005,6 @@ season_stacks <- map(month_key, function(mon){
 })
 ```
 
-
 ```{r}
 # Plotting the seasons
 seas_anom_maps <- function(season, lab_years, temp_lim = 5){
@@ -1101,47 +1048,36 @@ seas_anom_maps <- function(season, lab_years, temp_lim = 5){
 seas_anom_maps("Winter", "2020-2021", temp_lim = 2)
 
 ```
-
 :::
 
-
-::: {.panel}
+::: panel
 ## Spring {.panel-name}
-
 
 ```{r}
 seas_anom_maps("Spring", "2021", temp_lim = 2)
 ```
-
 :::
 
-
-::: {.panel}
+::: panel
 ## Summer {.panel-name}
-
 
 ```{r}
 seas_anom_maps("Summer", "2021", temp_lim = 2)
 ```
-
 :::
 
-
-::: {.panel}
+::: panel
 ## Fall {.panel-name}
-
 
 ```{r}
 seas_anom_maps("Fall", "2021", temp_lim = 2)
 ```
-
 :::
 :::
 
-# 4: Regional Temperature Maps 
+# 4: Regional Temperature Maps
 
 The regional views of 2021's sea surface temperature anomalies have been loaded and displayed below to visualize how localized differences changed throughout the year.
-
 
 ```{r}
 
@@ -1161,10 +1097,9 @@ region_extent_expanded <- st_sfc(st_polygon(list(
 region_extent_expanded <- st_as_sf(region_extent_expanded)
 ```
 
-:::{.panelset}
-::: {.panel}
+::: panelset
+::: panel
 ## Annual Average {.panel-name}
-
 
 ```{r}
 # Mask the annual average
@@ -1200,10 +1135,9 @@ ggplot() +
            ylim = crop_y, expand = F) +
   labs(title = str_c("Regional Temperature Anomalies - ", nc_year))
 ```
-
 :::
 
-::: {.panel}
+::: panel
 ## Winter {.panel-name}
 
 ```{r}
@@ -1256,47 +1190,36 @@ plot_masked_season <- function(season, year_lab, temp_lim = 5){
 
 ```
 
-
-
 ```{r}
 plot_masked_season("Winter", year_lab = "2020-2021", temp_lim = 3.5)
 ```
-
 :::
 
-
-::: {.panel}
+::: panel
 ## Spring {.panel-name}
 
 ```{r}
 plot_masked_season("Spring", year_lab = "2021", temp_lim = 3.5)
 ```
-
 :::
 
-::: {.panel}
+::: panel
 ## Summer {.panel-name}
-
 
 ```{r}
 plot_masked_season("Summer", year_lab = "2021", temp_lim = 3.5)
 ```
-
 :::
 
-::: {.panel}
+::: panel
 ## Fall {.panel-name}
-
 
 ```{r}
 plot_masked_season("Fall", year_lab = "2021", temp_lim = 3.5)
 ```
-
 :::
 
-
-
-::: {.panel}
+::: panel
 ## Heatwave Progression {.panel-name}
 
 Looking specifically at the last heatwave event, we can step through how the event progressed over time, and developing pockets or warmer/colder water masses.
@@ -1352,8 +1275,6 @@ hw_timeline <- region_hw %>%
 
 
 ```
-
-
 
 ```{r hw progression animation, eval = F, animation.hook = 'gifski', fig.height=8, fig.width=9}
 
@@ -1454,17 +1375,14 @@ walk(day_plots, print)
 
 
 ```
-
 :::
 :::
-
 
 # 5: Ranking Warming Rates
 
 If we look at the rates of change from 1982-2021 for each grid cell, rather than the observed temperature, it is possible to rank how hot each location on earth is warming relative to all the others.
 
 Once we have the rankings, we can then take the average ranking within the Gulf of Maine we can obtain the average warming rank for the area compared to the rest of the globe.
-
 
 ```{r load warming rates}
 # 1. Warming Rates and Rankings
@@ -1477,8 +1395,6 @@ ranks_stack_all <- stack(str_c(rates_path, "1982to2021.nc"),
 
 
 ```
-
-
 
 ```{r mask warming rates}
 
@@ -1498,7 +1414,7 @@ top_rate <- region_ranks$`Max Rate`
 
 ```
 
-Based on data from 1982-2021, the warming rates of `r tidy_name` have been some of the highest in the world. The area as a whole has been increasing at a rate of `r avg_rate`$^{\circ}C/year$ which is faster than `r avg_rank`% of the world's oceans. 
+Based on data from 1982-2021, the warming rates of `r tidy_name` have been some of the highest in the world. The area as a whole has been increasing at a rate of `r avg_rate`$^{\circ}C/year$ which is faster than `r avg_rank`% of the world's oceans.
 
 Over that same period locations within the `r tidy_name` have been warming at rates as low as `r low_rate`$^{\circ}C/year$ and as rapidly as `r top_rate`$^{\circ}C/year$, corresponding to ranks as low as `r low_rank`% and as high as `r top_rank`%.
 
@@ -1602,7 +1518,6 @@ rates_map
 grid::grid.raster(lab_logo, x = 0.05, y = 0.03, just = c('left', 'bottom'), width = unit(0.8, 'inches'))
 ```
 
-
 ### Warming Ranks
 
 ```{r}
@@ -1695,13 +1610,9 @@ ranks_map
 grid::grid.raster(lab_logo, x = 0.05, y = 0.03, just = c('left', 'bottom'), width = unit(0.8, 'inches'))
 ```
 
-
-
-
-
 # 6: Shifting Baselines
 
-In 2021 NOAA is transitioning standard climatologies from the 30-year period of 1982-2011 to a new period spanning 1992-2020. Changes in climate regimes often does not result in a uniform upward or downward change that is consistent throughout the year. 
+In 2021 NOAA is transitioning standard climatologies from the 30-year period of 1982-2011 to a new period spanning 1992-2020. Changes in climate regimes often does not result in a uniform upward or downward change that is consistent throughout the year.
 
 The plot below shows just how both the average temperature, as well as the annual highs and lows have shifted. When looking specifically at `r tidy_name` here is how the expected temperature for each day of the year has shifted.
 
@@ -1757,9 +1668,5 @@ heatwaves_91 %>%
   scale_color_gmri() +
   scale_x_date(date_labels = "%b", date_breaks = "1 month", expand = c(0,0))
 ```
-
-
-
-
 
 `r insert_gmri_footer()`

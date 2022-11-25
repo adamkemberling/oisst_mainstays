@@ -65,7 +65,7 @@ library(xaringanExtra) # For tabsets
 # Support Functions
 suppressPackageStartupMessages(source(here("R/oisst_support_funs.R")))
 suppressPackageStartupMessages(source(here("R/temp_report_support.R")))
-path_fun <- os_fun_switch(mac_os = "mojave")
+path_fun <- boxpath_switch(box_location = "cloudstorage")
 
 
 # File Paths
@@ -122,7 +122,7 @@ params <- list(
 
 # File paths for various extents based on params$region
 region_paths <- get_timeseries_paths(region_group = "gmri_sst_focal_areas", 
-                                     mac_os = "mojave")
+                                     box_location = "cloudstorage")
   
 # clean up the name
 tidy_name <- str_replace_all(params$region, "_", " ") %>% str_to_title() %>% str_replace(pattern = "Of", replacement = "of")
