@@ -288,16 +288,16 @@ ref_yrs <- region_hw %>% filter(yr %in% c(1982:2011))
 
 # Make a plot
 ggplot(data = one_yr, aes(x = flat_date)) +
-    geom_line(data = ref_yrs, aes(y = sst, group = year, color = "Daily Temperature"), alpha = 0.6) +
+    geom_point(data = ref_yrs, aes(y = sst, color = "Daily Temperature"), alpha = 0.6) +
     geom_line(aes(y = seas, color = "Climatological Average"), size = 1) +
-    geom_textline(aes(y = mhw_thresh, color = "90th Percentile", label = "Heatwave Threshold"), linetype = 1, size = 4, hjust = 0.4, linewidth = 0.5) +
-    geom_textline(aes(y = mcs_thresh, color = "10th Percentile", label = "Coldspell Threshold"), linetype = 1, size = 4, hjust = 0.6, linewidth = 0.5) +
+    geom_textline(aes(y = mhw_thresh, color = "90th Percentile", label = "Heatwave Threshold"), linetype = 1, size = 5, hjust = 0.25, linewidth = 1) +
+    geom_textline(aes(y = mcs_thresh, color = "10th Percentile", label = "Coldspell Threshold"), linetype = 1, size = 5, hjust = 0.75, linewidth = 1) +
     scale_x_date(date_labels = "%b", date_breaks = "1 month", expand = expansion(add = c(0,0))) +
   scale_y_continuous(labels = number_format(suffix = " \u00b0C")) +
     scale_color_manual(values = clim_colors) +
     labs(x = "Day of the Year", y = "Sea Surface Temperature",
          title = str_c(tidy_name, " Daily Climatology"),
-         subtitle = "Anticipated Daily Temperatures Based on a 1982-2011 Climate") +
+         subtitle = "Benchmarking Daily Temperatures Against a 1982-2011 Climate") +
     theme_gmri() +
     theme(
       legend.position = "bottom",
@@ -314,16 +314,16 @@ ggplot(data = one_yr, aes(x = flat_date)) +
         title.position = "left",
         label.position = "top", 
         override.aes = list(
-          color = c("gray50", "gray10", "coral3", "royalblue"),
-          shape = c(NA, NA, NA, NA),  
-          linetype = c(1, 1, 1, 1),
+          color = c( "royalblue","coral3",  "gray10", "gray50"),
+          shape = c(NA, NA, NA, 16),  
+          linetype = c(1, 1, 1, NA),
           alpha = c(1,1,1,1), 
           label = c("", "", "", "")),
         byrow = T)) 
 ```
 
 
-### Working in Anomalies
+## Working in Anomalies
 
 Using the climatology as a reference, we can see hot much "hotter" or "colder" a given day is than what we would on average expect. This difference from the average is what we call anomalies. 
 
@@ -364,7 +364,7 @@ mar1 <- region_timeseries %>%
 
 
 
-### Detecting Long-Term Changes
+## Detecting Long-Term Changes
 
 One reason we go through this trouble of calculating climatologies and anomalies is to set expectations around how much we expect things to naturally vary, and to detect when things fall outside that range.
 
@@ -407,7 +407,7 @@ ggplot(monthly_temps, aes(x = time, y = 0)) +
 
 
 
-### Warming Rates  
+## Warming Rates  
 
 
 Seeing this change towards a warmer climate, it is then natural to ask how rapidly the change is happening. This is where we turn to warming rates. The warming trends below were calculated using all the available data for complete years beginning with 1982 through the end of 2021. 
@@ -415,7 +415,7 @@ Seeing this change towards a warmer climate, it is then natural to ask how rapid
 The overlaid trend lines then track how warming has increased with time. A dotted line has been included to show how the global average temperature has changed during the same period.
 
 
-#### Warming Trends
+### Warming Trends
 
 ```{r annual regressions}
 
@@ -637,7 +637,7 @@ ggplot(data = annual_summary, aes(year, area_wtd_anom)) +
 
 The magnitude of this regime shift was `r r2_avg$avg_anom_c`C, or `r r2_avg$avg_anom_f`F. Bringing average yearly temperatures up from the 30-year average of `r clim_avg$avg_c`C to `r r2_avg$avg_c`C, or `r clim_avg$avg_f`F to `r r2_avg$avg_f`F.
 
-#### Seasonal Patterns
+### Seasonal Patterns
 
 
 ```{r, fig.height=7}
@@ -679,7 +679,7 @@ quarter_summary %>%
   facet_wrap(~season_eng, ncol = 1)
 ```
 
-#### Overall Temperature Increase
+### Overall Temperature Increase
 
 ```{r, fig.height=2.25}
 dat_region <- annual_summary %>% 
@@ -717,7 +717,7 @@ ggplot(dat_combined, aes(x = `1982`, xend = `2021`, y = fct_rev(Area))) +
 
 
 
-### Marine Heatwaves  
+## Marine Heatwaves  
 
 A marine heatwave is defined as a situation when seawater temperatures exceeds a seasonally-varying threshold (usually the 90th percentile) for at least 5 consecutive days. Successive heatwaves with gaps of 2 days or less are considered part of the same event. The heatwave threshold used below was 90%. The heatwave history for `r tidy_name` is displayed below:
 
@@ -725,7 +725,7 @@ A marine heatwave is defined as a situation when seawater temperatures exceeds a
 
 
 
-#### Heatwave Events
+### Heatwave Events
 
  
 
@@ -739,7 +739,7 @@ heatwave_heatmap
 
 ```
 
-#### Heatwave Trends
+### Heatwave Trends
 
 
 ```{r, fig.width=8}
@@ -806,7 +806,7 @@ hw_peaks <-  ggplot(wave_summary, aes(y = year, x = peak_intensity)) +
 
 ::: {.panelset}
 :::{.panel}
-### `r current_yr` in Context {.panel-name}
+## `r current_yr` in Context {.panel-name}
 
 When `r current_yr` is overlaid against the daily values and climatological average for the region, we can see how temperatures compare to the history of the region.
 
@@ -933,7 +933,7 @@ year_comp %>%
 
 
 :::{.panel}
-### `r year(Sys.Date())` Temperatures {.panel-name}
+## `r year(Sys.Date())` Temperatures {.panel-name}
 
 Temperatures for the current year can be seen against the same thresholds with the following plot:
 
@@ -957,7 +957,7 @@ hw_temp_p
 
 :::
 :::{.panel}
-###  `r year(Sys.Date())` Anomalies {.panel-name}
+##  `r year(Sys.Date())` Anomalies {.panel-name}
 
 Changing from absolute temperatures to anomalies reveals the degree to which this year is departure from what we would have expected from the climatology of 1982-2011's temperatures.
 
@@ -978,7 +978,7 @@ hw_anom_p
 
 
 ::: {.panel}
-### Record Heatwave (Interactive) {.panel-name}
+## Record Heatwave (Interactive) {.panel-name}
 
 The longest heatwave on record in the Gulf of Maine began on Jan 1st of 2021 and extended forward into 2022. The following interactive plot shows how temperatures changed during this period, and when it finally fell below the threshold in 2022 during June 20th-24th.
 
@@ -1009,7 +1009,9 @@ The longest heatwave on record in the Gulf of Maine began on Jan 1st of 2021 and
 
 # Option 3: Last complete year through now
 last_year <- 2021
-last_yr_heatwaves <-  region_hw %>% filter(year(time) >= last_year)
+last_yr_heatwaves <-  region_hw %>% 
+  filter(year(time) >= last_year,
+         time <= as.Date("2022-06-26"))
 
 
 # Plot the interactive timeseries

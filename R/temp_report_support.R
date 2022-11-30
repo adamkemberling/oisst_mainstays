@@ -773,15 +773,24 @@ map_study_area <- function(region_extent,
   
   # Full map of GOM
   gom_extent_p <- ggplot() +
-    geom_sf(data = new_england, fill = "gray90", size = .25) +
-    geom_sf(data = canada, fill = "gray90", size = .25) +
-    geom_sf(data = greenland, fill = "gray90", size = .25) +
+    geom_sf(data = new_england, 
+            fill = "gray90", 
+            linewidth = .25) +
+    geom_sf(data = canada, 
+            fill = "gray90", 
+            linewidth = .25) +
+    geom_sf(data = greenland, 
+            fill = "gray90", 
+            linewidth = .25) +
     geom_contour(data = bathy_df, aes(x, y, z = depth),
                  breaks = contours_make,
                  color = "gray80") +
     geom_sf(data = region_extent, 
             color = gmri_cols("gmri blue"), 
-            fill = gmri_cols("gmri blue"), alpha = 0.2, linetype = shape_linetype, size = 0.5) +
+            fill = gmri_cols("gmri blue"), 
+            alpha = 0.2, 
+            linetype = shape_linetype, 
+            linewidth = 0.5) +
     geom_text(data = area_labs, aes(lon, lat, label = label, angle = angle), 
               size = 3, color = "black") +
     coord_sf(xlim = crop_x, 
@@ -917,9 +926,15 @@ map_study_area_color <- function(region_extent,
                         na.value = "#08519C",
                         labels = c(levels(bathy_rclass_df$bin_labs), "Greater than -600"),
                         name = "Depth")  +
-      geom_sf(data = new_england, fill = "gray90", size = .25) +
-      geom_sf(data = canada, fill = "gray90", size = .25) +
-      geom_sf(data = greenland, fill = "gray90", size = .25) +
+      geom_sf(data = new_england, 
+              fill = "gray90", 
+              linewidth = .25) +
+      geom_sf(data = canada, 
+              fill = "gray90", 
+              linewidth = .25) +
+      geom_sf(data = greenland, 
+              fill = "gray90", 
+              linewidth = .25) +
       # geom_contour(data = bathy_df, aes(x, y, z = depth),
       #              breaks = contours_make,
       #              color = "gray80") +
@@ -927,7 +942,9 @@ map_study_area_color <- function(region_extent,
                 size = 3, color = "black") +
       geom_sf(data = region_extent, 
               color = "gray10", 
-              fill = "transparent", alpha = 0.2, linetype = shape_linetype, size = 0.5) +
+              fill = "transparent", alpha = 0.2, 
+              linetype = shape_linetype, 
+              linewidth = 0.5) +
       coord_sf(xlim = crop_x, 
                ylim = crop_y, 
                expand = T) +
