@@ -72,9 +72,6 @@ showtext::showtext_auto()
 ```
 
 
-`r gmRi::use_gmri_style_rmd(css = "gmri_rmarkdown.css")`
-
-
 ```{r}
 #| label: param-setup
 #| echo: false
@@ -83,7 +80,7 @@ showtext::showtext_auto()
 params <- list(
   #year = 2021,
   year = year(Sys.Date()),
-  season = "Summer",
+  season = "Fall",
   `Save Data` = FALSE,
   `Save Figures` = FALSE)
 
@@ -186,6 +183,8 @@ month_range <- switch(params$season,
 
 # Set the start year, use 1981 if season is winter
 ssn_year_start <- ifelse(params$season == "Winter", 1981, 1982)
+
+
 
 
 # Get the average temperature for all years as a baseline
@@ -480,7 +479,8 @@ Looking at monthly averages (as opposed to week-by-week conditions), we see each
 
 # Create the Table
 month_summ_table <- monthly_avgs %>% 
-  select(-outcomes) %>% 
+  select(-c(outcomes)) %>% 
+  #select(-c(outcomes, temp_list)) %>% 
   mutate(month = factor(month, levels = c("Dec", month.abb[1:11]))) %>% #glimpse()
   gt(rowname_col = 'month') %>% 
      tab_stubhead(label = md("*Month*"))  %>% 
@@ -491,18 +491,24 @@ month_summ_table <- monthly_avgs %>%
     tab_spanner(label = md("*Temperature Anomaly*"), 
                 columns = c(`anom_f`, `anom_c`)) %>% 
   tab_spanner(label = md("*Temperature Progression*"), columns = c(`temp_list`)) %>%
-  gt_sparkline(temp_list, 
-               range_colors = c(gmri_cols("gmri blue")[[1]], 
-                                gmri_cols("orange")[[1]]), 
-               line_color = "gray50") %>%
+  gt_plt_sparkline(
+    temp_list,
+    palette = c(
+      "black",  # sparkline
+      "black",  # final value
+      gmri_cols("gmri blue")[[1]], # range color low
+      gmri_cols("orange")[[1]], # range color high
+      "black" # "type" color
+  )) %>%
   cols_label(
       temp_f = "\u00b0F",
       temp_c = "\u00b0C",
       clim_f = "\u00b0F",
       clim_c = "\u00b0C",
       anom_f = "\u00b0F",
-      anom_c = "\u00b0C",
-      temp_list = "High/Low \u00b0F") %>% 
+      anom_c = "\u00b0C"#,
+      #temp_list = "High/Low \u00b0F"
+      ) %>% 
    tab_source_note(source_note = md("*Data Source: NOAA OISSTv2 Daily Sea Surface Temperature Data.*") ) %>% 
    tab_source_note(source_note = md("*Climatology Reference Period: 1982-2011.*"))
    
@@ -534,8 +540,6 @@ The Gulf of Maine is an area of particular interest to the scientific community 
 
 
 
-
-
 ```{r}
 #| label: seasonal-temp-plot
 #| fig-cap: "Average annual spring SSTs in the Gulf of Maine from 1982 through 2022. The solid red line indicates the trend for the full time series."
@@ -546,7 +550,7 @@ seasonal_temp_p <- ggplot(seasonal_avgs,
                           aes(yr, temp_f)) +
   # Box for new regime
   #annotate(geom = "rect", xmin = 2010, xmax = Inf, ymin = -Inf, ymax = Inf, color = "transparent", fill = "darkred", alpha = 0.1) +
-  geom_line(color = "gray20", linetype = 3, size = 0.5, alpha = 0.5) +
+  geom_line(color = "gray20", linetype = 3, linewidth = 0.5, alpha = 0.5) +
   geom_point(color = "gray20", size = 1, alpha = 0.8) +
   # All year warmming rate for GOM
   geom_smooth(formula = y~x, 
@@ -581,7 +585,7 @@ seasonal_temp_p <- ggplot(seasonal_avgs,
   scale_x_continuous(limits = c(1981, params$year+3)) +
   labs(title = str_c("Long-Term ", params$season, " Warming in the Gulf of Maine"),
        x = "Year",
-       y = str_c("Average Sea Surface Temperature (", season_range, ")"))  +
+       y = str_c("Average Sea Surface Temperature\n(", season_range, ")"))  +
   coord_cartesian(clip = "off") +
   geom_logo(x_npc = 0.9, y_npc = -0.15, logo_height = 1, height_units = "cm")
 
@@ -629,15 +633,18 @@ global_decadal_rate_f <- round((global_annual_rate*10), 2)
 # Put the description into the dataframe so we can call it using one geom call
 glob_plot_dat <- bind_rows(
   list(
+    # Global Ocean Seasonal Data
     "Global Oceans" = select(global_season_summary, yr, season, season_yr, anom_f) %>% 
       mutate(
         rate = str_c(global_decadal_rate_f, " \u00b0F / Decade"),
-        rate_lab = "June-August Global Ocean Warming"
+        rate_lab = str_c(season_range,  "Global Ocean Warming")
       ),
+    
+    # Gulf of Maine Seasonal Data
     "Gulf of Maine" = select(seasonal_avgs, yr, season, season_yr, anom_f)  %>% 
       mutate(
         rate = str_c(decadal_rate_f, " \u00b0F / Decade"),
-        rate_lab = "June-August Gulf of Maine Warming"
+        rate_lab = str_c(season_range, " Gulf of Maine Warming")
       )
   ), .id = "region")
 
@@ -696,7 +703,7 @@ global_rate_plot <- ggplot(glob_plot_dat) +
   scale_x_continuous(limits = c(1981, params$year+3)) +
   labs(title = str_c("Gulf of Maine & Global ", params$season, " Warming Rates"),
        x = "Year",
-       y = str_c("Average Temperature Anomalies (", season_range, ")"),
+       y = str_c("Average Temperature Anomalies\n(", season_range, ")"),
        color = "1982-2022 Warming Rate")  +
   theme(legend.position = c(0.2, 0.85)) +
   coord_cartesian(clip = "off") +
@@ -723,7 +730,7 @@ ref_height <- switch(params$season,
   "Winter" = data.frame(x = 1982, xend = 2011, y = 45, yend = 45),
   "Spring" = data.frame(x = 1982, xend = 2011, y = 58.5, yend = 58.5),
   "Summer" = data.frame(x = 1982, xend = 2011, y = 68.5, yend = 68.5),
-  "Fall"   = data.frame(x = 1982, xend = 2011, y = 58, yend = 58))
+  "Fall"   = data.frame(x = 1982, xend = 2011, y = 68, yend = 68))
 
 
 # Plot the summers, use box plots for yearly distribution
@@ -964,7 +971,7 @@ heatmap_current
 month_heatmap <- month_rank_heatmap(
   hw_dat = grid_dat, 
   temp_units = "F",
-    no_dates_before = "2022-09-01") +
+    no_dates_before = "2022-12-01") +
     coord_cartesian(clip = "off") +
     geom_logo(x_npc = 0.9, y_npc = 1.15, logo_height = 1, height_units = "cm")
 
