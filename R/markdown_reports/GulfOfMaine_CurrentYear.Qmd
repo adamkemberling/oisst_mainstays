@@ -76,6 +76,7 @@ oisst_path <- path_fun("res", "OISST/oisst_mainstays")
 # Set ggplot theme for figures
 theme_set(theme_bw() +
   theme(
+    legend.position = "bottom",
     # Titles
     plot.title = element_text(hjust = 0, face = "bold", size = 14),
     plot.subtitle = element_text(size = 9),
@@ -95,7 +96,7 @@ theme_set(theme_bw() +
     strip.background = element_rect(
       color = "white",
       fill = "#00736D",
-      size = 1,
+      linewidth = 1,
       linetype="solid")
     )
   )
@@ -289,9 +290,11 @@ ref_yrs <- region_hw %>% filter(yr %in% c(1982:2011))
 # Make a plot
 ggplot(data = one_yr, aes(x = flat_date)) +
     geom_point(data = ref_yrs, aes(y = sst, color = "Daily Temperature"), alpha = 0.6) +
-    geom_line(aes(y = seas, color = "Climatological Average"), size = 1) +
-    geom_textline(aes(y = mhw_thresh, color = "90th Percentile", label = "Heatwave Threshold"), linetype = 1, size = 5, hjust = 0.25, linewidth = 1) +
-    geom_textline(aes(y = mcs_thresh, color = "10th Percentile", label = "Coldspell Threshold"), linetype = 1, size = 5, hjust = 0.75, linewidth = 1) +
+    geom_line(aes(y = seas, color = "Climatological Average"), linewidth = 1) +
+    geom_textline(aes(y = mhw_thresh, color = "90th Percentile", label = "Heatwave Threshold"), 
+                  linetype = 1, size = 5, hjust = 0.25, linewidth = 1) +
+    geom_textline(aes(y = mcs_thresh, color = "10th Percentile", label = "Coldspell Threshold"), 
+                  linetype = 1, size = 5, hjust = 0.75, linewidth = 1) +
     scale_x_date(date_labels = "%b", date_breaks = "1 month", expand = expansion(add = c(0,0))) +
   scale_y_continuous(labels = number_format(suffix = " \u00b0C")) +
     scale_color_manual(values = clim_colors) +
@@ -319,7 +322,9 @@ ggplot(data = one_yr, aes(x = flat_date)) +
           linetype = c(1, 1, 1, NA),
           alpha = c(1,1,1,1), 
           label = c("", "", "", "")),
-        byrow = T)) 
+        byrow = T))  + 
+  coord_cartesian(clip = "off") +
+  geom_logo(x_npc = 0.85, y_npc = 1.05, logo_height = 1, height_units = "cm")
 ```
 
 
@@ -400,7 +405,9 @@ ggplot(monthly_temps, aes(x = time, y = 0)) +
         ) +
   labs(title = str_c(tidy_name, "\nMonthly Sea Surface Temperature Anomalies"),
        x = "",
-       caption = "Monthly Averages from 1982-2021  |  Climatology Period 1982-2011")
+       caption = "Monthly Averages from 1982-2021  |  Climatology Period 1982-2011")  +
+    coord_cartesian(clip = "off") +
+    geom_logo(x_npc = 0.1, y_npc = -.4, logo_height = 1, height_units = "cm")
 ```
 
 
@@ -475,8 +482,6 @@ yearly_temp_smooth <-  as.data.frame(spline(annual_summary$yr_as_dtime, annual_s
 
 ```{r annual trend plot}
 
-
-
 # Fancy colored markdown titles and subtitles:
 gom_rate <- str_c(rate_data$`GoM All C`$decadal_rate / 10, "\u00b0C / year")
 glob_rate <- str_c(rate_data$`Global All C`$decadal_rate / 10, "\u00b0C / year")
@@ -526,14 +531,13 @@ ggplot(data = annual_summary, aes(yr_as_dtime, area_wtd_anom)) +
      labels = number_format(suffix = " \u00b0C")) +
   
   # labels + theme
-  labs(x = "", 
+  labs(x = "Date", 
        y = "Sea Surface Temperature Anomaly",
        caption = paste0("Anomalies calculated using 1982-2011 reference period."),
        title = fancy_title,
        subtitle = fancy_subtitle) +
   
   # theme
-  theme_gmri() +
   theme(
     plot.title = element_markdown(),
     plot.subtitle = element_markdown(),
@@ -548,9 +552,10 @@ ggplot(data = annual_summary, aes(yr_as_dtime, area_wtd_anom)) +
         title.position = "left",
         label.position = "top", 
         override.aes = list(
-          point = c(0, 0, 0),
           linetype = c(1, 2, 1),
-        byrow = T)))
+        byrow = T))) +
+  coord_cartesian(clip = "off") +
+  geom_logo(x_npc = 0.1, y_npc = -.4, logo_height = 1, height_units = "cm")
   
 
 
@@ -564,18 +569,19 @@ Beginning around 2008, temperature in the region swung upward, and since 2010 mo
 ```{r}
 
 # Set up regime shift plot
-clim_avg <- annual_summary %>% filter(year %in% c(1982:2011)) %>% 
+clim_avg <- annual_summary %>% 
+  filter(year %in% c(1982:2011)) %>% 
   summarise(x = 1982,
             xend = 2011,
             avg_c = mean(area_wtd_sst, na.rm = T),
             avg_f = mean(area_wtd_f, na.rm = T),
             avg_anom_c = 0,
             avg_anom_f = 0) %>% 
-  mutate(across(where(is_numeric), round, 2))%>% 
   mutate(across(where(is_numeric), round, 2))
 
 # average from 2010 onward:
-r2_avg <- annual_summary %>% filter(year %in% c(2010:2021)) %>% 
+r2_avg <- annual_summary %>% 
+  filter(year %in% c(2010:2021)) %>% 
   summarise(x = 2010,
             xend = 2021,
             avg_c = mean(area_wtd_sst, na.rm = T),
@@ -621,7 +627,7 @@ ggplot(data = annual_summary, aes(year, area_wtd_anom)) +
   
   # labels + theme
   labs(title = "Recent Temperatures Indicative of a Regime Shift",
-       x = "", 
+       x = "Year", 
        y = "Sea Surface Temperature Anomaly",
        caption = paste0("Anomalies calculated using 1982-2011 reference period.")) +
   # theme
@@ -629,7 +635,9 @@ ggplot(data = annual_summary, aes(year, area_wtd_anom)) +
    theme(legend.title = element_blank(),
         legend.position = c(0.85, 0.1),
         legend.background = element_rect(fill = "transparent"),
-        legend.key = element_rect(fill = "transparent", color = "transparent")) 
+        legend.key = element_rect(fill = "transparent", color = "transparent"))  +
+  coord_cartesian(clip = "off") +
+  geom_logo(x_npc = 0.1, y_npc = -.25, logo_height = 1, height_units = "cm")
 
 
 ```
@@ -676,7 +684,8 @@ quarter_summary %>%
         legend.position = "none",
         legend.background = element_rect(fill = "transparent"),
         legend.key = element_rect(fill = "transparent", color = "transparent")) +
-  facet_wrap(~season_eng, ncol = 1)
+  facet_wrap(~season_eng, ncol = 1)  +
+  coord_cartesian(clip = "off")
 ```
 
 ### Overall Temperature Increase
@@ -709,10 +718,13 @@ ggplot(dat_combined, aes(x = `1982`, xend = `2021`, y = fct_rev(Area))) +
                 seed = 123) +
   labs(x = "Sea Surface Temperature", 
        title = "Change in Sea Surface Temeprature - 1982-2021", 
-       y = "") +
+       y = "",
+       caption = "") +
    scale_x_continuous(sec.axis = sec_axis(trans = ~as_fahrenheit(., data_type = "temperature"),
                                          labels =  number_format(suffix = " \u00b0F")),
-                     labels = number_format(suffix = " \u00b0C"))
+                     labels = number_format(suffix = " \u00b0C"))  +
+  coord_cartesian(clip = "off") +
+  geom_logo(x_npc = 0.9, y_npc = -.35, logo_height = 1, height_units = "cm")
 ```
 
 
@@ -729,13 +741,18 @@ A marine heatwave is defined as a situation when seawater temperatures exceeds a
 
  
 
-```{r, fig.height = 6}
+```{r}
+#| fig.height: 8
 # Plot heatmap
-heatwave_heatmap <- heatwave_heatmap_plot(hw_dat = region_hw, temp_units = "C", end_yr = 2022)
+heatwave_heatmap <- heatwave_heatmap_plot(hw_dat = region_hw, temp_units = "C", end_yr = 2022) +
+  theme(legend.position = "bottom")
 
 
 # Assemble pieces
-heatwave_heatmap
+heatwave_heatmap  +
+  coord_cartesian(clip = "off") +
+  geom_logo(x_npc = 0.9, y_npc = 1.05, logo_height = 1, height_units = "cm") + 
+  labs(caption = "", title = "Gulf of Maine Heatwave Record")
 
 ```
 
@@ -797,7 +814,11 @@ hw_peaks <-  ggplot(wave_summary, aes(y = year, x = peak_intensity)) +
   labs(x = "Peak Anomaly", y = "")
 
 
-(hw_counts | hw_lengths | hw_temps | hw_peaks) + plot_annotation(title = "Heatwaves Frequent and Powerful in Recent Years")
+(hw_counts | hw_lengths | hw_temps | hw_peaks) + 
+  plot_annotation(title = "Heatwaves Frequent and Powerful in Recent Years") +
+  coord_cartesian(clip = "off") +
+  geom_logo(x_npc = 0.8, y_npc = 1.15, logo_height = 1, height_units = "cm")
+
 
 ```
 
@@ -862,11 +883,13 @@ ggplot(data = one_yr, aes(x = flat_date)) +
         title.position = "left",
         label.position = "top",
         override.aes = list(
-          shape = c(16, NA, NA, NA),
-          linetype = c(0, 1, 1, 1),
+          shape = c(NA, NA, NA, 16),
+          linetype = c(1, 1, 1, NA),
           alpha = c(1, 1, 1, 1),
           label = c("", "", "", "")),
-        byrow = T))
+        byrow = T)) + 
+  coord_cartesian(clip = "off") +
+  geom_logo(x_npc = 0.9, y_npc = 1.15, logo_height = 1, height_units = "cm")
 ```
 
 
@@ -949,7 +972,9 @@ hw_temp_p <- year_hw_temps_two(year_hw_dat = this_yr_hw, temp_units = "C") +
   labs(color = "")
 
 # Show Figure
-hw_temp_p
+hw_temp_p + 
+  coord_cartesian(clip = "off") +
+  geom_logo(x_npc = 0.85, y_npc = 1.05, logo_height = 1, height_units = "cm")
 
 
 ```
@@ -970,7 +995,9 @@ hw_anom_p <- year_hw_anoms_two(year_hw_dat = this_yr_hw, temp_units = "F") +
   #theme_gmri() +
   theme(legend.position = "bottom") + 
   labs(color = "")
-hw_anom_p
+hw_anom_p + 
+  coord_cartesian(clip = "off") +
+  geom_logo(x_npc = 0.85, y_npc = 1.05, logo_height = 1, height_units = "cm")
 
 ```
 
@@ -1008,7 +1035,7 @@ The longest heatwave on record in the Gulf of Maine began on Jan 1st of 2021 and
 
 
 # Option 3: Last complete year through now
-last_year <- 2021
+last_year <- 2022
 last_yr_heatwaves <-  region_hw %>% 
   filter(year(time) >= last_year,
          time <= as.Date("2022-06-26"))
