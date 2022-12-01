@@ -551,7 +551,7 @@ seasonal_temp_p <- ggplot(seasonal_avgs,
   # Box for new regime
   #annotate(geom = "rect", xmin = 2010, xmax = Inf, ymin = -Inf, ymax = Inf, color = "transparent", fill = "darkred", alpha = 0.1) +
   geom_line(color = "gray20", linetype = 3, linewidth = 0.5, alpha = 0.5) +
-  geom_point(color = "gray20", size = 1, alpha = 0.8) +
+  geom_point(color = "gray20", alpha = 0.8) +
   # All year warmming rate for GOM
   geom_smooth(formula = y~x, 
               linetype = 1,
@@ -665,10 +665,10 @@ When looking at average `r tolower(params$season)` temperatures, there is a clea
 global_rate_plot <- ggplot(glob_plot_dat) +
   geom_line(data = filter(glob_plot_dat, region == "Gulf of Maine"), 
             aes(yr, anom_f), 
-            color = "gray20", linetype = 3, size = 0.5, alpha = 0.5) +
+            color = "gray20", linetype = 3, linewidth = 0.5, alpha = 0.5) +
   geom_point(data = filter(glob_plot_dat, region == "Gulf of Maine"), 
             aes(yr, anom_f), 
-            color = "gray20", size = 1, alpha = 0.8) +
+            color = "gray20", alpha = 0.8) +
   # All year warming rate for GOM
   geom_smooth(aes(yr, anom_f, color = rate), 
               formula = y~x, 
@@ -705,7 +705,7 @@ global_rate_plot <- ggplot(glob_plot_dat) +
        x = "Year",
        y = str_c("Average Temperature Anomalies\n(", season_range, ")"),
        color = "1982-2022 Warming Rate")  +
-  theme(legend.position = c(0.2, 0.85)) +
+  theme(legend.position = c(0.2, 0.85), legend.title = element_text(face = "bold")) +
   coord_cartesian(clip = "off") +
   geom_logo(x_npc = 0.9, y_npc = -0.15, logo_height = 1, height_units = "cm")
 
@@ -730,7 +730,7 @@ ref_height <- switch(params$season,
   "Winter" = data.frame(x = 1982, xend = 2011, y = 45, yend = 45),
   "Spring" = data.frame(x = 1982, xend = 2011, y = 58.5, yend = 58.5),
   "Summer" = data.frame(x = 1982, xend = 2011, y = 68.5, yend = 68.5),
-  "Fall"   = data.frame(x = 1982, xend = 2011, y = 68, yend = 68))
+  "Fall"   = data.frame(x = 1982, xend = 2011, y = 68.5, yend = 68.5))
 
 
 # Plot the summers, use box plots for yearly distribution
@@ -740,11 +740,14 @@ seasonal_temp_dist <- ggplot() +
                aes(season_yr, area_wtd_f, group = season_yr), color = "gray70") + 
   geom_boxplot(data = filter(all_season_dat, season_yr >= 2010), 
                aes(season_yr, area_wtd_f, group = season_yr), color = "gray40") + 
-  geom_segment(data = ref_height, aes(x = x, xend = xend, y = y, yend = yend), color = "black") +
-  geom_segment(data = ref_height, aes(x = x, xend = x, y = y-.5,   yend = y+.5), color = "black") +
-  geom_segment(data = ref_height, aes(x = xend, xend = xend, y = y-.5,   yend = y+.5), color = "black") +
-  annotate(x = 1997, y = ref_height$y + 1.5, label = "Climate-Reference Period", geom = "text", size = 3) +
-  geom_hline(linetype = 1, size = 0.75, 
+  geom_segment(data = ref_height, aes(x = x, xend = xend, y = y, yend = yend), 
+               color = "black", linewidth = 1) +
+  geom_segment(data = ref_height, aes(x = x, xend = x, y = y-.5, yend = y+.5), 
+               color = "black", linewidth = 1) +
+  geom_segment(data = ref_height, aes(x = xend, xend = xend, y = y-.5, yend = y+.5), 
+               color = "black", linewidth = 1) +
+  annotate(x = 1997, y = ref_height$y + 1.25, label = "Climate-Reference Period", geom = "text", size = 4.5) +
+  geom_hline(linetype = 1, linewidth = 1, 
              aes(yintercept = climate_baseline, 
                  color = "Reference Period Average")) + 
   scale_y_continuous(labels = number_format(suffix = " \u00b0F")) +
@@ -753,7 +756,7 @@ seasonal_temp_dist <- ggplot() +
        title = str_c("Regime Shift in the Distribution of ", params$season, " SST"),
        color = "") +
   scale_color_manual(values = c("Reference Period Average" = "darkred")) +
-  theme(legend.position = c(0.8, 0.09), 
+  theme(legend.position = c(0.85, 0.09), 
         legend.background = element_blank(),
         legend.key = element_blank()) +
   coord_cartesian(clip = "off") +
@@ -868,7 +871,7 @@ hw_temp_p <- year_hw_temps_two(year_hw_dat = last_yr_heatwaves, temp_units = "F"
   labs(title = str_c(params$year, " Gulf of Maine SST"),
        subtitle = str_c("Temperatures through the end of ", params$season))  +
   coord_cartesian(clip = "off") +
-  geom_logo(x_npc = 0.9, y_npc = 1.1, logo_height = 1, height_units = "cm")
+  geom_logo(x_npc = 0.9, y_npc = 1.15, logo_height = 1, height_units = "cm")
 hw_temp_p
 ```
 
@@ -894,7 +897,7 @@ hw_anom_p <- year_hw_anoms_two(year_hw_dat = last_yr_heatwaves, temp_units = "F"
   labs(title = str_c(params$year, " Gulf of Maine SST Anomalies"),
        subtitle = str_c("Temperature Anomalies through the end of ", params$season)) +
   coord_cartesian(clip = "off") +
-  geom_logo(x_npc = 0.9, y_npc = 1.1, logo_height = 1, height_units = "cm")
+  geom_logo(x_npc = 0.9, y_npc = 1.15, logo_height = 1, height_units = "cm")
 hw_anom_p
 ```
 

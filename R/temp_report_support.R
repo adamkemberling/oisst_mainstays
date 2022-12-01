@@ -1532,7 +1532,7 @@ year_hw_temps_two <- function(
   
   # Build the Plot
   hw_p <- ggplot(year_hw_dat) +
-    geom_path(aes(x = time, y = {{temp_col}}, color = mhw_event_txt, group = mhw_event_no)) +
+    geom_path(aes(x = time, y = {{temp_col}}, color = mhw_event_txt, group = 1)) +
     geom_segment(aes(x = time, xend = time, y = {{clim_col}}, yend = {{temp_col}}, color = mhw_event_txt), alpha = 0.25) +
     geom_textpath(aes(x = time, y = {{hw_thresh_col}}), color = "gray10", label = "Heatwave Threshold", hjust = .05, lty = 1 ) + 
     geom_textpath(aes(x = time, y = {{clim_col}}), color = "gray10", label = "Climatological Mean", hjust = 0.5, lty = 1) +
@@ -1614,7 +1614,7 @@ year_hw_anoms_two <- function(
       hw_anom_thresh = {{ hw_thresh_col }} - {{ clim_col }},
       cs_anom_thresh    = {{ cs_thresh_col }} - {{ clim_col }}) %>% 
     ggplot() +
-    geom_path(aes(x = time, y = {{anom_col}}, color = mhw_event_txt, group = mhw_event_no)) +
+    geom_path(aes(x = time, y = {{anom_col}}, color = mhw_event_txt, group = 1)) +
     geom_segment(aes(x = time, xend = time, y = 0, yend = {{anom_col}}, color = mhw_event_txt), alpha = 0.25) +
     geom_path(aes(x = time, y = hw_anom_thresh), color = "gray10", lty = 3) + 
     # geom_textpath(aes(x = time, y = hw_anom_thresh), color = "gray10", label = "Heatwave Threshold", hjust = .33, lty = 1) + 
