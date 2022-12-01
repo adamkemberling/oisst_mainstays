@@ -407,7 +407,7 @@ ggplot(monthly_temps, aes(x = time, y = 0)) +
        x = "",
        caption = "Monthly Averages from 1982-2021  |  Climatology Period 1982-2011")  +
     coord_cartesian(clip = "off") +
-    geom_logo(x_npc = 0.1, y_npc = -.4, logo_height = 1, height_units = "cm")
+    geom_logo(x_npc = 0.1, y_npc = -.45, logo_height = 1, height_units = "cm")
 ```
 
 
@@ -724,7 +724,7 @@ ggplot(dat_combined, aes(x = `1982`, xend = `2021`, y = fct_rev(Area))) +
                                          labels =  number_format(suffix = " \u00b0F")),
                      labels = number_format(suffix = " \u00b0C"))  +
   coord_cartesian(clip = "off") +
-  geom_logo(x_npc = 0.9, y_npc = -.35, logo_height = 1, height_units = "cm")
+  geom_logo(x_npc = 0.9, y_npc = -.5, logo_height = 1, height_units = "cm")
 ```
 
 
@@ -745,8 +745,19 @@ A marine heatwave is defined as a situation when seawater temperatures exceeds a
 #| fig.height: 8
 # Plot heatmap
 heatwave_heatmap <- heatwave_heatmap_plot(hw_dat = region_hw, temp_units = "C", end_yr = 2022) +
-  theme(legend.position = "bottom")
-
+  labs(title = "Gulf of Maine Heatwave Record") +
+  theme(legend.position = "bottom",
+        legend.title = element_text(angle = 0),
+        plot.margin = margin(b = 0, t = 20)) +
+  guides(fill = guide_colorbar(
+    title = "Sea Surface Temperature Anomaly",
+    title.position = "top", 
+    title.hjust = 0.5, barwidth = unit(3.5, "in"), 
+    barheight = unit(0.5, "cm"), 
+    frame.colour = "black", 
+    ticks.colour = "black")) +
+  coord_cartesian(clip = "off") +
+  geom_logo(x_npc = 0.9, y_npc = 1.05, logo_height = 1, height_units = "cm")
 
 # Assemble pieces
 heatwave_heatmap  +
@@ -889,7 +900,7 @@ ggplot(data = one_yr, aes(x = flat_date)) +
           label = c("", "", "", "")),
         byrow = T)) + 
   coord_cartesian(clip = "off") +
-  geom_logo(x_npc = 0.9, y_npc = 1.15, logo_height = 1, height_units = "cm")
+  geom_logo(x_npc = 0.9, y_npc = 1.125, logo_height = 1, height_units = "cm")
 ```
 
 
@@ -933,6 +944,8 @@ year_comp %>%
   arrange(desc(`Average Temperature`))  %>% 
   mutate(Rank = row_number()) %>% 
   ungroup() %>% 
+  mutate(Season = factor(Season, levels = c(
+    "Winter", "Spring", "Summer", "Fall"))) %>% 
   filter(Year == 2022 | Rank <= 5,
          Season != "Winter") %>% 
   arrange(Season) %>% 
