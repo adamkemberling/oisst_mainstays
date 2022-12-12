@@ -587,8 +587,15 @@ detrend_sst(gom_j1, vals = "anom", yr_col = "yr") %>%
 
 ```{r}
 # Thresholds are set with: heatwaveR::detect_event()
-# Just need to feed it either the original SST or the detrended anomalies:
-# Need to preserve some indication that SST has been detrended or not
+# Just need to feed it either the original SST or the de-trended anomalies:
+# Need to preserve some indication that SST has been de-trended or not
+
+
+# Currently what I'm doing:
+# de-trended anomalies == Deviation from reference AND deviation from the trend
+# climatology + de-trended anomalies == How hot they are without trend
+# Checking the original thresholds against these values should reflect 
+# when temps are "extreme" in both regards: raw temp and against trend
 
 
 ```
@@ -782,7 +789,7 @@ heatwave_heatmap_plot(., temp_units = "C", start_yr = 2000, end_yr = 2022)  +
 
 :::
 
-## Detrended Timeseries - Anomalies from Reference
+## De-trended Timeseries - Anomalies from Reference Period
 
 
 :::panel-tabset
@@ -810,7 +817,7 @@ heatwave_heatmap_plot(., temp_units = "C", start_yr = 2000, end_yr = 2022) +
 :::
 
 
-## Detrended Timeseries - Detrended Anomalies
+## De-trended Timeseries - Anomalies After De-Trending
 
 :::panel-tabset
 
