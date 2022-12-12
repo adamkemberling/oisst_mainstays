@@ -158,7 +158,7 @@ pull_heatwave_events <- function(temperature_timeseries,
   ts  <- heatwaveR::ts2clm(data = test_ts, 
                 climatologyPeriod = clim_ref_period, 
                 pctile = threshold) %>% 
-    mutate(anom = temp - seas,
+    mutate(sst_anom = temp - seas,
            yr = lubridate::year(t))
   
   
@@ -169,7 +169,7 @@ pull_heatwave_events <- function(temperature_timeseries,
     # Detrend day of year temperature trends:
     ts <- ts %>% 
       split(.$doy) %>% 
-      map_dfr(detrend_sst, vals = "anom", yr_col = "yr") %>% 
+      map_dfr(detrend_sst, vals = "sst_anom", yr_col = "yr") %>% 
       mutate(detrend_temp = seas + detrend_vals)
     
   }
@@ -184,7 +184,7 @@ pull_heatwave_events <- function(temperature_timeseries,
   
   # Select and rename critical heatwave data
   mhw_out <- mhw[[1]] %>% 
-    mutate(sst_anom = temp - seas) %>% 
+    #mutate(sst_anom = temp - seas) %>% 
     rename(time = t,
            sst = temp,
            mhw_thresh = thresh,
@@ -200,7 +200,7 @@ pull_heatwave_events <- function(temperature_timeseries,
   ts <- ts2clm(data = test_ts, 
                climatologyPeriod = clim_ref_period, 
                pctile = (100 - threshold)) %>% 
-    mutate(anom = temp - seas,
+    mutate(sst_anom = temp - seas,
            yr = lubridate::year(t))
   
   
@@ -210,8 +210,8 @@ pull_heatwave_events <- function(temperature_timeseries,
     # Detrend day of year temperature trends:
     ts <- ts %>%
       split(.$doy) %>%
-      map_dfr(detrend_sst, vals = "anom", yr_col = "yr") %>%
-      mutate(detrend_temp = seas + detrend_vals)
+      map_dfr(detrend_sst, vals = "sst_anom", yr_col = "yr") %>%
+      mutate(detrend_temp = seas + detrend_vals) 
     
   }
   
