@@ -16,7 +16,7 @@ execute:
   warning: false
   message: false
   comment: ""
-  fig.align: "center"
+  fig.align: center
 editor: source
 ---
 
@@ -1343,6 +1343,15 @@ monthly_maps + plot_annotation(caption = "200m contour overlaid to show topograp
 ```
 
 
+## A Note on Data Sources:
+
+NOAA_ERSST_V5 data provided by the NOAA/OAR/ESRL PSL, Boulder, Colorado, USA, from their Web site at https://psl.noaa.gov/data/gridded/data.noaa.ersst.v5.html.
+
+NOAA High Resolution SST data provided by the NOAA/OAR/ESRL PSL, Boulder, Colorado, USA, from their Web site at https://psl.noaa.gov/data/gridded/data.noaa.oisst.v2.highres.html. 
+
+If you would like to cite this report, pleasue use:
+> Gulf of Maine Research Institute. 2022. Gulf of Maine Warming Update: 2021 the Hottest Year on Record. https://gmri.org/stories/warming-21
+
 
 ```{r}
 #| label: figure-saving
@@ -1517,5 +1526,8 @@ if(params$`Save Data`){
             file = update_name)
 }
 ```
+
+
+
 
 `r insert_gmri_footer()`

@@ -83,6 +83,38 @@ reclassify_to_discrete <- function(ranks_stack,
 }
 
 
+####_____________________________####
+
+
+
+
+#' @title Detrend Annual Values
+#' 
+#' @ Removes linear trend from a timeseries of annual values. Model is 
+#' a linear regression using lm(), returns original dataframe with new 
+#' column for detrended values `detrend_vals`.
+#'
+#' @param x dataframe containing data for the model
+#' @param vals string indicating the column for the response variable to detrend
+#' @param yr_col string indicating the column for the independent variable, typically a year integer
+#'
+#' @return
+#' @export
+#'
+#' @examples
+detrend_sst <- function(x, vals, yr_col){
+  
+  # Get the trend
+  linear_trend <- lm(formula(str_c(vals,"~", yr_col)), data = x)
+  
+  # remove trend from the data
+  trend_pred <- predict(linear_trend, x)
+  x$detrend_vals <- x[[vals]] - trend_pred
+  return(x)
+  
+  
+}
+
 
 ####  Identify Marine Heatwaves  ####
 # 
@@ -91,66 +123,120 @@ reclassify_to_discrete <- function(ranks_stack,
 #' @description Pull both heatwave and cold spell events using same threshold and return
 #' as single table. Wrapper function to do heatwaves and coldwaves simultaneously at 90% 
 #' or custom threshold
+#' 
+#' Option to de-trend anomalies at annual scale in accordance with Jacox et al. methodology. Default
+#' is not de-trended and uses a statid climate reference period following the methods of hobday et al.
 #'
 #' @param temperature_timeseries timeseries dataframe with date and sst values
+#' @param clim_ref_period start and end dates to use when calculating the climate reference 
+#' period c("yyyy-mm-dd", "yyyy-mm-dd")
+#' @date_col String indicating the column to use for dates
+#' @temp_col String indicating the column to de-trend
 #' @param threshold percentile cutoff for indicating a heatwave/coldspell event
+#' @param detrend TRUE/FALSE Whether to de-trend anomalies prior to event detection, default is FALSE.
 #'
 #' @return
 #' @export
 #'
 #' @examples
 pull_heatwave_events <- function(temperature_timeseries, 
-                                 threshold = 90, 
-                                 clim_ref_period = c("1982-01-01", "2011-12-31")) {
+                                 clim_ref_period = c("1982-01-01", "2011-12-31"),
+                                 date_col = "time",
+                                 temp_col = "sst",
+                                 threshold = 90,
+                                 detrend = FALSE) {
+  
+  # temperature_timeseries <- gom_sst
+  
   
   # Pull the two column dataframe for mhw estimation
-  test_ts <- data.frame(t = as.Date(temperature_timeseries$time), 
-                        # temp = temperature_timeseries$sst
-                        temp = temperature_timeseries$area_wtd_sst)
+  test_ts <- data.frame(t = as.Date(temperature_timeseries[[date_col]]), 
+                        temp = temperature_timeseries[[temp_col]])
   
   
-  # Drop duplicate dates here?
-  #test_ts <- test_ts %>% filter(lubrid)
-  
-  
-  # Detect the events in a time series
+  # Calculate seasonally varying climatology with threshold w/ smoothing window
   ts  <- ts2clm(data = test_ts, 
                 climatologyPeriod = clim_ref_period, 
-                pctile = threshold)
+                pctile = threshold) %>% 
+    mutate(anom = temp - seas,
+           yr = lubridate::year(t))
   
-  #heatwaves
-  mhw <- detect_event(ts)                         
   
-  # prep heatwave data
-  mhw_out <- mhw$climatology %>% 
+  
+  # Perform linear detrending on anomalies
+  if(detrend){
+    
+    # Detrend day of year temperature trends:
+    ts <- ts %>% 
+      split(.$doy) %>% 
+      map_dfr(detrend_sst, vals = "anom", yr_col = "yr") %>% 
+      mutate(detrend_temp = seas + detrend_vals)
+    
+  }
+  
+  
+  # Perform Heatwave Detection
+  mhw <- ifelse(detrend,
+                detect_event(ts, x = t, y = detrend_temp),
+                detect_event(ts, x = t, y = temp))
+  
+  
+  
+  # Select and rename critical heatwave data
+  mhw_out <- mhw[[1]] %>% 
     mutate(sst_anom = temp - seas) %>% 
-    select(time = t,
+    rename(time = t,
            sst = temp,
-           seas,
-           sst_anom,
            mhw_thresh = thresh,
+           mhw_threshCriterion = threshCriterion,
+           mhw_durationCriterion = durationCriterion,
            mhw_event = event,
            mhw_event_no = event_no)
   
   
+  # Repeat for cold spells
   # 2. Detect cold spells
   # coldSpells = TRUE flips boolean to < thresh
   ts <- ts2clm(data = test_ts, 
                climatologyPeriod = clim_ref_period, 
-               pctile = (100 - threshold))
-  mcs <- detect_event(ts, coldSpells = TRUE) 
+               pctile = (100 - threshold)) %>% 
+    mutate(anom = temp - seas,
+           yr = lubridate::year(t))
   
-  # prep cold spell data
-  mcs_out <- mcs$climatology %>%
+  
+  # Perform linear detrending on anomalies
+  if(detrend){
+    
+    # Detrend day of year temperature trends:
+    ts <- ts %>%
+      split(.$doy) %>%
+      map_dfr(detrend_sst, vals = "anom", yr_col = "yr") %>%
+      mutate(detrend_temp = seas + detrend_vals)
+    
+  }
+  
+  
+  
+  # Perform Cold Spell Detection
+  mcs <- ifelse(detrend,
+                detect_event(ts, x = t, y = detrend_temp, coldSpells = T),
+                detect_event(ts, x = t, y = temp, coldSpells = T))
+  
+  
+  
+  # Prepare cold spell data to join
+  # Remove columns that are shared with heatwaves
+  mcs_out <- mcs[[1]] %>%
     select(time = t,
            mcs_thresh = thresh,
+           mcs_threshCriterion = threshCriterion,
+           mcs_durationCriterion = durationCriterion,
            mcs_event = event,
            mcs_event_no = event_no)
   
   
-  # join heatwaves to coldwaves
+  # join heatwave detection results to coldspell results
   hot_and_cold <- left_join(mhw_out, mcs_out, by = "time")
-  
   
   
   # 3. Data formatting for plotting, 
@@ -160,6 +246,7 @@ pull_heatwave_events <- function(temperature_timeseries,
       # Set up status to combine labelling for heatwaves and cold spells:
       status   = ifelse(mhw_event == TRUE, "Marine Heatwave Event", "Sea Surface Temperature"),
       status   = ifelse(mcs_event == TRUE, "Marine Cold Spell Event", status),
+      event_type = ifelse(detrend, "Jacox Method", "Hobday Method"),
       # Corrective measures for where event flagging is off:
       # status   = ifelse(sst > mhw_thresh, "Marine Heatwave Event", status),
       # status   = ifelse(sst < mcs_thresh, "Marine Cold Spell Event", status),
