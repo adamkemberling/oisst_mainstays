@@ -1130,6 +1130,13 @@ heatwaves_91 %>%
 ```
 
 
+## A Note on Data Sources:
+
+NOAA_ERSST_V5 data provided by the NOAA/OAR/ESRL PSL, Boulder, Colorado, USA, from their Web site at https://psl.noaa.gov/data/gridded/data.noaa.ersst.v5.html.
+
+NOAA High Resolution SST data provided by the NOAA/OAR/ESRL PSL, Boulder, Colorado, USA, from their Web site at https://psl.noaa.gov/data/gridded/data.noaa.oisst.v2.highres.html. 
+
+
 
 
 

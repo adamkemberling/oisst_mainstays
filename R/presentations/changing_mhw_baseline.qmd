@@ -1,0 +1,790 @@
+---
+title: "Shifting Baselines"
+subtitle: "Gulf of Maine Marine Heatwaves"
+title-slide-attributes:
+    data-background-image: /img/GMRI_template_slide1.png
+    data-background-size: contain
+    data-background-opacity: "0.35"
+format: 
+  revealjs:
+    slide-number: true
+    logo: img/gmri_logo.png
+editor: visual
+execute: 
+  echo: false
+  warning: false
+  message: false
+  comment: ""
+  fig.align: center
+---
+
+## Communication of "Extreme Events" & a Changing Climate.
+
+The impacts of changing the **reference period** and/or **de-trending** on how we categorize "extreme events".
+
+```{r}
+#| label: setup
+
+library(heatwaveR)
+library(tidyverse)
+library(geomtextpath)
+library(scales)
+library(lubridate)
+library(patchwork)
+library(gmRi)
+conflicted::conflict_prefer("select", "dplyr")
+conflicted::conflict_prefer("filter", "dplyr")
+conflicted::conflict_prefer("lag", "dplyr")
+theme_set(theme_gmri())
+```
+
+## Defining Marine Heatwave Events (MHW)
+
+Marine heatwaves have traditionally defined using the Hobday et al. definition:
+
+> A marine heatwave is defined a when seawater temperatures exceed a seasonally-varying threshold (usually the 90th percentile) for at least 5 consecutive days. Successive heatwaves with gaps of 2 days or less are considered part of the same event.
+
+## Setting MHW Thresholds
+
+**Using this definition:**
+
+> MHW events result when a daily SST measurement falls beyond some threshold. This threshold is set using some **climate baseline**.
+
+The standard baseline we have used is 30-years: **1982-2011.**
+
+```{r}
+#| label: load-data
+
+
+# Support Functions
+source(here::here("R/oisst_support_funs.R"), verbose = FALSE)
+source(here::here("R/temp_report_support.R"), verbose = FALSE)
+
+# Load the SST
+gom_sst <- oisst_access_timeseries(region_family = "gmri focus areas",
+                                   poly_name = "apershing gulf of maine", 
+                                   box_location = "cloudstorage")
+
+# Format
+gom_sst <- gom_sst %>% 
+  mutate(
+    time = as.Date(time),
+    area_wtd_f = as_fahrenheit(area_wtd_sst),
+    anom_f     = as_fahrenheit(area_wtd_anom, "anomalies")) %>% 
+  distinct(time, .keep_all = T) %>% 
+  supplement_season_info() %>% 
+  filter(year %in% c(1982:2022))
+
+```
+
+## Distribution of the Data:
+
+```{r}
+#| label: june1-setup
+#| fig.align: center
+
+# Pull June 1st's
+j1 <- gom_sst %>% filter(month(time) == 6, mday(time) == 1)
+
+# Pull reference period
+j1_ref <- j1 %>% filter(between(year(time), 1982, 2011))
+
+# Get mean/sd
+mean_temp <- mean(j1_ref$area_wtd_sst)
+temp_sd <- sd(j1_ref$area_wtd_sst)
+
+# Plot
+ggplot(j1_ref, aes(x = area_wtd_sst)) + 
+  stat_function(
+    fun = dnorm, 
+    n = nrow(j1_ref), 
+    args = list(mean = mean_temp, 
+                sd = temp_sd), 
+    linewidth = 1) +
+  geom_dotplot(fill = "lightblue", binwidth = 0.15, ) + 
+  scale_y_continuous(limits = c(0, 0.5), expand = expansion(add = c(0,0))) +
+  scale_x_continuous(labels = number_format(suffix = "\u00b0C"),
+                     limits = c(6.5,13),
+                     expand = expansion(add = c(.5,.5))) +
+  theme(axis.text.y = element_blank(),
+        axis.ticks.y = element_blank()) +
+  labs(x = "Sea Surface Temperature", 
+       y = "Count", 
+       title = "June 1st Temperature Distribution",
+       color = "",
+       subtitle = "Gulf of Maine, 1982-2011 Reference Period") 
+```
+
+## Thresholds from the Distribution:
+
+```{r}
+#| label: daily-thresholds
+
+
+# Get hw/cs thresholds
+thresh <- qnorm(mean = mean_temp, sd = temp_sd, p = c(0.1, 0.9))
+
+
+# Add them to plot
+ggplot(j1_ref, aes(x = area_wtd_sst)) + 
+  geom_rect(
+    data = data.frame(xmin = -Inf, xmax = thresh[[1]], ymin = -Inf, ymax = Inf),
+    aes(
+      x = NULL,
+      xmin = xmin, 
+      xmax = xmax, 
+      ymin = ymin, 
+      ymax = ymax),
+    fill = "lightblue", 
+    alpha = 0.3) +
+  geom_rect(
+    data = data.frame(xmin = thresh[[2]], xmax = Inf, ymin = -Inf, ymax = Inf),
+    aes(
+      x = NULL,
+      xmin = xmin, 
+      xmax = xmax, 
+      ymin = ymin, 
+      ymax = ymax), 
+    fill = "darkred", 
+    alpha = 0.3) +
+  stat_function(
+    fun = dnorm, 
+    n = nrow(j1_ref), 
+    args = list(mean = mean_temp, 
+                sd = temp_sd), 
+    linewidth = 1) +
+  geom_vline(xintercept = mean_temp, linetype = 2) +
+  geom_vline(xintercept = thresh[[1]], linetype = 3) +
+  geom_vline(xintercept = thresh[[2]], linetype = 3) +
+  geom_dotplot(fill = "lightblue", binwidth = 0.15, ) + 
+  scale_y_continuous(limits = c(0, 0.5), expand = expansion(add = c(0,0))) +
+  scale_x_continuous(labels = number_format(suffix = "\u00b0C"),
+                     limits = c(6.5,13),
+                     expand = expansion(add = c(.5,.5))) +
+  theme(axis.text.y = element_blank(),
+        axis.ticks.y = element_blank()) +
+  annotate(x = 7, y = 0.4, label = '"Cold Spell"', geom = "text", size = 6) +
+  annotate(x = 12.4, y = 0.4, label = '"Heatwave"', geom = "text", size = 6) +
+  labs(x = "Sea Surface Temperature", 
+       y = "Count", 
+       title = "June 1st Heatwave/Coldspell Thresholds",
+       color = "",
+       subtitle = "Gulf of Maine, 1982-2011 Reference Period") 
+```
+
+## Tracking "Events" in Time
+
+Thresholds are smoothed with a moving average to get a seasonally varying heatwave/coldspell thresholds.
+
+```{r}
+#| label: heatwaves-standard
+
+
+
+# Run heatwaves
+# Uses area weighted sst by default
+gom_hw <- pull_heatwave_events(
+  temperature_timeseries = gom_sst,
+  threshold = 90, 
+  clim_ref_period = c("1982-01-01", "2011-12-31")) %>% 
+  supplement_hw_data() %>% 
+  filter(doy != 366)
+
+
+# Plot How Heatwaves Move above and below threshold criteria in practice
+gom_hw %>% 
+  mutate(time = as.Date(time)) %>% 
+  filter(year(time) == 2019,
+         month(time) %in% c(6:10))  %>% 
+year_hw_temps_two(year_hw_dat = ., temp_units = "C")  +
+  labs(title = "Established Heatwave Event Record")
+  
+```
+
+## Shifting the Baseline
+
+The major criticism of this approach is that the reference period is **static,**  and thresholds do not track long-term trends.
+
+```{r}
+#| label: shifting-dist
+
+# Pull reference period
+new_j1_ref <- j1 %>% filter(between(year(time), 1991, 2020))
+
+# Get mean/sd
+new_mean_temp <- mean(new_j1_ref$area_wtd_sst)
+new_temp_sd <- sd(new_j1_ref$area_wtd_sst)
+
+# Plot
+ggplot(j1_ref, aes(x = area_wtd_sst)) + 
+  stat_function(
+    aes(color = "1982-2011 Reference Period"),
+    fun = dnorm, 
+    n = nrow(j1_ref), 
+    args = list(mean = mean_temp, 
+                sd = temp_sd), 
+    linewidth = 1) +
+  stat_function(
+    aes(color = "1991-2020 Reference Period"),
+    fun = dnorm, 
+    n = nrow(new_j1_ref), 
+    args = list(mean = new_mean_temp, 
+                sd = new_temp_sd), 
+    linewidth = 1) +
+  geom_vline(xintercept = mean_temp, linetype = 2,
+             color = gmri_cols("gmri blue")) +
+  geom_vline(xintercept = new_mean_temp, linetype = 2,
+             color = gmri_cols("orange")) +
+  scale_y_continuous(limits = c(0, 0.5), expand = expansion(add = c(0,0))) +
+  scale_x_continuous(labels = number_format(suffix = "\u00b0C"),
+                     limits = c(6.5,13),
+                     expand = expansion(add = c(.5,.5))) +
+  scale_color_gmri() +
+  theme(axis.text.y = element_blank(),
+        axis.ticks.y = element_blank(),
+        legend.position = c(0.2,0.85)) +
+  labs(x = "Sea Surface Temperature", 
+       y = "Frequency", 
+       title = "June 1st Temperature Distributions",
+       color = "",
+       subtitle = "Gulf of Maine: Moving the climate reference period") 
+```
+
+## Impacts from Changing the Baseline
+
+If we merely change the baseline, our point of reference for anomalies and heatwaves changes:
+
+```{r}
+#| label: new-hw-timeline 
+
+# Run heatwaves
+# Uses area weighted sst by default
+gom_hw_new <- pull_heatwave_events(
+  temperature_timeseries = gom_sst,
+  threshold = 90, 
+  clim_ref_period = c("1991-01-01", "2020-12-31")) %>% 
+  supplement_hw_data() %>% 
+  filter(doy != 366)
+
+
+gom_hw_new %>% 
+  filter(year(time) == 2019,
+         month(time) %in% c(6:10))  %>% 
+year_hw_temps_two(year_hw_dat = ., temp_units = "C") +
+  labs(title = "Heatwave Event Record Changed")
+```
+
+## Jacox Approach: De-trending Anomalies
+
+> For the detrended analysis, we removed linear trends over the 1991--2020 period from the observed SST anomalies and the lead-time-dependent forecast SST anomalies at each grid cell.
+
+
+
+
+## Mike Jacox & Vincent Saba Process:
+
+1. Calculate recent climatology (e.g., last 30 years)
+
+2. Calculate anomalies
+
+3. Detrend anomalies
+
+4. Calculate thresholds
+
+5. Identify MHWs
+
+
+
+
+## Jacox Questions:
+
+**1. Calculate recent climatology (e.g., last 30 years)**
+
+2. Calculate anomalies
+
+**3. Detrend anomalies** - Why not just temperature? **(answer:** confusing to match them to thresholds**)**
+
+4. Calculate thresholds
+
+**5. Identify MHWs** - Won't these change retroactively?
+
+
+
+
+## Comparing the Four Options:
+
+```{r}
+#| label: comparing-temp-or-anom-detrend
+
+# Run the jacox methods using the 92-2011 climatology
+jacox_test <- gom_hw_new
+
+
+# This should:
+# 1. Create climatology for actual temperatures
+# 2. Which we can then check against thresholds
+jacox_clim <- pull_heatwave_events(temperature_timeseries = gom_sst,
+                                   threshold = 90,
+                                   clim_ref_period = c("1991-01-01", "2020-12-31")) %>% select(-c(mhw_event_no, mcs_event_no, status, hwe, cse, nonevent))
+
+
+# Detrending SST before-hand:
+temp_detrend <- detrend_sst(gom_sst, vals = "sst", yr_col = "yr") %>% 
+  select(time, temp_detrend = detrend_vals)
+
+# Detrending Anoms After
+anom_detrend <- detrend_sst(
+  x = jacox_clim %>% mutate(yr = year(time)), 
+  vals = "sst_anom", 
+  yr_col = "yr") %>% 
+  rename(anom_detrend = detrend_vals)
+
+
+# Join back in the detrended sst and the heatwave detection details:
+gom_hw_91 <- left_join(anom_detrend, temp_detrend) %>% 
+  rename(
+    hw_thresh_91 = mhw_thresh,
+    seas_91 = seas,
+    anom_91 = sst_anom)
+
+
+
+
+
+# Join everything together, compare event signatures
+jacox_events <- left_join(anom_detrend, temp_detrend) %>% 
+  rename(
+    hw_thresh_91 = mhw_thresh,
+    seas_91 = seas,
+    anom_91 = sst_anom) %>% 
+  left_join(select(gom_hw, 
+                   time, 
+                   hw_thresh_82 = mhw_thresh,
+                   seas_82 = seas,
+                   anom_82 = sst_anom)) %>% 
+  mutate(
+    detrend_anom_plus_91clim = anom_detrend + seas_91,
+    detrend_anom_plus_82clim = anom_detrend + seas_82)
+  
+
+  
+# Compare when things are events or not
+flag_test <- jacox_events %>% 
+  mutate(
+    old_baseline_hobday = ifelse(sst > hw_thresh_82, T, F),
+    old_baseline_jacox = ifelse(detrend_anom_plus_82clim > hw_thresh_82, T, F),
+    new_baseline_hobday = ifelse(sst > hw_thresh_91, T, F),  
+    new_baseline_jacox = ifelse(detrend_anom_plus_91clim > hw_thresh_91, T, F)) %>% 
+  pivot_longer(names_to = "hw_method", 
+               values_to = "event_flag", 
+               cols = c(
+                 old_baseline_hobday,
+                 new_baseline_hobday,
+                 old_baseline_jacox, 
+                 new_baseline_jacox)) %>% 
+  mutate(
+    hw_type = ifelse(str_detect(hw_method, "jacox"), "Jacox Detrended HW", "Hobday Static Baseline"),
+    baseline = ifelse(str_detect(hw_method, "old"), "Ref: 1982-2011", "Ref: 1991-2020")
+  )
+```
+
+## Four Methods: Temperature
+
+
+```{r}
+#| label: four-methods-temp
+
+
+# Plot how all 4 options work
+flag_test  %>% 
+ggplot(aes(time,  sst, group = hw_method)) +
+  geom_line(aes(color = event_flag), linewidth = 1) +
+  scale_color_manual(values = c("gray80", "orange")) +
+  facet_grid(baseline~hw_type) +
+  labs(x = "Time", y = "Sea Surface Temperature", color = "Heatwave Event:")
+```
+
+## Four Methods: Anomalies
+
+
+```{r}
+#| label: four-methods-anoms
+
+# Plot it again with Anomalies
+flag_test  %>% select(time, anom_82, anom_91, hw_type, event_flag) %>% 
+  pivot_longer(values_to = "anom_by_baseline", names_to = "anom_baseline",
+               cols = c(anom_82, anom_91)) %>% 
+  mutate(baseline = ifelse(str_detect(anom_baseline, "82"), 
+                           "Ref: 1982-2011", "Ref: 1991-2020")) %>% 
+  ggplot(aes(time, anom_by_baseline)) +
+  geom_path(aes(color = event_flag), group = 1, linewidth = 0.5) +
+  scale_color_manual(values = c("gray80", "orange")) +
+  facet_grid(baseline~hw_type) +
+  labs(x = "Time", y = "SST Anomaly", color = "Heatwave Event:")
+
+  
+```
+
+# Full Workflow:
+
+```{r}
+
+
+
+```
+
+
+# 1. Calculate Climatology
+
+
+```{r}
+#| label: heatwaveR-seasonal-climatology
+#| eval: true
+
+
+# Calculate seasonally varying climatology with threshold w/ smoothing window
+# This is currently done inside of pull_heatwave_events and is not run here
+gom_clim  <- ts2clm(
+  data = gom_sst,
+  x = time, 
+  y = sst,
+  climatologyPeriod = c("1991-01-01", "2020-12-31"),
+  pctile = 90, clmOnly = F) %>%
+  mutate(anom = sst - seas,
+         yr = lubridate::year(time))
+
+
+gom_clim %>% 
+  distinct(doy, .keep_all = T) %>% 
+  ggplot(aes(doy, seas)) +
+  geom_line(aes(color = "Daily Climatological Average"), linewidth = 1) +
+  scale_color_gmri() +
+  labs(y = "Sea Surface Temperature", x = "Day of Year", color = "") +
+  theme(legend.position = c(0.225, 0.85))
+
+```
+
+
+## 2. Calculate Anomalies
+
+```{r}
+
+gom_clim %>% 
+  filter(yr == 2021) %>% 
+  mutate(seas = seas- seas) %>% 
+  ggplot(aes(time, seas)) +
+  geom_line(aes(color = "Daily Climatological Average"), linewidth = 1) +
+  geom_line(aes(y = anom, color = "Temperature Anomaly"), linewidth = 1) +
+  scale_color_gmri() +
+  labs(y = "Sea Surface Temperature", x = "Day of Year", color = "") +
+  theme(legend.position = c(0.225, 0.85))
+
+```
+
+
+## 3. De-trend Anomalies
+
+```{r}
+
+# Remove linear trend from anomalies or some other value
+# needs to be done based on day of year
+
+# See: detrend_sst
+
+
+# Plot the original anomalies, for one day of the year
+gom_j1 <- filter(gom_clim, 
+                 month(time) == 6, 
+                 day(time) == 1)
+
+
+# Plot them de-trended
+detrend_sst(gom_j1, vals = "anom", yr_col = "yr") %>% 
+  rename(`Fixed Baseline Anomalies` = anom,
+         `De-Trended Anomalies` = detrend_vals) %>% 
+  pivot_longer(names_to = "anom_type", values_to = "anom_vals", cols = c(
+    `Fixed Baseline Anomalies`, `De-Trended Anomalies`)) %>% 
+  mutate(anom_type = fct_rev(anom_type)) %>% 
+  ggplot(aes(yr, anom_vals)) +
+  geom_point() +
+  geom_smooth(formula = y ~ x, method = "lm") +
+  facet_wrap(~anom_type, ncol = 1) +
+  labs(x = "Year", y = "June 1st SST Anomaly", title = "June 1st: Anomaly Choice Differences")
+
+
+
+```
+
+
+
+## 4. Calculate Thresholds
+
+```{r}
+# Thresholds are set with: heatwaveR::detect_event()
+# Just need to feed it either the original SST or the detrended anomalies:
+# Need to preserve some indication that SST has been detrended or not
+
+
+```
+
+
+## 5. Identify MHW's
+
+## Full Workflow {.scrollable}
+
+The `pull_heatwave_events` function used in the warming report:
+
+
+
+```{r}
+#| eval: false
+#| echo: true
+#| lavel: pull-events-rework
+
+
+#' @title Pull Marine Heatwave and cold Spell Events from Timeseries
+#' 
+#' @description Pull both heatwave and cold spell events using same threshold and return
+#' as single table. Wrapper function to do heatwaves and coldwaves simultaneously at 90% 
+#' or custom threshold
+#' 
+#' Option to de-trend anomalies at annual scale in accordance with Jacox et al. methodology. Default
+#' is not de-trended and uses a statid climate reference period following the methods of hobday et al.
+#'
+#' @param temperature_timeseries timeseries dataframe with date and sst values
+#' @param clim_ref_period start and end dates to use when calculating the climate reference 
+#' period c("yyyy-mm-dd", "yyyy-mm-dd")
+#' @date_col String indicating the column to use for dates
+#' @temp_col String indicating the column to de-trend
+#' @param threshold percentile cutoff for indicating a heatwave/coldspell event
+#' @param detrend TRUE/FALSE Whether to de-trend anomalies prior to event detection, default is FALSE.
+#'
+#' @return
+#' @export
+#'
+#' @examples
+pull_heatwave_events <- function(temperature_timeseries, 
+                                 clim_ref_period = c("1982-01-01", "2011-12-31"),
+                                 date_col = "time",
+                                 temp_col = "sst",
+                                 threshold = 90,
+                                 detrend = FALSE) {
+  
+  # temperature_timeseries <- gom_sst
+  
+  
+  # Pull the two column dataframe for mhw estimation
+  test_ts <- data.frame(t = as.Date(temperature_timeseries[[date_col]]), 
+                        temp = temperature_timeseries[[temp_col]])
+  
+  
+  # Calculate seasonally varying climatology with threshold w/ smoothing window
+  ts  <- ts2clm(data = test_ts, 
+                climatologyPeriod = clim_ref_period, 
+                pctile = threshold) %>% 
+    mutate(anom = temp - seas,
+           yr = lubridate::year(t))
+  
+  
+  
+  # Perform linear detrending on anomalies
+  if(detrend){
+    
+    # Detrend day of year temperature trends:
+    ts <- ts %>% 
+      split(.$doy) %>% 
+      map_dfr(detrend_sst, vals = "anom", yr_col = "yr") %>% 
+      mutate(detrend_temp = seas + detrend_vals)
+  
+  }
+  
+  
+  # Perform Heatwave Detection
+  mhw <- ifelse(detrend,
+                detect_event(ts, x = t, y = detrend_temp),
+                detect_event(ts, x = t, y = temp))
+                           
+  
+  
+  # Select and rename critical heatwave data
+  mhw_out <- mhw[[1]] %>% 
+    mutate(sst_anom = temp - seas) %>% 
+    rename(time = t,
+           sst = temp,
+           mhw_thresh = thresh,
+           mhw_threshCriterion = threshCriterion,
+           mhw_durationCriterion = durationCriterion,
+           mhw_event = event,
+           mhw_event_no = event_no)
+  
+  
+  # Repeat for cold spells
+  # 2. Detect cold spells
+  # coldSpells = TRUE flips boolean to < thresh
+  ts <- ts2clm(data = test_ts, 
+               climatologyPeriod = clim_ref_period, 
+               pctile = (100 - threshold)) %>% 
+    mutate(anom = temp - seas,
+           yr = lubridate::year(t))
+  
+  
+  # Perform linear detrending on anomalies
+  if(detrend){
+
+    # Detrend day of year temperature trends:
+    ts <- ts %>%
+      split(.$doy) %>%
+      map_dfr(detrend_sst, vals = "anom", yr_col = "yr") %>%
+      mutate(detrend_temp = seas + detrend_vals)
+
+  }
+  
+  
+  
+  # Perform Cold Spell Detection
+  mcs <- ifelse(detrend,
+                detect_event(ts, x = t, y = detrend_temp, coldSpells = T),
+                detect_event(ts, x = t, y = temp, coldSpells = T))
+    
+  
+  
+  # Prepare cold spell data to join
+  # Remove columns that are shared with heatwaves
+  mcs_out <- mcs[[1]] %>%
+    select(time = t,
+           mcs_thresh = thresh,
+           mcs_threshCriterion = threshCriterion,
+           mcs_durationCriterion = durationCriterion,
+           mcs_event = event,
+           mcs_event_no = event_no)
+    
+    
+  # join heatwave detection results to coldspell results
+  hot_and_cold <- left_join(mhw_out, mcs_out, by = "time")
+    
+    
+  # 3. Data formatting for plotting, 
+  # adds columns to plot hw and cs seperately
+  events_out <- hot_and_cold %>% 
+    mutate(
+      # Set up status to combine labelling for heatwaves and cold spells:
+      status   = ifelse(mhw_event == TRUE, "Marine Heatwave Event", "Sea Surface Temperature"),
+      status   = ifelse(mcs_event == TRUE, "Marine Cold Spell Event", status),
+      event_type = ifelse(detrend, "Jacox Method", "Hobday Method"),
+      # Corrective measures for where event flagging is off:
+      # status   = ifelse(sst > mhw_thresh, "Marine Heatwave Event", status),
+      # status   = ifelse(sst < mcs_thresh, "Marine Cold Spell Event", status),
+      # Heatwave event temperature values:
+      hwe      = ifelse(mhw_event == TRUE, sst, NA),
+      cse      = ifelse(mcs_event == TRUE, sst, NA),
+      nonevent = ifelse(mhw_event == FALSE & mcs_event == FALSE, sst, NA)) 
+  
+  # Close the gaps between a mhw event and sst (might not need if full line for temp exists)
+  events_out <- events_out %>% 
+    mutate(hwe = ifelse( (is.na(hwe) & is.na(lag(hwe, n = 1))) == FALSE, sst, hwe),
+           cse = ifelse( (is.na(cse) & is.na(lag(cse, n = 1))) == FALSE, sst, cse)) %>% 
+    distinct(time, .keep_all = T)
+  
+  
+  return(events_out)
+}
+```
+
+
+## Testing
+
+```{r}
+
+# Fixed Baselines
+fixed_82 <- pull_heatwave_events(gom_sst)
+fixed_91 <- pull_heatwave_events(gom_sst, clim_ref_period = c("1991-01-01", "2020-12-31"))
+
+# Detrended Anomalies
+detrended_82 <- pull_heatwave_events(gom_sst, 
+                                     clim_ref_period = c("1982-01-01", "2011-12-31"), 
+                                     detrend = TRUE)
+detrended_91 <- pull_heatwave_events(gom_sst, 
+                                     clim_ref_period = c("1991-01-01", "2020-12-31"), 
+                                     detrend = TRUE)
+```
+
+## Fixed Baseline Heatmaps
+
+:::panel-tabset
+
+### 1982-2011
+
+```{r}
+fixed_82   %>% 
+  supplement_hw_data() %>% 
+  filter(doy != 366)  %>% 
+  mutate(year = year(time),
+         yday = yday(time),
+         yr_rev = factor(year),
+         yr_rev = fct_rev(yr_rev),
+         flat_date = as.Date("2000-01-01") + yday - 1) %>% 
+heatwave_heatmap_plot(., temp_units = "C", start_yr = 2000, end_yr = 2022) +
+  labs(title = "Hobday Method")
+```
+
+### Fixed Baseline: 1991-2020
+
+
+```{r}
+fixed_91   %>% 
+  supplement_hw_data() %>% 
+  filter(doy != 366)  %>% 
+  mutate(year = year(time),
+         yday = yday(time),
+         yr_rev = factor(year),
+         yr_rev = fct_rev(yr_rev),
+         flat_date = as.Date("2000-01-01") + yday - 1) %>% 
+heatwave_heatmap_plot(., temp_units = "C", start_yr = 2000, end_yr = 2022)  +
+  labs(title = "Hobday Method")
+```
+
+:::
+
+## Detrended Timeseries
+
+
+:::panel-tabset
+
+### 1982-2011
+
+
+```{r}
+detrended_82   %>% 
+  supplement_hw_data() %>% 
+  filter(doy != 366)  %>% 
+  mutate(year = year(time),
+         yday = yday(time),
+         yr_rev = factor(year),
+         yr_rev = fct_rev(yr_rev),
+         flat_date = as.Date("2000-01-01") + yday - 1) %>% 
+heatwave_heatmap_plot(., temp_units = "C", start_yr = 2000, end_yr = 2022) +
+  labs(title = "Jacox Method")
+```
+
+
+### Baseline 1991-2020
+
+
+```{r}
+detrended_91   %>% 
+  supplement_hw_data() %>% 
+  filter(doy != 366)  %>% 
+  mutate(year = year(time),
+         yday = yday(time),
+         yr_rev = factor(year),
+         yr_rev = fct_rev(yr_rev),
+         flat_date = as.Date("2000-01-01") + yday - 1) %>% 
+heatwave_heatmap_plot(., temp_units = "C", start_yr = 2000, end_yr = 2022) +
+  labs(title = "Jacox Method")
+```
+
+
+:::
+
+
+

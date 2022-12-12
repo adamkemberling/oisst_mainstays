@@ -10,7 +10,7 @@ library(raster)
 library(tidyverse)
 
 # Unicode for degrees
-deg_sym <- "\u00b0"
+deg_sym <- "\u00b0" 
 deg_c <- "\u00b0C"
 deg_f <- "\u00b0F"
 
