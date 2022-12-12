@@ -523,7 +523,7 @@ gom_clim  <- ts2clm(
 gom_clim %>% 
   distinct(doy, .keep_all = T) %>% 
   ggplot(aes(doy, seas)) +
-  geom_line(aes(color = "Daily Climatological Average"), linewidth = 1) +
+  geom_line(aes(color = "Daily Climatological Average\n1991-2020"), linewidth = 1) +
   scale_color_gmri() +
   labs(y = "Sea Surface Temperature", x = "Day of Year", color = "") +
   theme(legend.position = c(0.225, 0.85))
@@ -763,51 +763,81 @@ pull_heatwave_events <- function(temperature_timeseries,
 
 :::panel-tabset
 
-### 1982-2011
+### Baseline: 1982-2011
 
 ```{r}
 fixed_82 %>% 
 heatwave_heatmap_plot(., temp_units = "C", start_yr = 2000, end_yr = 2022) +
-  labs(title = "Hobday Method")
+  labs(title = "Hobday Methodology")
 ```
 
-### Fixed Baseline: 1991-2020
+### Baseline: 1991-2020
 
 
 ```{r}
 fixed_91 %>% 
 heatwave_heatmap_plot(., temp_units = "C", start_yr = 2000, end_yr = 2022)  +
-  labs(title = "Hobday Method")
+  labs(title = "Hobday Methodology")
 ```
 
 :::
 
-## Detrended Timeseries
+## Detrended Timeseries - Anomalies from Reference
 
 
 :::panel-tabset
 
-### 1982-2011
+### Baseline: 1982-2011 
 
 
 ```{r}
 detrended_82 %>% 
 heatwave_heatmap_plot(., temp_units = "C", start_yr = 2000, end_yr = 2022) +
-  labs(title = "Jacox Method")
+  labs(title = "Jacox Methodology")
 ```
 
 
-### Baseline 1991-2020
+### Baseline: 1991-2020
 
 
 ```{r}
 detrended_91 %>% 
 heatwave_heatmap_plot(., temp_units = "C", start_yr = 2000, end_yr = 2022) +
-  labs(title = "Jacox Method")
+  labs(title = "Jacox Methodology")
 ```
 
 
 :::
 
 
+## Detrended Timeseries - Detrended Anomalies
+
+:::panel-tabset
+
+### Baseline: 1982-2011
+
+
+```{r}
+detrended_82 %>% 
+  select(-sst_anom) %>% 
+  rename(sst_anom = detrend_vals) %>% 
+heatwave_heatmap_plot(., temp_units = "C", start_yr = 2000, end_yr = 2022)+
+  labs(title = "Jacox Methodology", fill = "De-Trended SST Anomaly")
+```
+
+
+### Baseline: 1991-2020
+
+
+```{r}
+detrended_91 %>% 
+  select(-sst_anom) %>% 
+  rename(sst_anom = detrend_vals) %>% 
+  heatwave_heatmap_plot(., temp_units = "C", start_yr = 2000, end_yr = 2022) +
+  labs(title = "Jacox Methodology", fill = "De-Trended SST Anomaly")
+```
+
+
+
+:::
 
