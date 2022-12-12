@@ -316,77 +316,152 @@ year_hw_temps_two(year_hw_dat = ., temp_units = "C") +
 ```{r}
 #| label: comparing-temp-or-anom-detrend
 
-# Run the jacox methods using the 92-2011 climatology
-jacox_test <- gom_hw_new
-
-
-# This should:
-# 1. Create climatology for actual temperatures
-# 2. Which we can then check against thresholds
-jacox_clim <- pull_heatwave_events(temperature_timeseries = gom_sst,
-                                   threshold = 90,
-                                   clim_ref_period = c("1991-01-01", "2020-12-31")) %>% select(-c(mhw_event_no, mcs_event_no, status, hwe, cse, nonevent))
-
-
-# Detrending SST before-hand:
-temp_detrend <- detrend_sst(gom_sst, vals = "sst", yr_col = "yr") %>% 
-  select(time, temp_detrend = detrend_vals)
-
-# Detrending Anoms After
-anom_detrend <- detrend_sst(
-  x = jacox_clim %>% mutate(yr = year(time)), 
-  vals = "sst_anom", 
-  yr_col = "yr") %>% 
-  rename(anom_detrend = detrend_vals)
-
-
-# Join back in the detrended sst and the heatwave detection details:
-gom_hw_91 <- left_join(anom_detrend, temp_detrend) %>% 
-  rename(
-    hw_thresh_91 = mhw_thresh,
-    seas_91 = seas,
-    anom_91 = sst_anom)
-
-
-
-
-
-# Join everything together, compare event signatures
-jacox_events <- left_join(anom_detrend, temp_detrend) %>% 
-  rename(
-    hw_thresh_91 = mhw_thresh,
-    seas_91 = seas,
-    anom_91 = sst_anom) %>% 
-  left_join(select(gom_hw, 
-                   time, 
-                   hw_thresh_82 = mhw_thresh,
-                   seas_82 = seas,
-                   anom_82 = sst_anom)) %>% 
-  mutate(
-    detrend_anom_plus_91clim = anom_detrend + seas_91,
-    detrend_anom_plus_82clim = anom_detrend + seas_82)
-  
-
-  
-# Compare when things are events or not
-flag_test <- jacox_events %>% 
-  mutate(
-    old_baseline_hobday = ifelse(sst > hw_thresh_82, T, F),
-    old_baseline_jacox = ifelse(detrend_anom_plus_82clim > hw_thresh_82, T, F),
-    new_baseline_hobday = ifelse(sst > hw_thresh_91, T, F),  
-    new_baseline_jacox = ifelse(detrend_anom_plus_91clim > hw_thresh_91, T, F)) %>% 
-  pivot_longer(names_to = "hw_method", 
-               values_to = "event_flag", 
-               cols = c(
-                 old_baseline_hobday,
-                 new_baseline_hobday,
-                 old_baseline_jacox, 
-                 new_baseline_jacox)) %>% 
-  mutate(
-    hw_type = ifelse(str_detect(hw_method, "jacox"), "Jacox Detrended HW", "Hobday Static Baseline"),
-    baseline = ifelse(str_detect(hw_method, "old"), "Ref: 1982-2011", "Ref: 1991-2020")
-  )
+# # Run the jacox methods using the 92-2011 climatology
+# jacox_test <- gom_hw_new
+# 
+# 
+# # This should:
+# # 1. Create climatology for actual temperatures
+# # 2. Which we can then check against thresholds
+# jacox_clim <- pull_heatwave_events(temperature_timeseries = gom_sst,
+#                                    threshold = 90,
+#                                    clim_ref_period = c("1991-01-01", "2020-12-31")) %>% select(-c(mhw_event_no, mcs_event_no, status, hwe, cse, nonevent))
+# 
+# 
+# # Detrending SST before-hand:
+# temp_detrend <- detrend_sst(gom_sst, vals = "sst", yr_col = "yr") %>% 
+#   select(time, temp_detrend = detrend_vals)
+# 
+# # Detrending Anoms After
+# anom_detrend <- detrend_sst(
+#   x = jacox_clim %>% mutate(yr = year(time)), 
+#   vals = "sst_anom", 
+#   yr_col = "yr") %>% 
+#   rename(anom_detrend = detrend_vals)
+# 
+# 
+# # Join back in the detrended sst and the heatwave detection details:
+# gom_hw_91 <- left_join(anom_detrend, temp_detrend) %>% 
+#   rename(
+#     hw_thresh_91 = mhw_thresh,
+#     seas_91 = seas,
+#     anom_91 = sst_anom)
+# 
+# 
+# 
+# 
+# 
+# # Join everything together, compare event signatures
+# jacox_events <- left_join(anom_detrend, temp_detrend) %>% 
+#   rename(
+#     hw_thresh_91 = mhw_thresh,
+#     seas_91 = seas,
+#     anom_91 = sst_anom) %>% 
+#   left_join(select(gom_hw, 
+#                    time, 
+#                    hw_thresh_82 = mhw_thresh,
+#                    seas_82 = seas,
+#                    anom_82 = sst_anom)) %>% 
+#   mutate(
+#     detrend_anom_plus_91clim = anom_detrend + seas_91,
+#     detrend_anom_plus_82clim = anom_detrend + seas_82)
+#   
+# 
+#   
+# # Compare when things are events or not
+# flag_test <- jacox_events %>% 
+#   mutate(
+#     old_baseline_hobday = ifelse(sst > hw_thresh_82, T, F),
+#     old_baseline_jacox = ifelse(detrend_anom_plus_82clim > hw_thresh_82, T, F),
+#     new_baseline_hobday = ifelse(sst > hw_thresh_91, T, F),  
+#     new_baseline_jacox = ifelse(detrend_anom_plus_91clim > hw_thresh_91, T, F)) %>% 
+#   pivot_longer(names_to = "hw_method", 
+#                values_to = "event_flag", 
+#                cols = c(
+#                  old_baseline_hobday,
+#                  new_baseline_hobday,
+#                  old_baseline_jacox, 
+#                  new_baseline_jacox)) %>% 
+#   mutate(
+#     hw_type = ifelse(str_detect(hw_method, "jacox"), "Jacox Detrended HW", "Hobday Static Baseline"),
+#     baseline = ifelse(str_detect(hw_method, "old"), "Ref: 1982-2011", "Ref: 1991-2020")
+#   )
 ```
+
+
+```{r}
+#| label: better-comparison-code
+
+
+# Fixed Baselines
+fixed_82 <- pull_heatwave_events(gom_sst) %>% 
+  supplement_hw_data() %>% 
+  filter(doy != 366)  %>% 
+  mutate(year = year(time),
+         yday = yday(time),
+         yr_rev = factor(year),
+         yr_rev = fct_rev(yr_rev),
+         flat_date = as.Date("2000-01-01") + yday - 1)
+
+# 91-2020
+fixed_91 <- pull_heatwave_events(gom_sst, clim_ref_period = c("1991-01-01", "2020-12-31")) %>% 
+  supplement_hw_data() %>% 
+  filter(doy != 366)  %>% 
+  mutate(year = year(time),
+         yday = yday(time),
+         yr_rev = factor(year),
+         yr_rev = fct_rev(yr_rev),
+         flat_date = as.Date("2000-01-01") + yday - 1)
+
+
+
+# De-trended Anomalies
+detrended_82 <- pull_heatwave_events(gom_sst, 
+                                     clim_ref_period = c("1982-01-01", "2011-12-31"), 
+                                     detrend = TRUE) %>% 
+  supplement_hw_data() %>% 
+  filter(doy != 366)  %>% 
+  mutate(year = year(time),
+         yday = yday(time),
+         yr_rev = factor(year),
+         yr_rev = fct_rev(yr_rev),
+         flat_date = as.Date("2000-01-01") + yday - 1)
+
+
+#  Detrended 92-2020
+detrended_91 <- pull_heatwave_events(gom_sst, 
+                                     clim_ref_period = c("1991-01-01", "2020-12-31"), 
+                                     detrend = TRUE) %>% 
+  supplement_hw_data() %>% 
+  filter(doy != 366)  %>% 
+  mutate(year = year(time),
+         yday = yday(time),
+         yr_rev = factor(year),
+         yr_rev = fct_rev(yr_rev),
+         flat_date = as.Date("2000-01-01") + yday - 1)
+
+
+
+# put methods in a list
+method_list <- list(
+  "static82" = fixed_82,
+  "static91" = fixed_91,
+  "moving82" = detrended_82,
+  "moving91" = detrended_91
+)
+
+
+# Put them together for comparison
+flag_test <- bind_rows(method_list, .id = "hw_method") %>% 
+  mutate(
+    hw_type = ifelse(str_detect(hw_method, "moving"), "Jacox Detrended HW", "Hobday Static Baseline"),
+    baseline = ifelse(str_detect(hw_method, "82"), "Ref: 1982-2011", "Ref: 1991-2020")
+  )
+
+```
+
+
+
 
 ## Four Methods: Temperature
 
@@ -398,10 +473,11 @@ flag_test <- jacox_events %>%
 # Plot how all 4 options work
 flag_test  %>% 
 ggplot(aes(time,  sst, group = hw_method)) +
-  geom_line(aes(color = event_flag), linewidth = 1) +
-  scale_color_manual(values = c("gray80", "orange")) +
+  geom_line(aes(color = status), linewidth = 0.75) +
+  scale_color_manual(values = c( gmri_cols("gmri blue")[[1]], gmri_cols("orange")[[1]],  "gray80")) +
   facet_grid(baseline~hw_type) +
-  labs(x = "Time", y = "Sea Surface Temperature", color = "Heatwave Event:")
+  labs(x = "Time", y = "Sea Surface Temperature", 
+       color = "Above Heatwave Threshold:")
 ```
 
 ## Four Methods: Anomalies
@@ -410,28 +486,18 @@ ggplot(aes(time,  sst, group = hw_method)) +
 ```{r}
 #| label: four-methods-anoms
 
-# Plot it again with Anomalies
-flag_test  %>% select(time, anom_82, anom_91, hw_type, event_flag) %>% 
-  pivot_longer(values_to = "anom_by_baseline", names_to = "anom_baseline",
-               cols = c(anom_82, anom_91)) %>% 
-  mutate(baseline = ifelse(str_detect(anom_baseline, "82"), 
-                           "Ref: 1982-2011", "Ref: 1991-2020")) %>% 
-  ggplot(aes(time, anom_by_baseline)) +
-  geom_path(aes(color = event_flag), group = 1, linewidth = 0.5) +
-  scale_color_manual(values = c("gray80", "orange")) +
+flag_test  %>% 
+  arrange(time) %>% 
+  ggplot(aes(time, sst_anom)) +
+  geom_path(aes(color = status), linewidth = 0.25, group = 1) +
+  scale_color_manual(values = c( gmri_cols("gmri blue")[[1]], gmri_cols("orange")[[1]],  "gray80")) +
   facet_grid(baseline~hw_type) +
   labs(x = "Time", y = "SST Anomaly", color = "Heatwave Event:")
-
-  
 ```
 
 # Full Workflow:
 
-```{r}
 
-
-
-```
 
 
 # 1. Calculate Climatology
@@ -692,21 +758,6 @@ pull_heatwave_events <- function(temperature_timeseries,
 
 
 
-```{r}
-#| label: calc-four-options
-
-# Fixed Baselines
-fixed_82 <- pull_heatwave_events(gom_sst)
-fixed_91 <- pull_heatwave_events(gom_sst, clim_ref_period = c("1991-01-01", "2020-12-31"))
-
-# Detrended Anomalies
-detrended_82 <- pull_heatwave_events(gom_sst, 
-                                     clim_ref_period = c("1982-01-01", "2011-12-31"), 
-                                     detrend = TRUE)
-detrended_91 <- pull_heatwave_events(gom_sst, 
-                                     clim_ref_period = c("1991-01-01", "2020-12-31"), 
-                                     detrend = TRUE)
-```
 
 ## Fixed Baseline Heatmaps
 
@@ -715,14 +766,7 @@ detrended_91 <- pull_heatwave_events(gom_sst,
 ### 1982-2011
 
 ```{r}
-fixed_82   %>% 
-  supplement_hw_data() %>% 
-  filter(doy != 366)  %>% 
-  mutate(year = year(time),
-         yday = yday(time),
-         yr_rev = factor(year),
-         yr_rev = fct_rev(yr_rev),
-         flat_date = as.Date("2000-01-01") + yday - 1) %>% 
+fixed_82 %>% 
 heatwave_heatmap_plot(., temp_units = "C", start_yr = 2000, end_yr = 2022) +
   labs(title = "Hobday Method")
 ```
@@ -731,14 +775,7 @@ heatwave_heatmap_plot(., temp_units = "C", start_yr = 2000, end_yr = 2022) +
 
 
 ```{r}
-fixed_91   %>% 
-  supplement_hw_data() %>% 
-  filter(doy != 366)  %>% 
-  mutate(year = year(time),
-         yday = yday(time),
-         yr_rev = factor(year),
-         yr_rev = fct_rev(yr_rev),
-         flat_date = as.Date("2000-01-01") + yday - 1) %>% 
+fixed_91 %>% 
 heatwave_heatmap_plot(., temp_units = "C", start_yr = 2000, end_yr = 2022)  +
   labs(title = "Hobday Method")
 ```
@@ -754,14 +791,7 @@ heatwave_heatmap_plot(., temp_units = "C", start_yr = 2000, end_yr = 2022)  +
 
 
 ```{r}
-detrended_82   %>% 
-  supplement_hw_data() %>% 
-  filter(doy != 366)  %>% 
-  mutate(year = year(time),
-         yday = yday(time),
-         yr_rev = factor(year),
-         yr_rev = fct_rev(yr_rev),
-         flat_date = as.Date("2000-01-01") + yday - 1) %>% 
+detrended_82 %>% 
 heatwave_heatmap_plot(., temp_units = "C", start_yr = 2000, end_yr = 2022) +
   labs(title = "Jacox Method")
 ```
@@ -771,14 +801,7 @@ heatwave_heatmap_plot(., temp_units = "C", start_yr = 2000, end_yr = 2022) +
 
 
 ```{r}
-detrended_91   %>% 
-  supplement_hw_data() %>% 
-  filter(doy != 366)  %>% 
-  mutate(year = year(time),
-         yday = yday(time),
-         yr_rev = factor(year),
-         yr_rev = fct_rev(yr_rev),
-         flat_date = as.Date("2000-01-01") + yday - 1) %>% 
+detrended_91 %>% 
 heatwave_heatmap_plot(., temp_units = "C", start_yr = 2000, end_yr = 2022) +
   labs(title = "Jacox Method")
 ```
