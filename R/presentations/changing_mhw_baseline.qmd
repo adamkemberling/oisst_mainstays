@@ -509,7 +509,7 @@ detrend_sst(gom_j1, vals = "anom", yr_col = "yr") %>%
   geom_point() +
   geom_smooth(formula = y ~ x, method = "lm") +
   facet_wrap(~anom_type, ncol = 1) +
-  labs(x = "Year", y = "June 1st SST Anomaly", title = "June 1st: Anomaly Choice Differences")
+  labs(x = "Year", y = "SST Anomaly", title = "June 1st: Anomaly Choice Differences")
 
 
 
@@ -691,9 +691,9 @@ pull_heatwave_events <- function(temperature_timeseries,
 ```
 
 
-## Testing
 
 ```{r}
+#| label: calc-four-options
 
 # Fixed Baselines
 fixed_82 <- pull_heatwave_events(gom_sst)
