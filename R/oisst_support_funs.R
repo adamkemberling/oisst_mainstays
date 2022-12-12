@@ -155,7 +155,7 @@ pull_heatwave_events <- function(temperature_timeseries,
   
   
   # Calculate seasonally varying climatology with threshold w/ smoothing window
-  ts  <- ts2clm(data = test_ts, 
+  ts  <- heatwaveR::ts2clm(data = test_ts, 
                 climatologyPeriod = clim_ref_period, 
                 pctile = threshold) %>% 
     mutate(anom = temp - seas,
@@ -177,8 +177,8 @@ pull_heatwave_events <- function(temperature_timeseries,
   
   # Perform Heatwave Detection
   mhw <- ifelse(detrend,
-                detect_event(ts, x = t, y = detrend_temp),
-                detect_event(ts, x = t, y = temp))
+                heatwaveR::detect_event(ts, x = t, y = detrend_temp),
+                heatwaveR::detect_event(ts, x = t, y = temp))
   
   
   
@@ -219,15 +219,15 @@ pull_heatwave_events <- function(temperature_timeseries,
   
   # Perform Cold Spell Detection
   mcs <- ifelse(detrend,
-                detect_event(ts, x = t, y = detrend_temp, coldSpells = T),
-                detect_event(ts, x = t, y = temp, coldSpells = T))
+                heatwaveR::detect_event(ts, x = t, y = detrend_temp, coldSpells = T),
+                heatwaveR::detect_event(ts, x = t, y = temp, coldSpells = T))
   
   
   
   # Prepare cold spell data to join
   # Remove columns that are shared with heatwaves
   mcs_out <- mcs[[1]] %>%
-    select(time = t,
+    dplyr::select(time = t,
            mcs_thresh = thresh,
            mcs_threshCriterion = threshCriterion,
            mcs_durationCriterion = durationCriterion,

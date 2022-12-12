@@ -26,5 +26,7 @@ This index page serves as a link directory to temperature reports. Use the follo
 
  10. [Current Year Maps](https://adamkemberling.github.io/oisst_mainstays/R/markdown_reports/GOM_spatial_metrics.html)
  
+ Shifting Baselines Methodology
+  - [Heatwave Methodology Impacts](https://adamkemberling.github.io/oisst_mainstays/R/presentations/changing_mhw_baseline.html)
  
  
