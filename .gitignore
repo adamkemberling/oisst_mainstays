@@ -4,6 +4,7 @@
 .Ruserdata
 data/*
 animations/*
+.vscode/
 
 # Rstudio Password Info
 secret.env
@@ -16,8 +17,7 @@ docker-compose.override.yaml
 *.ipynb_checkpoints*
 *.csv
 *.docx
-local_data/
-R/markdown_reports/local_report_data/
+
 
 # Data folders
 annual_anomalies/*
@@ -25,6 +25,9 @@ annual_observations/*
 daily_climatologies/*
 regional_timeseries/*
 docs/*
+local_data/
+notebooks/testing_data/
+R/markdown_reports/local_report_data/
 
 # Prefect configs
 .prefect/

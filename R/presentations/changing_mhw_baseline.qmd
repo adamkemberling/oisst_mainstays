@@ -61,8 +61,16 @@ source(here::here("R/oisst_support_funs.R"), verbose = FALSE)
 source(here::here("R/temp_report_support.R"), verbose = FALSE)
 
 # Load the SST
+
+# # Debugging data duplication:
+# gom_sst <- read_csv(here::here("notebooks/testing_data/gom_oisst.csv"))
+# 
+
+
+
+# Normal workflow:
 gom_sst <- oisst_access_timeseries(region_family = "gmri focus areas",
-                                   poly_name = "apershing gulf of maine", 
+                                   poly_name = "apershing gulf of maine",
                                    box_location = "cloudstorage")
 
 # Format
@@ -71,7 +79,7 @@ gom_sst <- gom_sst %>%
     time = as.Date(time),
     area_wtd_f = as_fahrenheit(area_wtd_sst),
     anom_f     = as_fahrenheit(area_wtd_anom, "anomalies")) %>% 
-  distinct(time, .keep_all = T) %>% 
+  #distinct(time, .keep_all = T) %>% 
   supplement_season_info() %>% 
   filter(year %in% c(1982:2022))
 
@@ -101,7 +109,7 @@ ggplot(j1_ref, aes(x = area_wtd_sst)) +
     args = list(mean = mean_temp, 
                 sd = temp_sd), 
     linewidth = 1) +
-  geom_dotplot(fill = "lightblue", binwidth = 0.15, ) + 
+  geom_dotplot(fill = "lightblue", binwidth = 0.15) + 
   scale_y_continuous(limits = c(0, 0.5), expand = expansion(add = c(0,0))) +
   scale_x_continuous(labels = number_format(suffix = "\u00b0C"),
                      limits = c(6.5,13),
@@ -195,7 +203,7 @@ gom_hw <- pull_heatwave_events(
 gom_hw %>% 
   mutate(time = as.Date(time)) %>% 
   filter(year(time) == 2019,
-         month(time) %in% c(6:10))  %>% 
+         month(time) %in% c(7:9))  %>% 
 year_hw_temps_two(year_hw_dat = ., temp_units = "C")  +
   labs(title = "Established Heatwave Event Record")
   
@@ -245,9 +253,9 @@ ggplot(j1_ref, aes(x = area_wtd_sst)) +
         legend.position = c(0.2,0.85)) +
   labs(x = "Sea Surface Temperature", 
        y = "Frequency", 
-       title = "June 1st Temperature Distributions",
+       title = "Reference Periods Set the Mean+Variance of 'Norm'",
        color = "",
-       subtitle = "Gulf of Maine: Moving the climate reference period") 
+       subtitle = "June 1st norm is both warmer and more variable") 
 ```
 
 ## Impacts from Changing the Baseline
@@ -269,9 +277,11 @@ gom_hw_new <- pull_heatwave_events(
 
 gom_hw_new %>% 
   filter(year(time) == 2019,
-         month(time) %in% c(6:10))  %>% 
+         month(time) %in% c(7:9))  %>% 
 year_hw_temps_two(year_hw_dat = ., temp_units = "C") +
-  labs(title = "Heatwave Event Record Changed")
+  labs(title = "Heatwave/Coldspell Events Less Frequent with New Norms")
+
+
 ```
 
 ## Jacox Approach: De-trending Anomalies
@@ -473,9 +483,11 @@ flag_test <- bind_rows(method_list, .id = "hw_method") %>%
 # Plot how all 4 options work
 flag_test  %>% 
 ggplot(aes(time,  sst, group = hw_method)) +
-  geom_line(aes(color = status), linewidth = 0.75) +
+  geom_line(aes(color = status, alpha = status), linewidth = 0.75) +
   scale_color_manual(values = c( gmri_cols("gmri blue")[[1]], gmri_cols("orange")[[1]],  "gray80")) +
+  scale_alpha_manual(values = c(1, 1, 0.2)) +
   facet_grid(baseline~hw_type) +
+  guides(alpha = "none") +
   labs(x = "Time", y = "Sea Surface Temperature", 
        color = "Above Heatwave Threshold:")
 ```
@@ -489,9 +501,11 @@ ggplot(aes(time,  sst, group = hw_method)) +
 flag_test  %>% 
   arrange(time) %>% 
   ggplot(aes(time, sst_anom)) +
-  geom_path(aes(color = status), linewidth = 0.25, group = 1) +
+  geom_path(aes(color = status, alpha = status), linewidth = 0.5, group = 1) +
   scale_color_manual(values = c( gmri_cols("gmri blue")[[1]], gmri_cols("orange")[[1]],  "gray80")) +
+  scale_alpha_manual(values = c(1, 1, 0.2)) +
   facet_grid(baseline~hw_type) +
+  guides(alpha = "none") +
   labs(x = "Time", y = "SST Anomaly", color = "Heatwave Event:")
 ```
 
@@ -551,7 +565,6 @@ gom_clim %>%
 ## 3. De-trend Anomalies
 
 ```{r}
-
 # Remove linear trend from anomalies or some other value
 # needs to be done based on day of year
 
@@ -563,23 +576,23 @@ gom_j1 <- filter(gom_clim,
                  month(time) == 6, 
                  day(time) == 1)
 
-
-# Plot them de-trended
-detrend_sst(gom_j1, vals = "anom", yr_col = "yr") %>% 
+# de-trend and reshape
+j1_detrend <- detrend_sst(gom_j1, vals = "anom", yr_col = "yr") %>% 
   rename(`Fixed Baseline Anomalies` = anom,
          `De-Trended Anomalies` = detrend_vals) %>% 
   pivot_longer(names_to = "anom_type", values_to = "anom_vals", cols = c(
-    `Fixed Baseline Anomalies`, `De-Trended Anomalies`)) %>% 
+    `Fixed Baseline Anomalies`, `De-Trended Anomalies`))
+
+# Plot them de-trended
+j1_detrend %>% 
   mutate(anom_type = fct_rev(anom_type)) %>% 
   ggplot(aes(yr, anom_vals)) +
   geom_point() +
   geom_smooth(formula = y ~ x, method = "lm") +
   facet_wrap(~anom_type, ncol = 1) +
   labs(x = "Year", y = "SST Anomaly", title = "June 1st: Anomaly Choice Differences")
-
-
-
 ```
+
 
 
 
@@ -598,10 +611,49 @@ detrend_sst(gom_j1, vals = "anom", yr_col = "yr") %>%
 # when temps are "extreme" in both regards: raw temp and against trend
 
 
+
+
+```
+
+
+
+```{r}
+#| eval: true
+
+# Plot the detrended anomalies against originals:
+
+detrended_91  %>% 
+  filter(yr == 2022) %>% 
+  ggplot(aes(time)) +
+    geom_line(aes(y = sst_anom, color = "Before De-Trending"), linewidth = 0.75) +
+    geom_line(aes(y = detrend_vals, color = "After De-Trending"), 
+              linewidth = 0.75) +
+  geom_line(aes(y = mhw_thresh-seas, color = "Original MHW Threshold"),
+            linetype = 1, linewidth = 1) +
+  scale_color_manual(values = c(gmri_cols("blue"), "gray80", gmri_cols("orange"))) +
+  labs(y = "Temperature Anomalies", x = "Day of Year", color = "") +
+  theme(legend.position = c(0.225, 0.85))
+
+
 ```
 
 
 ## 5. Identify MHW's
+
+
+```{r}
+detrended_91  %>% 
+  filter(yr == 2022) %>% 
+  ggplot(aes(time)) +
+    geom_path(aes(y = detrend_vals, color = status), 
+              linewidth = 0.75, group = 1) +
+  geom_line(aes(y = mhw_thresh-seas, color = "Original MHW Threshold"),
+            linetype = 1, linewidth = 1) +
+  scale_color_manual(values = c(gmri_cols("orange"), "gray80", gmri_cols("blue"))) +
+  labs(y = "Temperature Anomalies", x = "Day of Year", color = "") +
+  theme(legend.position = c(0.225, 0.85))
+```
+
 
 ## Full Workflow {.scrollable}
 
@@ -652,10 +704,10 @@ pull_heatwave_events <- function(temperature_timeseries,
   
   
   # Calculate seasonally varying climatology with threshold w/ smoothing window
-  ts  <- ts2clm(data = test_ts, 
+  ts  <- heatwaveR::ts2clm(data = test_ts, 
                 climatologyPeriod = clim_ref_period, 
                 pctile = threshold) %>% 
-    mutate(anom = temp - seas,
+    mutate(sst_anom = temp - seas,
            yr = lubridate::year(t))
   
   
@@ -666,22 +718,23 @@ pull_heatwave_events <- function(temperature_timeseries,
     # Detrend day of year temperature trends:
     ts <- ts %>% 
       split(.$doy) %>% 
-      map_dfr(detrend_sst, vals = "anom", yr_col = "yr") %>% 
-      mutate(detrend_temp = seas + detrend_vals)
-  
+      map_dfr(detrend_sst, vals = "sst_anom", yr_col = "yr") %>% 
+      mutate(detrend_temp = seas + detrend_vals) %>% 
+      arrange(t)
+    
   }
   
   
   # Perform Heatwave Detection
   mhw <- ifelse(detrend,
-                detect_event(ts, x = t, y = detrend_temp),
-                detect_event(ts, x = t, y = temp))
-                           
+                heatwaveR::detect_event(ts, x = t, y = detrend_temp),
+                heatwaveR::detect_event(ts, x = t, y = temp))
+  
   
   
   # Select and rename critical heatwave data
   mhw_out <- mhw[[1]] %>% 
-    mutate(sst_anom = temp - seas) %>% 
+    #mutate(sst_anom = temp - seas) %>% 
     rename(time = t,
            sst = temp,
            mhw_thresh = thresh,
@@ -697,45 +750,46 @@ pull_heatwave_events <- function(temperature_timeseries,
   ts <- ts2clm(data = test_ts, 
                climatologyPeriod = clim_ref_period, 
                pctile = (100 - threshold)) %>% 
-    mutate(anom = temp - seas,
+    mutate(sst_anom = temp - seas,
            yr = lubridate::year(t))
   
   
   # Perform linear detrending on anomalies
   if(detrend){
-
+    
     # Detrend day of year temperature trends:
     ts <- ts %>%
       split(.$doy) %>%
-      map_dfr(detrend_sst, vals = "anom", yr_col = "yr") %>%
-      mutate(detrend_temp = seas + detrend_vals)
-
+      map_dfr(detrend_sst, vals = "sst_anom", yr_col = "yr") %>%
+      mutate(detrend_temp = seas + detrend_vals) %>% 
+      arrange(t)
+    
   }
   
   
   
   # Perform Cold Spell Detection
   mcs <- ifelse(detrend,
-                detect_event(ts, x = t, y = detrend_temp, coldSpells = T),
-                detect_event(ts, x = t, y = temp, coldSpells = T))
-    
+                heatwaveR::detect_event(ts, x = t, y = detrend_temp, coldSpells = T),
+                heatwaveR::detect_event(ts, x = t, y = temp, coldSpells = T))
+  
   
   
   # Prepare cold spell data to join
   # Remove columns that are shared with heatwaves
   mcs_out <- mcs[[1]] %>%
-    select(time = t,
+    dplyr::select(time = t,
            mcs_thresh = thresh,
            mcs_threshCriterion = threshCriterion,
            mcs_durationCriterion = durationCriterion,
            mcs_event = event,
            mcs_event_no = event_no)
-    
-    
+  
+  
   # join heatwave detection results to coldspell results
   hot_and_cold <- left_join(mhw_out, mcs_out, by = "time")
-    
-    
+  
+  
   # 3. Data formatting for plotting, 
   # adds columns to plot hw and cs seperately
   events_out <- hot_and_cold %>% 
@@ -789,7 +843,7 @@ heatwave_heatmap_plot(., temp_units = "C", start_yr = 2000, end_yr = 2022)  +
 
 :::
 
-## De-trended Timeseries - Anomalies from Reference Period
+## Anomalies from Ref-Period w/o Detrending
 
 
 :::panel-tabset
@@ -817,7 +871,7 @@ heatwave_heatmap_plot(., temp_units = "C", start_yr = 2000, end_yr = 2022) +
 :::
 
 
-## De-trended Timeseries - Anomalies After De-Trending
+## Anomalies from Ref-Period + De-Trending
 
 :::panel-tabset
 
