@@ -843,20 +843,68 @@ def append_sst_ts(old_ts, update_ts, var_name = "sst"):
    not_overlapped = ~old_sst.time.isin(update_ts.time)
    old_sst  = old_sst[not_overlapped]
 
-
    # Concatenate onto the original
    appended_ts = pd.concat([ old_sst, update_ts ])
    
    # Format time as datetime
    appended_ts["time"] = appended_ts["time"].astype("datetime64")
-    
-   # Add modified ordinal day
-   
-   # Pull climatology info
-   
-   # Get anomalies
-    
+
    return appended_ts
+
+
+
+
+
+#-----------------------------------------------------
+#
+# Check Timeseries Against Duplicate Dates
+#
+#-----------------------------------------------------
+def date_source_prefer(df_in, phase_out = "ncei"):
+    """
+    Address Date Crossover in OISST Data Streams
+
+    Preferentially handle date duplicates in the OISST timeseries creation caused
+    from different time stamps between physical science laboratory and the national 
+    center for environmental information.
+
+    Args:
+        cache_month (str): Month to update
+        update_yr (str): Year directory for month
+        workspace (str): String indicating whether to build local paths or docker paths
+        verbose : True or False to print progress
+        
+
+    """
+
+    # 1. Build out datetime components
+    dt_array = {
+        'dt'      : pd.to_datetime(df_in.time),
+        'dates'   : pd.to_datetime(df_in.time).dt.date,
+        'times'   : pd.to_datetime(df_in.time).dt.time}
+    dt_df = pd.DataFrame(data = dt_array)
+
+    # 2. Find/Flag Dupes
+    dt_df["date_dupes"] = dt_df.dates.duplicated(keep = False)
+    dt_df
+
+    # 2. Check dupes for the datetimes we wanna drop
+    dt_df["nc_source"] = np.where(dt_df.times == datetime.time(0), "psl", "ncei")
+    dt_df
+
+    # 3. Filter out the ones that have the "bad" timestamp, or the source to phase out
+    drops = np.where(dt_df.date_dupes & (dt_df.nc_source == phase_out), True, False)
+
+
+    # 4. Apply the filtering to the original dataframe
+    df_out = df_in.loc[~drops].copy()
+
+    # Get rid of the stupid timestamp entirely
+    df_out["time"] = pd.to_datetime(df_out.time).dt.date
+    return df_out
+
+
+
 
 
 #-----------------------------------------------------
@@ -909,7 +957,6 @@ def rejoin_climatology(old_ts, new_ts, var_name = "sst"):
    
     # Merge to new timeline using Modified day of year
     anom_timeline = new_ts.merge(clim, how = "left", on = "modified_ordinal_day")
-
 
     # Subtract climate mean to get anomalies
     anom_timeline[f"{var_name}_anom"] = anom_timeline[f"{var_name}"] - anom_timeline[f"{var_name}_clim"]
@@ -1282,8 +1329,11 @@ def update_global_timeseries(yr_min, yr_max, box_root, var_name = "sst", referen
   # Sort
   appended_ts = appended_ts.sort_values(by = "time")
 
-  # Drop duplicates
+  # Drop any actual duplicate dates
   appended_ts = appended_ts.drop_duplicates(subset=['time'])
+
+  # Remove Dates that Overlap Dates but Different Time Stamps b/c Data Sources
+  appended_ts = date_source_prefer(appended_ts, phase_out = "ncei")
 
   # SAVING
   print("Updating Global Timeseries")
@@ -1391,12 +1441,15 @@ def update_regional_timeseries_collection(start_yr, end_yr, region_collection, b
       # Append without overlap
       anomaly_ts = rejoin_climatology(old_ts = clim_ts, new_ts = update_ts)
     
-      #### FLAG: WIP ####
+      #### FLAG DUPLICATE DATES WITH DIFFERENT TIMESTAMPS: WIP ####
       # Sort
       anomaly_ts = anomaly_ts.sort_values(by = "time")
 
-      # Drop duplicates
+      # Drop actual duplicates
       anomaly_ts = anomaly_ts.drop_duplicates(subset=['time'])
+
+      # Remove Dates that Overlap Dates but Different Time Stamps b/c Data Sources
+      anomaly_ts = date_source_prefer(anomaly_ts, phase_out = "ncei")
     
       # Add to list
       anomaly_timeseries.append(anomaly_ts)

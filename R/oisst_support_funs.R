@@ -170,7 +170,8 @@ pull_heatwave_events <- function(temperature_timeseries,
     ts <- ts %>% 
       split(.$doy) %>% 
       map_dfr(detrend_sst, vals = "sst_anom", yr_col = "yr") %>% 
-      mutate(detrend_temp = seas + detrend_vals)
+      mutate(detrend_temp = seas + detrend_vals) %>% 
+      arrange(t)
     
   }
   
@@ -211,7 +212,8 @@ pull_heatwave_events <- function(temperature_timeseries,
     ts <- ts %>%
       split(.$doy) %>%
       map_dfr(detrend_sst, vals = "sst_anom", yr_col = "yr") %>%
-      mutate(detrend_temp = seas + detrend_vals) 
+      mutate(detrend_temp = seas + detrend_vals) %>% 
+      arrange(t)
     
   }
   
