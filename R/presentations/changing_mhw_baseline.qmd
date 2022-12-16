@@ -644,12 +644,13 @@ detrended_91  %>%
 ```{r}
 detrended_91  %>% 
   filter(yr == 2022) %>% 
+  mutate(status = ifelse(status == "Sea Surface Temperature", "De-Trended Anomalies", status)) %>% 
   ggplot(aes(time)) +
     geom_path(aes(y = detrend_vals, color = status), 
               linewidth = 0.75, group = 1) +
-  geom_line(aes(y = mhw_thresh-seas, color = "Original MHW Threshold"),
+    geom_line(aes(y = mhw_thresh-seas, color = "Original MHW Threshold"),
             linetype = 1, linewidth = 1) +
-  scale_color_manual(values = c(gmri_cols("orange"), "gray80", gmri_cols("blue"))) +
+  scale_color_manual(values = c(gmri_cols("blue"), gmri_cols("orange"), "black")) +
   labs(y = "Temperature Anomalies", x = "Day of Year", color = "") +
   theme(legend.position = c(0.225, 0.85))
 ```

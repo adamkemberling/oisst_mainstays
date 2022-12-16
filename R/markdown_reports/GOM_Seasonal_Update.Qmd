@@ -82,7 +82,7 @@ params <- list(
   year = year(Sys.Date()),
   season = "Fall",
   `Save Data` = FALSE,
-  `Save Figures` = FALSE)
+  `Save Figures` = TRUE)
 
 
 #####  Parameter option switches:  ####
@@ -355,7 +355,7 @@ The observed SST, long-term average SST, and SST anomalies (departures from the 
 
 ```{r}
 #| label: season-temp-table
-#| tbl-cap: "Observed, climatological average, and deviation from the climatological average (i.e., temperature anomaly) for SST at a weekly resolution in the Gulf of Maine during summer 2022 (defined as June 1st - August 31st)"
+#| tbl-cap: "Observed, climatological average, and deviation from the climatological average (i.e., temperature anomaly) for SST at a weekly resolution in the Gulf of Maine during summer 2022 (defined as September 1st - November 30th)"
 
 # Format the start/end dates for weekly subsets
 week_labels <- this_season_data  %>% 
@@ -447,7 +447,7 @@ week_summ_table
 
 ```{r}
 #| label: monthly-temp-summary
-
+#| tbl-cap: "Observed, climatological average, and deviation from the climatological average (i.e., temperature anomaly) for SST at a monthly resolution in the Gulf of Maine during summer 2022 (defined as September 1st - November 30th)"
 
 # Recreate Table for Monthly Averages
 monthly_avgs <- this_season_data %>% 

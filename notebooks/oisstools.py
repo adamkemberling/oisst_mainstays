@@ -610,7 +610,7 @@ def apply_oisst_attributes(oisst_grid, anomalies = False, reference_period = "19
     'title'         : f'Sea surface temperature anomalies from NOAA OISSTv2 SST Data using {reference_period} Climatology',
     'institution'   : 'Gulf of Maine Research Institute',
     'source'        : 'NOAA/NCDC  ftp://eclipse.ncdc.noaa.gov/pub/OI-daily-v2/',
-    'comment'       : 'Climatology used represents mean SST for the years 1982-2011',
+    'comment'       : f'Climatology used represents mean SST for the years {reference_period}',
     'history'       : 'Anomalies calculated 3/9/2021',
     'references'    : 'https://www.esrl.noaa.gov/psd/data/gridded/data.noaa.oisst.v2.highres.html',
     'dataset_title' : 'Sea Surface Temperature Anomalies - OISSTv2',
