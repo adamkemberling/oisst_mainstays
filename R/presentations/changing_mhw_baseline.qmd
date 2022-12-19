@@ -844,35 +844,11 @@ heatwave_heatmap_plot(., temp_units = "C", start_yr = 2000, end_yr = 2022)  +
 
 :::
 
-## Anomalies from Ref-Period w/o Detrending
-
-
-:::panel-tabset
-
-### Baseline: 1982-2011 
-
-
-```{r}
-detrended_82 %>% 
-heatwave_heatmap_plot(., temp_units = "C", start_yr = 2000, end_yr = 2022) +
-  labs(title = "Jacox Methodology")
-```
-
-
-### Baseline: 1991-2020
-
-
-```{r}
-detrended_91 %>% 
-heatwave_heatmap_plot(., temp_units = "C", start_yr = 2000, end_yr = 2022) +
-  labs(title = "Jacox Methodology")
-```
-
 
 :::
 
 
-## Anomalies from Ref-Period + De-Trending
+## Anomalies After De-Trending
 
 :::panel-tabset
 
