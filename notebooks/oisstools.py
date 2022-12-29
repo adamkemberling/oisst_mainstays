@@ -583,9 +583,10 @@ def calc_anom(daily_sst, daily_clims):
     
     daily_sst : xarray data array of sea surface temperatures containing "MOD" coordinate to pair with daily_clims
     daily_clim : xarray data array of sea surface temperature climatologic means.
+    match_col : string of the coordinate to match on
     
     """
-  
+    
     return daily_sst - daily_clims.sel(modified_ordinal_day = daily_sst["MOD"])
   
   

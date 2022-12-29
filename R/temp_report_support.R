@@ -1973,6 +1973,83 @@ anom_horizon_plot <- function(grid_data,
 
 
 
+
+
+#' @title Display Monthly-Averaged SST
+#'
+#' @param month_avg_layer Raster stack containing the monthly averaged SST
+#' @param month_id Name of the month contained in the raster stack
+#' @param plot_yr Year associated with the raster stack
+#' @param temp_lim Value to use as maximum display limit for the color scale on SST
+#' @param depth_contours Values to display depth contours on map
+#'
+#' @return
+#' @export
+#'
+#' @examples
+monthly_sst_map <- function(month_avg_layer, month_id, plot_yr, temp_lim = 8, depth_contours = 200){
+  
+  
+  # Set up text label  
+  month_yr <- plot_yr
+  month_label <- str_c(month_id, ", ", month_yr)
+  
+  # Convert to F
+  month_avg_layer <- as_fahrenheit(month_avg_layer, data_type = "anomalies")
+  
+  
+  # Make stars object for plot
+  month_stars <- st_as_stars(month_avg_layer)
+  
+  # Color limit for palettes
+  temp_limits <- c(-temp_lim, temp_lim)
+  temp_breaks <- c(temp_limits[1], temp_limits[1]/2,  0, temp_limits[2]/2, temp_limits[2])
+  temp_labels <- str_c(c(str_c("< ", temp_limits[1]), temp_limits[1]/2, 0, temp_limits[2]/2, str_c("> ", temp_limits[2])), "\u00b0F")
+  
+  # build plot
+  month_fig <- ggplot() +
+    geom_stars(data = month_stars) +
+    geom_sf(data = new_england, fill = "gray90", size = .25) +
+    geom_sf(data = canada, fill = "gray90", size = .25) +
+    geom_sf(data = greenland, fill = "gray90", size = .25) +
+    geom_contour(data = bathy_df, aes(x, y, z = depth),
+                 breaks = depth_contours,
+                 color = "gray20", size = 0.25) +
+    geom_sf(data = region_extent, 
+            color = "black", 
+            linetype = 2, size = 0.5,
+            fill = "transparent") +
+    scale_y_continuous(breaks = seq(30, 50, by = 2)) +
+    scale_fill_distiller(palette = "RdBu", 
+                         na.value = "transparent", 
+                         limit = temp_limits,
+                         oob = scales::squish,
+                         breaks = temp_breaks, 
+                         labels = temp_labels) +
+    map_theme(
+      title = element_text(hjust = 0.5, size = 8),
+      axis.text = element_text(size = 6)) +
+    coord_sf(xlim = crop_x, 
+             ylim = crop_y, 
+             expand = F) +
+    guides("fill" = guide_colorbar(
+      title = expression("Temperature Anomaly"~degree*F),
+      title.position = "top",
+      title.hjust = 0.5,
+      barwidth = unit(3, "in"),
+      frame.colour = "black",
+      ticks.colour = "black")) +
+    labs(title = str_c(month_label))
+  
+  
+  return(month_fig)
+  
+  
+}
+
+
+
+
 ####________####
 
 
