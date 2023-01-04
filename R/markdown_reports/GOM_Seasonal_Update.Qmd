@@ -144,8 +144,8 @@ region_hw <- pull_heatwave_events(
   threshold = 90, 
   clim_ref_period = c("1982-01-01", "2011-12-31")) %>% 
   supplement_hw_data() %>% 
-  filter(doy != 366,
-         time <= as.Date(str_c(params$year, season_right)))
+  filter(doy != 366, # handle leap years
+         time <= as.Date(str_c(params$year, season_right))) # remove dates past the seasonal update
 
 # Set up heatwave status outcomes for fancy gtextras table features:
 region_hw <- region_hw %>% 

@@ -2,13 +2,14 @@
 title: "Shifting Baselines"
 subtitle: "Gulf of Maine Marine Heatwaves"
 title-slide-attributes:
-    data-background-image: /img/GMRI_template_slide1.png
+    data-background-image: img/GMRI_template_slide1.png
     data-background-size: contain
     data-background-opacity: "0.35"
 format: 
   revealjs:
     slide-number: true
     logo: img/gmri_logo.png
+    self-contained: true
 editor: visual
 execute: 
   echo: false
@@ -35,7 +36,7 @@ library(gmRi)
 conflicted::conflict_prefer("select", "dplyr")
 conflicted::conflict_prefer("filter", "dplyr")
 conflicted::conflict_prefer("lag", "dplyr")
-theme_set(theme_gmri())
+#theme_set(theme_gmri())
 ```
 
 ## Defining Marine Heatwave Events (MHW)
@@ -54,7 +55,7 @@ The standard baseline we have used is 30-years: **1982-2011.**
 
 ```{r}
 #| label: load-data
-
+#| echo: false
 
 # Support Functions
 source(here::here("R/oisst_support_funs.R"), verbose = FALSE)
@@ -291,7 +292,7 @@ year_hw_temps_two(year_hw_dat = ., temp_units = "C") +
 
 
 
-## Mike Jacox & Vincent Saba Process:
+## Vincent Saba Process:
 
 1. Calculate recent climatology (e.g., last 30 years)
 
@@ -306,98 +307,24 @@ year_hw_temps_two(year_hw_dat = ., temp_units = "C") +
 
 
 
-## Jacox Questions:
+## Saba Questions:
 
 **1. Calculate recent climatology (e.g., last 30 years)**
 
 2. Calculate anomalies
 
-**3. Detrend anomalies** - Why not just temperature? **(answer:** confusing to match them to thresholds**)**
+**3. Detrend anomalies** - Why not just temperature? **(answer: confusing to match them to thresholds but same results)**
 
 4. Calculate thresholds
 
-**5. Identify MHWs** - Won't these change retroactively?
+**5. Identify MHWs** - Won't these change retroactively? **(answer: yes)**
 
 
 
 
 ## Comparing the Four Options:
 
-```{r}
-#| label: comparing-temp-or-anom-detrend
-
-# # Run the jacox methods using the 92-2011 climatology
-# jacox_test <- gom_hw_new
-# 
-# 
-# # This should:
-# # 1. Create climatology for actual temperatures
-# # 2. Which we can then check against thresholds
-# jacox_clim <- pull_heatwave_events(temperature_timeseries = gom_sst,
-#                                    threshold = 90,
-#                                    clim_ref_period = c("1991-01-01", "2020-12-31")) %>% select(-c(mhw_event_no, mcs_event_no, status, hwe, cse, nonevent))
-# 
-# 
-# # Detrending SST before-hand:
-# temp_detrend <- detrend_sst(gom_sst, vals = "sst", yr_col = "yr") %>% 
-#   select(time, temp_detrend = detrend_vals)
-# 
-# # Detrending Anoms After
-# anom_detrend <- detrend_sst(
-#   x = jacox_clim %>% mutate(yr = year(time)), 
-#   vals = "sst_anom", 
-#   yr_col = "yr") %>% 
-#   rename(anom_detrend = detrend_vals)
-# 
-# 
-# # Join back in the detrended sst and the heatwave detection details:
-# gom_hw_91 <- left_join(anom_detrend, temp_detrend) %>% 
-#   rename(
-#     hw_thresh_91 = mhw_thresh,
-#     seas_91 = seas,
-#     anom_91 = sst_anom)
-# 
-# 
-# 
-# 
-# 
-# # Join everything together, compare event signatures
-# jacox_events <- left_join(anom_detrend, temp_detrend) %>% 
-#   rename(
-#     hw_thresh_91 = mhw_thresh,
-#     seas_91 = seas,
-#     anom_91 = sst_anom) %>% 
-#   left_join(select(gom_hw, 
-#                    time, 
-#                    hw_thresh_82 = mhw_thresh,
-#                    seas_82 = seas,
-#                    anom_82 = sst_anom)) %>% 
-#   mutate(
-#     detrend_anom_plus_91clim = anom_detrend + seas_91,
-#     detrend_anom_plus_82clim = anom_detrend + seas_82)
-#   
-# 
-#   
-# # Compare when things are events or not
-# flag_test <- jacox_events %>% 
-#   mutate(
-#     old_baseline_hobday = ifelse(sst > hw_thresh_82, T, F),
-#     old_baseline_jacox = ifelse(detrend_anom_plus_82clim > hw_thresh_82, T, F),
-#     new_baseline_hobday = ifelse(sst > hw_thresh_91, T, F),  
-#     new_baseline_jacox = ifelse(detrend_anom_plus_91clim > hw_thresh_91, T, F)) %>% 
-#   pivot_longer(names_to = "hw_method", 
-#                values_to = "event_flag", 
-#                cols = c(
-#                  old_baseline_hobday,
-#                  new_baseline_hobday,
-#                  old_baseline_jacox, 
-#                  new_baseline_jacox)) %>% 
-#   mutate(
-#     hw_type = ifelse(str_detect(hw_method, "jacox"), "Jacox Detrended HW", "Hobday Static Baseline"),
-#     baseline = ifelse(str_detect(hw_method, "old"), "Ref: 1982-2011", "Ref: 1991-2020")
-#   )
-```
-
+Changing the Baseline & De-Trending
 
 ```{r}
 #| label: better-comparison-code
@@ -873,6 +800,59 @@ detrended_91 %>%
   rename(sst_anom = detrend_vals) %>% 
   heatwave_heatmap_plot(., temp_units = "C", start_yr = 2000, end_yr = 2022) +
   labs(title = "Jacox Methodology", fill = "De-Trended SST Anomaly")
+```
+
+
+
+:::
+
+
+## How the NE Science Center Plans to Report:
+ 
+* Anomalies from 1991-2020 Climatology
+* MHW Events from De-trending 1982-2022 Data
+
+
+## How Our Heatmap Would Change
+
+```{r}
+#  Detrended 92-2020
+detrended_full <- pull_heatwave_events(gom_sst, 
+                                     clim_ref_period = c("1982-01-01", "2022-12-31"), 
+                                     detrend = TRUE) %>% 
+  supplement_hw_data() %>% 
+  filter(doy != 366)  %>% 
+  mutate(year = year(time),
+         yday = yday(time),
+         yr_rev = factor(year),
+         yr_rev = fct_rev(yr_rev),
+         flat_date = as.Date("2000-01-01") + yday - 1)
+
+
+```
+
+
+:::panel-tabset
+
+### Old: 1982-2011
+
+
+```{r}
+fixed_82 %>% 
+heatwave_heatmap_plot(., temp_units = "C", start_yr = 1982, end_yr = 2022) +
+  labs(title = "Current 1982-2011 Methodology")
+```
+
+
+### New: 1982-2022 De-Trended
+
+
+```{r}
+detrended_full %>% 
+  select(-sst_anom) %>% 
+  rename(sst_anom = detrend_vals) %>% 
+  heatwave_heatmap_plot(., temp_units = "C", start_yr = 1982, end_yr = 2022) +
+  labs(title = "Proposed De-Trending Methodology", fill = "De-Trended SST Anomaly")
 ```
 
 
