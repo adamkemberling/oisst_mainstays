@@ -324,7 +324,9 @@ temperature_summaries <- function(x){
       area_wtd_anom   = mean(area_wtd_anom, na.rm = T),
       area_wtd_f      = as_fahrenheit(area_wtd_sst, "temperature"),
       area_wtd_anom_f = as_fahrenheit(area_wtd_anom, "anomalies"),
-      .groups         = "drop")
+      .groups         = "drop") %>% 
+    arrange(desc(sst)) %>% 
+    mutate(sst_rank = row_number())
 }
 
 
@@ -802,11 +804,6 @@ map_study_area_color <- function(region_extent,
     # Add the bottom contours:
     bathy <- raster("~/Documents/Repositories/Points_and_contours/NEShelf_Etopo1_bathy.tiff")
     
-    # # Contours for geom_contour()
-    # bathy_df <- as.data.frame(raster::coordinates(bathy))
-    # bathy_df$depth <- raster::extract(bathy, bathy_df)
-    # bathy_df$depth <- bathy_df$depth * -1
-    # contours_make <- c(50, 100, 250)
     
     # Add the bottom contours as color
     # Reclassify to discrete
@@ -845,9 +842,6 @@ map_study_area_color <- function(region_extent,
       geom_sf(data = greenland, 
               fill = "gray90", 
               linewidth = .25) +
-      # geom_contour(data = bathy_df, aes(x, y, z = depth),
-      #              breaks = contours_make,
-      #              color = "gray80") +
       geom_text(data = area_labs, aes(lon, lat, label = label, angle = angle), 
                 size = 3, color = "black") +
       geom_sf(data = region_extent, 
@@ -982,7 +976,7 @@ ersst_yearly_plot <- function(ersst_yr, temp_units){
                        labels = number_format(suffix = temp_ops$temp_suff)) +
     guides(color = guide_legend(title.position = "top", title.hjust = 0.5))  +
     theme(legend.position = "bottom") +
-    labs(x = "", y = "Sea Surface Temperature", 
+    labs(x = "Year", y = "Sea Surface Temperature", 
          color = "Temperature Data Record",
          title = "Long-Term Temperature Record for the Gulf of Maine",
          subtitle = "Current temperatures above 150-year highs",
@@ -1019,6 +1013,7 @@ annual_avgs_annotated <- function(annual_avgs, all_years_average, rate_data, foc
   # Build label for focal year
   anom_2021 <- annual_summary %>% filter(year == focal_yr) %>% 
     select(area_wtd_anom, area_wtd_anom_f)
+  temp_label <-
   anom_label <- str_c(round(anom_2021[1], 2), " \u00b0C  |  ", round(anom_2021[2], 2), " \u00b0F")
   
   
@@ -1134,8 +1129,7 @@ global_rate_comparison <- function(
     "C" = list(temp_col = expr(area_wtd_anom),
                temp_suff = " \u00b0C"),
     "F" = list(temp_col = expr(area_wtd_anom_f),
-               temp_suff = " \u00b0F")
-  )
+               temp_suff = " \u00b0F"))
   temp_col <- temp_ops$temp_col
   
   # Adding warming rate equation to data
@@ -1159,16 +1153,15 @@ global_rate_comparison <- function(
                             aes(year, {{ temp_col }})) +
     
     # Overlay yearly means
-    geom_line(color = "gray10", size = 1.5, linetype = 1) +
+    geom_line(color = "gray10", linewidth = 1.5, linetype = 1) +
     geom_point(color = "gray10", size = 1.5) +
     # Warming rates
     geom_smooth(
       method = "lm",
       formula = y ~ x, se = F,
       aes(color = `Warming Rate`),
-      color = gmri_cols("gmri blue"),
       alpha = 0.90,
-      size = 1.5,
+      linewidth = 1.5,
       linetype = 2) + 
     geom_smooth(
       data = global_summary_dat,
@@ -1176,27 +1169,22 @@ global_rate_comparison <- function(
       method = "lm",
       formula = y ~ x, se = F,
       alpha = 0.90,
-      size = 1.5,
+      linewidth = 1.5,
       linetype = 2) +
     scale_color_manual(values = line_colors) +
-    scale_x_continuous(limits = c(1982, 2021), expand = expansion(add = c(4,2))) +
+    scale_x_continuous(limits = c(1982, 2022), expand = expansion(add = c(4,2))) +
     scale_y_continuous(labels =  number_format(suffix = temp_ops$temp_suff)) +
     labs(title = str_c(region_label, ":"),
          subtitle = "Annual Sea Surface Temperature Anomalies",
-         x = "Year", y = "Sea Surface Temperature Anomaly",
+         color = "SST Trend (1982-2022)",
+         x = "Year", 
+         y = "Sea Surface Temperature Anomaly",
          caption = "Anomalies calculated using 1982-2011 reference period.") +
-    theme(legend.position = c(0.25, 0.85),
+    theme(legend.position = c(0.225, 0.825),
           legend.background = element_rect(color = "black", fill = "white"))
-  
-  
-  # add logo
-  # temp_simplified <- add_gmri_logo(temp_simplified, position = "bot_left")
+
+  # Return the plot
   temp_simplified
-  
-  
-  
-  
-  
   
   
 }
@@ -1403,7 +1391,7 @@ year_hw_temps_two <- function(
   # Augment Data
   year_hw_dat <- mutate(year_hw_dat, 
                         cs_thresh_f = as_fahrenheit(mcs_thresh),
-                        mhw_event_txt = if_else(mhw_event, "Marine Heatwave", "Non-Event"))
+                        mhw_event_txt = if_else(mhw_event, "Marine Heatwave", "Non-Heatwave"))
   
   
   # Handling Temperature Units:
@@ -1435,7 +1423,7 @@ year_hw_temps_two <- function(
   
   # Set colors by name
   color_vals <- c(
-    "Non-Event"       = "#0571B0",
+    "Non-Heatwave"       = "#0571B0",
     "Marine Heatwave" = "darkred")
   
   
@@ -1481,7 +1469,7 @@ year_hw_anoms_two <- function(
   # Augment Data
   year_hw_dat <- mutate(year_hw_dat, 
                         cs_thresh_f = as_fahrenheit(mcs_thresh),
-                        mhw_event_txt = ifelse(mhw_event, "Marine Heatwave", "Non-Event"))
+                        mhw_event_txt = ifelse(mhw_event, "Marine Heatwave", "Non-Heatwave"))
   
   
   # Handling Temperature Units:
@@ -1513,7 +1501,7 @@ year_hw_anoms_two <- function(
   
   # Set colors by name
   color_vals <- c(
-    "Non-Event"       = "#0571B0",
+    "Non-Heatwave"       = "#0571B0",
     "Marine Heatwave" = "darkred")
   
   
@@ -1577,12 +1565,9 @@ yearly_metric_plots <- function(temp_dat, temp_units, year_focus = "2021"){
   temp_suff <- temp_ops$temp_suff
   
   
-  
-  
-  
   # Assemble metrics 
   year_mets <- temp_dat %>% 
-    filter(year != "2022") %>% 
+    #filter(year != "2022") %>% 
     group_by(year) %>% 
     summarise(
       total_days                         = n(),
@@ -1612,15 +1597,15 @@ yearly_metric_plots <- function(temp_dat, temp_units, year_focus = "2021"){
     mutate(year = factor(year),
            year = fct_reorder(year, Metric, median)) %>% 
     ggplot(aes(Metric, year, fill = yr_focus, color = yr_focus)) +
-    directlabels::geom_dl(aes(label = str_c(Metric, deg_sym)), 
-                          method = list(directlabels::dl.trans(x = x + 1), rot = 0)) +
     geom_col(show.legend = FALSE) + 
+    geom_text(aes(Metric, year, label = str_c(Metric, deg_sym)), color = "white", hjust = 1.05) +
+    #geom_text(aes(0, year, label = year), color = "white", hjust = -.1) +
     scale_x_continuous(expand = expansion(mult = c(0, 0.15)), labels = number_format(suffix = temp_suff)) +
     scale_color_gmri() +
     scale_fill_gmri() +
-    theme(panel.grid = element_blank()) +
+    theme(panel.grid = element_blank(), plot.title = element_blank(), plot.caption = element_blank()) +
     labs(y = "",
-         x = "Average Temperatures")
+         x = "Average Temperature")
   
   
   rplot_2 <- year_mets %>% 
@@ -1630,20 +1615,21 @@ yearly_metric_plots <- function(temp_dat, temp_units, year_focus = "2021"){
     mutate(year = factor(year),
            year = fct_reorder(year, Metric, median)) %>% 
     ggplot(aes(Metric, year, fill = yr_focus, color = yr_focus)) +
-    directlabels::geom_dl(aes(label = str_c(Metric, deg_sym)), 
-                          method = list(directlabels::dl.trans(x = x + 1), rot = 0)) +
     geom_col(show.legend = FALSE) + 
+    geom_text(aes(Metric, year, label = str_c(Metric, deg_sym)), color = "white", hjust = 1.05) +
+    #geom_text(aes(0, year, label = year), color = "white", hjust = -.1) +
     scale_x_continuous(expand = expansion(mult = c(0, 0.15)), labels = number_format(suffix = temp_suff)) +
     scale_color_gmri() +
     scale_fill_gmri() +
-    theme(panel.grid = element_blank()) +
+    theme(panel.grid = element_blank(), plot.title = element_blank()) +
     labs(y = "",
          x = "Temperature Above Average",
          caption = "Anomalies calculated using 1982-2011 climatology.")
   
   
   # Replace the facet option
-  hottest_yr_panels <- rplot_1 / rplot_2 + plot_annotation(title = "How 2021 Stacks Up:")
+  hottest_yr_panels <- rplot_1 / rplot_2 + plot_annotation(
+    title = str_c("How ", year_focus, " Stacks Up:"))
   
   # Display plot
   hottest_yr_panels
@@ -1723,8 +1709,8 @@ heatwave_heatmap_plot <- function(hw_dat, temp_units = "C", start_yr = 1981, end
                                    ticks.colour = "black")) +  
     theme(legend.title = element_text(angle = 90)) +
     labs(title = "Temperature Anomalies and Marine Heatwave Events",
-         x = "", 
-         y = "",
+         x = "Month", 
+         y = "Year",
          "\nClimate reference period : 1982-2011",
          caption = "Heatwave event dates have been overlayed with black points for distinction.")
   

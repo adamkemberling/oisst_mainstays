@@ -17,6 +17,11 @@ execute:
   message: false
   comment: ""
   fig.align: center
+params: 
+  year: 2022
+  season: "Fall"
+  save_data: TRUE
+  save_figures: TRUE
 editor: source
 ---
 
@@ -76,17 +81,9 @@ poly_path <- region_paths[["apershing_gulf_of_maine"]][["shape_path"]]
 use_gmri_style_rmd()
 
 # Fonts for plots if they worked
+sysfonts::font_add_google("lato")
 showtext::showtext_auto()
 showtext::showtext_opts(dpi = 300)
-
-# Parameters
-params <- list(
-  year = 2022,
-  #year = year(Sys.Date()),
-  season = "Fall",
-  `Save Data` = FALSE,
-  `Save Figures` = TRUE)
-
 
 
 #####  Parameter option switches:  ####
@@ -228,6 +225,7 @@ seasonal_avgs <- region_hw %>%
      season_center = as.Date(str_c(yr, season_cent)),
      season_llim   = as.Date(str_c(yr, season_left)),
      season_rlim   = as.Date(str_c(yr, season_right)),
+     temp_label    = str_c(round(temp_f, 2), " \u00b0F  |  ", round(mean_temp, 2), " \u00b0C"),
      anom_label    = str_c(round(anom_f, 2), " \u00b0F  |  ", round(mean_anom, 2), " \u00b0C")
   )
   
@@ -521,79 +519,15 @@ this_yr_mnth_summ <- region_hw %>%
 ```{r}
 #| label: seasonal-warming-rates
 
-# Get the rates of change for dynamic text
+#---------- Regional Rates
 
 # Decadal Rate
 yr_mod         <- lm(temp_f ~ yr, seasonal_avgs)
 annual_rate    <- coef(yr_mod)[[2]]
 decadal_rate_f <- round((annual_rate*10), 2)
 
-```
 
-The Gulf of Maine is an area of particular interest to the scientific community because of the remarkable rate of warming it has experienced in recent years coupled with its importance as a major driver for the regional economy.
-
-
-
-
-```{r}
-#| label: fig-seasonal-temp
-#| fig-cap: "Average annual spring SSTs in the Gulf of Maine from 1982 through 2022. The solid red line indicates the trend for the full time series."
-
-# Seasonal Temperature Trend Plot:
-seasonal_temp_p <- ggplot(seasonal_avgs, 
-                          aes(yr, temp_f)) +
-  geom_line(color = "gray20", linetype = 3, linewidth = 0.5, alpha = 0.5) +
-  geom_point(color = "gray20", alpha = 0.8) +
-  # All year warmming rate for GOM
-  geom_smooth(formula = y~x, 
-              linetype = 1,
-              method = "lm", 
-              color = "darkred", 
-              se = FALSE) +
-  # Annotation for Warming Rate
-  geom_mark_ellipse(aes(filter = yr == 1987, 
-                        label = str_c(decadal_rate_f, " \u00b0F / Decade")), 
-                    color = "transparent", 
-                    description = str_c("41-Year ", params$season, " Warming Trend"), 
-                    label.colour = "darkred",
-                    con.colour =  "darkred",
-                    label.fill = "transparent", 
-                    label.fontsize = 8) +
-  # Annotation for the current year
-  geom_mark_ellipse(aes(filter = yr == params$year, 
-                        label = anom_label),
-                    color = "darkred",
-                    linetype = 1,
-                    description = str_c(params$year, ": Temperature Above the\n1982-2011 climatological average"), 
-                    label.colour = "darkred",
-                    con.colour =  "darkred",
-                    label.fill = "transparent", 
-                    expand = unit(.15, "cm"), # circle radius
-                    label.fontsize = 8) +
-  # Scales
-  scale_y_continuous(
-    expand = expansion(add = c(1, 3)),
-    labels = number_format(suffix = " \u00b0F")) +
-  scale_x_continuous(limits = c(1981, params$year+3)) +
-  labs(title = str_c("Long-Term ", params$season, " Warming in the Gulf of Maine"),
-       x = "Year",
-       y = str_c("Average Sea Surface Temperature\n(", season_range, ")"))  +
-  coord_cartesian(clip = "off") +
-  geom_logo(x_npc = 0.9, y_npc = -0.15, logo_height = 1, height_units = "cm")
-
-
-
-# Display Plot
-seasonal_temp_p 
-
-```
-
-
-
-
-```{r}
-#| label: global-rates
-#| eval: true
+#---------  Global Rates
 
 # # Global Temperature Anomaly Rates
 global_anoms <- read_csv(
@@ -625,32 +559,30 @@ global_decadal_rate_f <- round((global_annual_rate*10), 2)
 # Put the description into the dataframe so we can call it using one geom call
 glob_plot_dat <- bind_rows(
   list(
-    # Global Ocean Seasonal Data
-    "Global Oceans" = select(global_season_summary, yr, season, season_yr, anom_f) %>% 
+    # 1. Global Ocean Seasonal Data
+    "Global Oceans" = select(global_season_summary, yr, season, season_yr, temp_f = sst_f, anom_f) %>% 
       mutate(
         rate = str_c(global_decadal_rate_f, " \u00b0F / Decade"),
-        rate_lab = str_c(season_range,  "Global Ocean Warming")
-      ),
+        rate_lab = str_c(season_range,  "Global Ocean Warming")),
     
-    # Gulf of Maine Seasonal Data
-    "Gulf of Maine" = select(seasonal_avgs, yr, season, season_yr, anom_f)  %>% 
+    # 2. Gulf of Maine Seasonal Data
+    "Gulf of Maine" = select(seasonal_avgs, yr, season, season_yr, temp_f, anom_f)  %>% 
       mutate(
         rate = str_c(decadal_rate_f, " \u00b0F / Decade"),
-        rate_lab = str_c(season_range, " Gulf of Maine Warming")
-      )
+        rate_lab = str_c(season_range, " Gulf of Maine Warming"))
   ), .id = "region")
-
-
-
 
 
 ```
 
-When looking at average `r tolower(params$season)` temperatures from the beginning of the satellite record in 1982, there is a clear long-term increase, with SST's warming at a rate of `r decadal_rate_f`°F per decade. Recent warm `r tolower(params$season)` SST anomalies are consistent with a thermal regime shift that occurred around 2010. This rate of warming is ~4x the rate that global ocean temperatures are warming during these same months, a rate of `r global_decadal_rate_f`°F per decade.
+The Gulf of Maine is an area of particular interest to the scientific community because of the remarkable rate of warming it has experienced in recent years coupled with its importance as a major driver for the regional economy.
+
+
+When looking at average `r tolower(params$season)` temperatures from the beginning of the satellite record in 1982, there is a clear long-term increase, with SST's warming at a rate of `r decadal_rate_f`°F per decade. This rate of warming is ~4x the rate that global ocean temperatures are warming during these same months, a rate of `r global_decadal_rate_f`°F per decade.
 
 ```{r}
-#| label: fig-global-rates
-#| eval: true
+#| label: global-rates-fig
+#| eval: false
 #| fig-cap: "Average annual fall SSTs in the Gulf of Maine from 1982 through 2022. The solid orange line indicates the trend for the full time series for the Gulf of Maine. A solid blue line indicates the trend for the full time series for the global oceans."
 
 # Compare warming rates
@@ -704,6 +636,71 @@ global_rate_plot <- ggplot(glob_plot_dat) +
 
 
 global_rate_plot
+```
+
+
+
+```{r}
+#| label: fig-global-rates
+#| eval: true
+#| echo: false
+#| fig-cap: "Average annual fall SSTs in the Gulf of Maine from 1982 through 2022. The solid orange line indicates the trend for the full time series for the Gulf of Maine. A solid blue line indicates the trend for the full time series for the global oceans."
+
+
+
+global_rate_plot <- ggplot(glob_plot_dat) +
+  geom_line(data = filter(glob_plot_dat, region == "Gulf of Maine"), 
+            aes(yr, temp_f), 
+            color = "gray20", linetype = 3, linewidth = 0.5, alpha = 0.5) +
+  geom_point(data = filter(glob_plot_dat, region == "Gulf of Maine"), 
+            aes(yr, temp_f), 
+            color = "gray20", alpha = 0.8) +
+  # All year warming rate for GOM
+  geom_smooth(aes(yr, temp_f, color = rate), 
+              formula = y~x, 
+              linetype = 1,
+              method = "lm",
+              se = FALSE) +
+  # Annotation for Warming Rate
+  geom_mark_ellipse(aes(filter = region == "Global Oceans" & yr == 2014,
+                        x = yr, 
+                        y = temp_f,
+                        label = region), 
+                    label.colour = gmri_cols("gmri blue"),
+                    con.colour =  gmri_cols("gmri blue"),
+                    label.fill = "transparent", 
+                    color = "transparent",
+                    label.fontsize = 10) +
+  # Annotation for Warming Rate
+  geom_mark_ellipse(aes(filter = region == "Gulf of Maine" & yr == 2016,
+                        x = yr, 
+                        y = temp_f,
+                        label = region), 
+                    label.colour = gmri_cols("orange"),
+                    con.colour =  gmri_cols("orange"),
+                    label.fill = "transparent", 
+                    color = "transparent",
+                    label.fontsize = 10) +
+  scale_color_gmri() +
+  # Scales
+  scale_y_continuous(
+    expand = expansion(add = c(1.5, 1.5)),
+    labels = number_format(suffix = " \u00b0F"),
+    sec.axis = sec_axis(~ . - season_avg_clim, 
+                        labels = number_format(suffix = " \u00b0F"), 
+                        name = "SST Anomaly")) +
+  scale_x_continuous(limits = c(1981, params$year+3)) +
+  labs(title = str_c("Gulf of Maine & Global ", params$season, " Warming Rates"),
+       x = "Year",
+       y = str_c("Average SST"),
+       color = "1982-2022 Warming Rate")  +
+  theme(legend.position = c(0.2, 0.85), legend.title = element_text(face = "bold")) +
+  coord_cartesian(clip = "off") +
+  geom_logo(x_npc = 0.9, y_npc = -0.15, logo_height = 1, height_units = "cm")
+
+global_rate_plot
+
+
 ```
 
 
@@ -847,7 +844,7 @@ Presenting SST conditions in terms of anomalies (@fig-season-anoms-rework) as op
 # Show MHW Status Through the Year:
 hw_anom_p <- year_hw_anoms_two(year_hw_dat = last_yr_heatwaves, temp_units = "F") + 
   labs(title = str_c(params$year, " Gulf of Maine SST Anomalies"),
-       subtitle = str_c("Temperature Anomalies through the end of ", tolower(params$season))) +
+       subtitle = str_c("Temperature anomalies through the end of ", tolower(params$season))) +
   coord_cartesian(clip = "off") +
   geom_logo(x_npc = 0.9, y_npc = 1.2, logo_height = 1, height_units = "cm")
 hw_anom_p
@@ -1157,7 +1154,7 @@ monthly_maps + plot_annotation(caption = "200m contour overlaid to show topograp
 
 If you would like to cite this report, please use:
 
-> Gulf of Maine Research Institute. 2022. Gulf of Maine Warming Update: 2021 the Hottest Year on Record. https://gmri.org/stories/warming-21
+> Gulf of Maine Research Institute. 2022. Gulf of Maine Warming Update: r`params$season` `r params$year`
 
 
 ```{r}
@@ -1166,7 +1163,7 @@ If you would like to cite this report, please use:
 
 
 # Export Figures
-if(params$`Save Figures`){
+if(params$save_figures){
   
   # Folder for Comms Team Update
   comm_folder <- cs_path("root", "Program Communications/Climate Center — Program Communications/Warming Updates/Visuals/")
@@ -1194,13 +1191,13 @@ if(params$`Save Figures`){
          filename = str_c(update_folder, "monthly_summary_table.png"))
   
   
-  # Seasonal Temperature Plot
-  ggsave(plot = seasonal_temp_p, 
-         filename = str_c(update_folder, "Seasonal_temp_plot.png"), 
-         height = unit(5, "in"),
-         width = unit(8, "in"),
-         dpi = "retina", 
-         bg = "transparent")
+  # # Seasonal Temperature Plot
+  # ggsave(plot = seasonal_temp_p, 
+  #        filename = str_c(update_folder, "Seasonal_temp_plot.png"), 
+  #        height = unit(5, "in"),
+  #        width = unit(8, "in"),
+  #        dpi = "retina", 
+  #        bg = "transparent")
   
   # Seasonal Rates Plot
   ggsave(plot = global_rate_plot, 
@@ -1281,7 +1278,7 @@ if(params$`Save Figures`){
 
 ####  Saving the Data  ####
 
-if(params$`Save Data`){
+if(params$save_data){
   
 
   # Rename so there is 0 chance of confusion
