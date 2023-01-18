@@ -1,10 +1,21 @@
 OISST Mainstays
 ================
 
-# About:
+# OISSTv2 Sea Surface Temperature Reporting
+
+## About:
 
 This repository maintains the core workflows for accessing, processing,
-and mapping patterns in OISSTv2 sea surface temperature data.
+and mapping patterns in OISSTv2 sea surface temperature data. There are
+two main SST processing routines housed here: 1. [The acquisition and
+data transformation of global OISSTv2 data, done in
+python](https://github.com/adamkemberling/oisst_mainstays/tree/master/notebooks)
+2. [The programmatic synthesis reports done R using
+Rmarkdown/Quarto](https://github.com/adamkemberling/oisst_mainstays/tree/master/R)
+
+All report drafts are published using github pages and can be found
+here: [OISST Mainstays
+Reports](https://github.com/adamkemberling/oisst_mainstays/blob/master/index.md)
 
 ## Repository Organization
 
@@ -22,9 +33,7 @@ handle the processing and manipulation of these data products for
 climate reports. This section is done using R and Rmarkdown for
 consistent reporting (and because I am much better with these tools).
 The processed data is accessed from our cloud storage using our in-house
-r-package [{gmRi}](www.github.com/gulfofmaine/gmri). Reports are
-published using github pages and can be found here: [OISST Mainstays
-Reports](https://github.com/adamkemberling/oisst_mainstays/blob/master/index.md)
+r-package [{gmRi}](www.github.com/gulfofmaine/gmri).
 
 ### Jupyter Notebook Workflows
 
