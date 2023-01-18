@@ -5,7 +5,7 @@ url: "https://github.com/adamkemberling"
 affiliation: "Gulf of Maine Research Institute"
 affiliation_url: "https://www.gmri.org"
 description: | 
-  Characteristizing anoither year for rising regional temperatures
+  Documenting one more year in a decade of above-average regional temperatures
 date: "Updated on: `r Sys.Date()`"
 format: 
   html:
@@ -26,7 +26,7 @@ params:
 ---
 
 ```{r}
-#| label: setup
+#| label: code-setup
 #| include: false
 
 ####  Packages  ####
@@ -116,7 +116,7 @@ lab_logo <- magick::image_read(logo_path)
 
 
 ```{r}
-#| label: add-css
+#| label: code-add-css
 #| results: asis
 #| echo: false
 
@@ -126,7 +126,7 @@ gmRi::use_gmri_style_rmd(css = "gmri_rmarkdown.css")
 
 
 ```{r}
-#| label: load-timeseries
+#| label: code-load-timeseries
 
 # Load the timeseries
 region_timeseries <- read_csv(timeseries_path, 
@@ -196,7 +196,7 @@ global_summary <- global_anoms %>%
 
 
 ```{r}
-#| label: report-yr-text
+#| label: txt-report-yr-records
 
 # Values I need up front for text
 
@@ -206,6 +206,7 @@ report_annual_anom <- round(mean(report_yr_only$anom_f, na.rm = T), 2)
 
 # What rank this year was
 report_rank <- filter(annual_summary, year == report_yr) %>% pull(sst_rank)
+global_report_rank <- filter(global_summary, year == report_yr) %>% pull(sst_rank)
 
 # Record holder year's temperature
 record_year_temp <- filter(annual_summary, sst_rank == 1) %>% pull(sst_f)
@@ -225,7 +226,7 @@ season_ranks <- region_timeseries %>%
 
 
 ```{r}
-#| label: all-years-summary
+#| label: code-all-data-summary
 
 # Get the overall average and build labels
 all_year_avgs <- annual_summary %>% 
@@ -249,7 +250,7 @@ With an annual average sea surface temperature (SST) of `r report_annual_temp`°
 
 
 ```{r}
-#| label: warming-rates-generation
+#| label: code-warming-rates
 
 
 ####  Run Warming Rate regressions  ####
@@ -622,11 +623,11 @@ temp_rankings_p
 
 ## Worldwide Temperatures
 
-It was not just the Gulf of Maine that experienced exceptional warmth in `r report_yr`, however. According to NOAA, `r report_yr` was the **add_value** warmest year on record for the contiguous United States and the **add_value** warmest year globally. The figure below (@fig-global-anomalies) shows annual average SST anomalies for oceans all over the world in `r report_yr`. While much of the Southern Ocean and expanses of the southeastern Pacific off South America were anomalously cool (a feature of La Niña conditions), most of the world’s oceans experienced unusually warm temperatures in `r report_yr`. This is particularly true for James Bay in Canada, the Labrador Sea, the Baltic Sea, and a swath from ~35 °N to ~45 °N across ocean basins — a region that includes the Gulf of Maine.
+It was not just the Gulf of Maine that experienced exceptional warmth in `r report_yr`, however. According to NOAA, `r report_yr` was the `r report_rank`nd warmest year on record for the contiguous United States and the `r global_report_rank` warmest year globally for sea surface temperatures. The figure below (@fig-global-anomalies) shows annual average SST anomalies for oceans all over the world in `r report_yr`. While much of the Southern Ocean and expanses of the southeastern Pacific off South America were anomalously cool (a feature of La Niña conditions), most of the world’s oceans experienced unusually warm temperatures in `r report_yr`. This is particularly true for James Bay in Canada, the Labrador Sea, the Baltic Sea, and a swath from ~35 °N to ~45 °N across ocean basins — a region that includes the Gulf of Maine.
 
 
 ```{r}
-#| label: global-anom-raster-prep
+#| label: code-global-anom-prep
 
 # Load and format the anomalies for the year:
 
@@ -706,7 +707,28 @@ grid::grid.raster(lab_logo, x = 0.08, y = 0.08, just = c('left', 'bottom'), heig
 
 ## Daily Sea Surface Temperatures
 
-The annual cycle of SST in the Gulf of Maine exhibits a familiar pattern with low temperatures in March and high temperatures in August (@fig-annual_hw_timeseries). The average difference between the annual maximum SST in August and the annual minimum SST in March is **add_value** °F. In `r report_yr`, the difference between the maximum SST (**add_date**, **add_value** °F) and minimum SST (**add_date**, **add_value** °F) was **add_value** °F, with daily SST anomaly values never falling below +**add_value** °F and reaching as high as +**add_value** °F above the long-term average.
+```{r}
+#| label: txt-extreme-events
+
+# typical range
+seasonal_cycle_min <- min(report_yr_only$seas_f)
+seasonal_cycle_max <- max(report_yr_only$seas_f)
+seasonal_range <- round(seasonal_cycle_max - seasonal_cycle_min, 2)
+
+# report_yr range
+report_yr_min <- min(report_yr_only$sst_f)
+report_yr_min_anom <- round(min(report_yr_only$anom_f), 2)
+report_yr_min_date <- format(report_yr_only$time[report_yr_only$sst_f == report_yr_min], "%b-%d")
+report_yr_max <- max(report_yr_only$sst_f)
+report_yr_max_anom <- round(max(report_yr_only$anom_f), 2)
+report_yr_max_date <- format(report_yr_only$time[report_yr_only$sst_f == report_yr_max], "%b-%d")
+report_yr_range <- round(report_yr_max - report_yr_min, 2)
+report_yr_max <- round(report_yr_max, 2)
+report_yr_min <- round(report_yr_min, 2)
+```
+
+
+The annual cycle of SST in the Gulf of Maine exhibits a familiar pattern with low temperatures in March and high temperatures in August (@fig-annual_hw_timeseries). The average difference between the annual maximum SST in August and the annual minimum SST in March is `r seasonal_range` °F. In `r report_yr`, the difference between the maximum SST (`r report_yr_max_date`, `r report_yr_max`°F) and minimum SST (`r report_yr_min_date`, `r report_yr_min`°F) was `r report_yr_range` °F, with daily SST anomaly values never falling below +`r report_yr_min_anom` °F and reaching as high as +`r report_yr_max_anom` °F above the long-term average.
 
 ## Record Setting Daily Temperatures
 
@@ -818,7 +840,17 @@ record_percents
 
 A marine heatwave (MHW) is defined as a period when there are 5 or more consecutive days when the observed SST is greater than the 90th percentile of the long-term average for that day. In the figure below, the long-term average is illustrated with the gray dashed line and the threshold for being a MHW day is illustrated by the dashed red line. The solid red line in the figure shows the observed SST for that day.
 
-The Gulf of Maine met the criteria for MHW status for **add_value** days in `r report_yr`. While the warmest temperatures of the year were experienced in August (as we would expect from the climatology for the region), the largest temperature anomalies were observed during the last days of November, when they breached **add_value** °F above the long-term average.
+
+```{r}
+#| label: txt-hw-conditions
+
+hw_criteria <- report_yr_only %>% pull(mhw_event) %>% sum()
+
+
+```
+
+
+The Gulf of Maine met the criteria for MHW status for `r hw_criteria` days in `r report_yr`. While the warmest temperatures of the year were experienced in August (as we would expect from the climatology for the region), the largest temperature anomalies were observed during the last days of November, when they breached `r floor(report_yr_max_anom)` °F above the long-term average.
 
 ```{r}
 #| label: fig-annual_hw_timeseries
@@ -835,7 +867,7 @@ hw_temp_p <- year_hw_temps_two(year_hw_dat = report_yr_only, temp_units = "F") +
   labs(
     title = str_c("Gulf of Maine SST: ", params$report_year))  +
   coord_cartesian(clip = "off") +
-  geom_logo(x_npc = 0.9, y_npc = 1.1, logo_height = 1, height_units = "cm")
+  geom_logo(x_npc = 0.9, y_npc = 1.125, logo_height = 1, height_units = "cm")
 hw_temp_p
 
 ```
@@ -851,10 +883,7 @@ Comparing daily SST anomalies and MHW status for `r report_yr` to the longer-ter
 #| fig.height: 8
 
 
-# Heatmap
-
-
-# All years:
+# Heatmap: All years:
 heatmap_p <- region_hw %>% 
   heatwave_heatmap_plot(temp_units = "F", start_yr = 1981, end_yr = 2022) +
   labs(title = "Gulf of Maine Heatwave Record",
@@ -881,7 +910,7 @@ heatmap_p + labs(caption = "")
 GMRI research was the first to reveal that the Gulf of Maine has been warming faster than the vast majority of the world’s ocean. The figure below updates this historical analysis by including data for `r report_yr`. Indeed, the story has not changed: it’s clear that the Gulf of Maine is warming faster than ~98% of the world’s ocean. The reason why this is so important is because the rate of change can have profound consequences for the biology of individual species and for entire food webs. These aspects are areas of ongoing work (and captured well in the recent IPCC Working Group II report on impacts, adaptation, and vulnerability).
 
 ```{r}
-#| label: warming-rate-raster-load
+#| label: code-warming-rate-raster
 
 
 # # 1. Warming Rates and Rankings
@@ -899,6 +928,14 @@ region_ranks <- get_masked_vals(masked_ranks = ranks_masked,
                                 in_fahrenheit = T)
 
 
+```
+
+
+
+```{r}
+#| label: txt-warming-rate-raster
+
+
 # Prep it for text input.
 avg_rank <- region_ranks$`Mean Rank` * 100
 avg_rate <- region_ranks$`Mean Rate`
@@ -907,7 +944,10 @@ low_rate <- region_ranks$`Min Rate`
 top_rank <- region_ranks$`Max Rank` * 100
 top_rank <- ifelse(top_rank == 100, "greater than or equal to 99.5", top_rank)
 top_rate <- region_ranks$`Max Rate`
+
 ```
+
+
 
 
 ```{r}
@@ -1000,7 +1040,7 @@ grid::grid.raster(lab_logo, x = 0.115, y = 0.115, just = c('left', 'bottom'), he
 
 In recent years, SSTs in the Gulf of Maine (and adjacent waters) have increased and the rate of warming has accelerated. Research suggests there are two major factors at play, one oceanographic and one atmospheric:
 
-1. **Oceanographic:** The Gulf of Maine is influenced by two primary oceanic currents: the Labrador Current and the Gulf Stream. Historically, a stronger southward flow of the Labrador Current has kept the heat transported northward along the U.S. east coast by the Gulf Stream further out to sea. But changes are occurring in the interplay between the Labrador Current and Gulf Stream. More Arctic-origin freshwater from melting sea ice and land-based ice is constricting the southward flow of the Labrador Current, which is also allowing the Gulf Stream to spread out more at lower latitudes around the Gulf of Maine. This is allowing warmer water to “spill over” into the Gulf of Maine.
+1. **Oceanographic:** The Gulf of Maine is influenced by two primary oceanic currents: the Labrador Current and the Gulf Stream. Historically, there was a stronger southward flow of the Labrador Current. That stronger flow helped keep the heat transported northward along the U.S. east coast by the Gulf Stream further out to sea. More recently scientists have observed changes occurring in the interplay between the Labrador Current and Gulf Stream. More Arctic-origin freshwater from melting sea ice and land-based ice is constricting the southward flow of the Labrador Current. This is allowing the Gulf Stream to spread out more at lower latitudes around the Gulf of Maine. This then allows warmer water to “spill over” into the Gulf of Maine that otherwise would be kept further offshore.
 
 
 2. **Atmospheric:** The North Atlantic Oscillation — a large-scale pattern of natural variability in the atmosphere — has been in a “positive phase” more frequently over the past 10-15 years, meaning a more zonal (i.e., west-to-east) atmospheric pattern has dominated in the region. The relative decrease in “waviness” of the jet stream inhibits more consistent intrusions of cooler, Arctic air into the region.
@@ -1110,7 +1150,8 @@ cutpoints_2 <- region_hw %>%
 hori_2021 <- region_hw %>% 
   filter(year == "2021") %>% 
   anom_horizon_plot(scale_cutpoints = cutpoints_2) +
-  facet_wrap(~year, strip.position = "top")
+  facet_wrap(~year, strip.position = "top")  +
+  labs(y = "")
   
 # report_yr
 hori_report_yr <- region_hw %>% filter(year == report_yr) %>% 
@@ -1118,6 +1159,7 @@ hori_report_yr <- region_hw %>% filter(year == report_yr) %>%
   facet_wrap(~year, strip.position = "top") +
   theme(plot.caption = element_text(colour = "gray25", size = 6)) +
   labs(x = "Month",
+       y = "",
        caption = "Climatatological Reference Period: 1982-2011")
 
 # Put them together as one figure
@@ -1133,14 +1175,17 @@ comparison_horizons <- comparison_horizons &
     legend.position = "top",
     legend.key.height = unit(.5, "lines"),
     legend.key.width = unit(3.75, "lines")) &
-   guides(fill = guide_legend(title = "Temperature Anomaly",
-                              title.hjust = 0.5, 
-                              title.position = "top",
-                              label.position = "bottom", 
-                              nrow = 1, 
-                              byrow = T, reverse = T)) &
-  plot_annotation(title = "Comparing the Gulf of Maine's Two Hottest Years", 
-                  subtitle = "Duration of temperature anomaly horizons, colored by their strength")
+   guides(fill = guide_legend(
+     title = "Temperature Anomaly",
+     title.hjust = 0.5, 
+     title.position = "top",
+     label.position = "bottom", 
+     nrow = 1, 
+     byrow = T, 
+     reverse = T)) &
+  plot_annotation(
+    title = "Comparing the Gulf of Maine's Two Hottest Years", 
+    subtitle = "Duration of temperature anomaly horizons, colored by their strength")
 
 
 

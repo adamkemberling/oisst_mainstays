@@ -1834,8 +1834,8 @@ month_rank_heatmap <- function(hw_dat, temp_units = "F", no_dates_before = "2022
 #'
 #' @examples
 anom_horizon_plot <- function(grid_data, 
-                              origin = ori, 
-                              scale_cutpoints = sca, 
+                              origin = 0, 
+                              scale_cutpoints = seq(-5, 5, length.out = 9), 
                               labels = sca_labels){
   
   grid_data %>% 
@@ -1844,7 +1844,7 @@ anom_horizon_plot <- function(grid_data,
     geom_horizon(aes(flat_date, 
                      sst_anom,
                      fill = ..Cutpoints..), 
-                 origin = ori, 
+                 origin = origin, 
                  horizonscale = sca) +
     scale_fill_hcl(palette = 'RdBu', reverse = T, labels = sca_labels) +
     facet_grid(year~.) +
