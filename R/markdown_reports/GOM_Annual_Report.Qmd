@@ -289,7 +289,7 @@ The annual average SST in the Gulf of Maine for `r report_yr` was `r report_annu
 
 ```{r}
 #| label: fig-global-comparison
-#| fig-cap: "A timeseries of annual average sea surface temperature anomalies for the Gulf of Maine (solid black line) from 1982 through 2021, illustrating that 2021 was the warmest year on record. Long-term trendlines for the Gulf of Maine (blue) and the entire globe (green) show how much more quickly the Gulf of Maine is warming compared to the rest of the world."
+#| fig-cap: "A timeseries of annual average sea surface temperature anomalies for the Gulf of Maine (solid black line) from 1982 through `r report_yr`, illustrating that `r report_yr` was the 2nd warmest year on record. Long-term trendlines for the Gulf of Maine (blue) and the entire globe (green) show how much more quickly the Gulf of Maine is warming compared to the rest of the world."
 
 
 # Fahrenheit plot
@@ -907,7 +907,6 @@ heatmap_p + labs(caption = "")
 
 ## Warming Rate
 
-GMRI research was the first to reveal that the Gulf of Maine has been warming faster than the vast majority of the world’s ocean. The figure below updates this historical analysis by including data for `r report_yr`. Indeed, the story has not changed: it’s clear that the Gulf of Maine is warming faster than ~98% of the world’s ocean. The reason why this is so important is because the rate of change can have profound consequences for the biology of individual species and for entire food webs. These aspects are areas of ongoing work (and captured well in the recent IPCC Working Group II report on impacts, adaptation, and vulnerability).
 
 ```{r}
 #| label: code-warming-rate-raster
@@ -947,6 +946,9 @@ top_rate <- region_ranks$`Max Rate`
 
 ```
 
+
+
+GMRI research was the first to reveal that the Gulf of Maine has been warming faster than the vast majority of the world’s ocean. The figure below updates this historical analysis by including data for `r report_yr`. Indeed, the story has not changed: it’s clear that the Gulf of Maine is warming faster than ~`r round(avg_rank, 2)`% of the world’s ocean. The reason why this is so important is because the rate of change can have profound consequences for the biology of individual species and for entire food webs. These aspects are areas of ongoing work (and captured well in the recent IPCC Working Group II report on impacts, adaptation, and vulnerability).
 
 
 
@@ -1197,7 +1199,7 @@ grid::grid.raster(lab_logo, x = 0.04, y = 0.01, just = c('left', 'bottom'), heig
 ```
 
 
-## Losing the Balance Between Hot and Cold
+## The Balance of Hot and Cold
 
 Another way to visualize the climate transition that we are observing is by looking at the fraction of each year spent in different temperature ranges. Under a steady climate we would expect over the long-term to spend similar amounts of the year experiencing relatively warm & cold temperatures. These periods would balance themselves out and we would on-average have experienced something similar to the long-term climate.
 
