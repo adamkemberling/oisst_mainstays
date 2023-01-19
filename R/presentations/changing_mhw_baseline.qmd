@@ -212,7 +212,7 @@ year_hw_temps_two(year_hw_dat = ., temp_units = "C")  +
 
 ## Shifting the Baseline
 
-The major criticism of this approach is that the reference period is **static,**  and thresholds do not track long-term trends.
+The major criticism of this approach is that the reference period is **static,** and thresholds do not track long-term trends.
 
 ```{r}
 #| label: shifting-dist
@@ -289,38 +289,29 @@ year_hw_temps_two(year_hw_dat = ., temp_units = "C") +
 
 > For the detrended analysis, we removed linear trends over the 1991--2020 period from the observed SST anomalies and the lead-time-dependent forecast SST anomalies at each grid cell.
 
-
-
-
 ## Vincent Saba Process:
 
-1. Calculate recent climatology (e.g., last 30 years)
+1.  Calculate recent climatology (e.g., last 30 years)
 
-2. Calculate anomalies
+2.  Calculate anomalies
 
-3. Detrend anomalies
+3.  Detrend anomalies
 
-4. Calculate thresholds
+4.  Calculate thresholds
 
-5. Identify MHWs
-
-
-
+5.  Identify MHWs
 
 ## Saba Questions:
 
 **1. Calculate recent climatology (e.g., last 30 years)**
 
-2. Calculate anomalies
+2.  Calculate anomalies
 
 **3. Detrend anomalies** - Why not just temperature? **(answer: confusing to match them to thresholds but same results)**
 
-4. Calculate thresholds
+4.  Calculate thresholds
 
 **5. Identify MHWs** - Won't these change retroactively? **(answer: yes)**
-
-
-
 
 ## Comparing the Four Options:
 
@@ -397,11 +388,7 @@ flag_test <- bind_rows(method_list, .id = "hw_method") %>%
 
 ```
 
-
-
-
 ## Four Methods: Temperature
-
 
 ```{r}
 #| label: four-methods-temp
@@ -421,7 +408,6 @@ ggplot(aes(time,  sst, group = hw_method)) +
 
 ## Four Methods: Anomalies
 
-
 ```{r}
 #| label: four-methods-anoms
 
@@ -438,11 +424,7 @@ flag_test  %>%
 
 # Full Workflow:
 
-
-
-
 # 1. Calculate Climatology
-
 
 ```{r}
 #| label: heatwaveR-seasonal-climatology
@@ -471,7 +453,6 @@ gom_clim %>%
 
 ```
 
-
 ## 2. Calculate Anomalies
 
 ```{r}
@@ -487,7 +468,6 @@ gom_clim %>%
   theme(legend.position = c(0.225, 0.85))
 
 ```
-
 
 ## 3. De-trend Anomalies
 
@@ -515,13 +495,11 @@ j1_detrend %>%
   mutate(anom_type = fct_rev(anom_type)) %>% 
   ggplot(aes(yr, anom_vals)) +
   geom_point() +
+  geom_line() +
   geom_smooth(formula = y ~ x, method = "lm") +
   facet_wrap(~anom_type, ncol = 1) +
   labs(x = "Year", y = "SST Anomaly", title = "June 1st: Anomaly Choice Differences")
 ```
-
-
-
 
 ## 4. Calculate Thresholds
 
@@ -541,8 +519,6 @@ j1_detrend %>%
 
 
 ```
-
-
 
 ```{r}
 #| eval: true
@@ -564,9 +540,7 @@ detrended_91  %>%
 
 ```
 
-
 ## 5. Identify MHW's
-
 
 ```{r}
 detrended_91  %>% 
@@ -582,12 +556,9 @@ detrended_91  %>%
   theme(legend.position = c(0.225, 0.85))
 ```
 
-
 ## Full Workflow {.scrollable}
 
 The `pull_heatwave_events` function used in the warming report:
-
-
 
 ```{r}
 #| eval: false
@@ -745,13 +716,9 @@ pull_heatwave_events <- function(temperature_timeseries,
 }
 ```
 
-
-
-
 ## Fixed Baseline Heatmaps
 
-:::panel-tabset
-
+::: panel-tabset
 ### Baseline: 1982-2011
 
 ```{r}
@@ -762,25 +729,19 @@ heatwave_heatmap_plot(., temp_units = "C", start_yr = 2000, end_yr = 2022) +
 
 ### Baseline: 1991-2020
 
-
 ```{r}
 fixed_91 %>% 
 heatwave_heatmap_plot(., temp_units = "C", start_yr = 2000, end_yr = 2022)  +
   labs(title = "Hobday Methodology")
 ```
-
 :::
 
-
 :::
-
 
 ## Anomalies After De-Trending
 
-:::panel-tabset
-
+::: panel-tabset
 ### Baseline: 1982-2011
-
 
 ```{r}
 detrended_82 %>% 
@@ -790,9 +751,7 @@ heatwave_heatmap_plot(., temp_units = "C", start_yr = 2000, end_yr = 2022)+
   labs(title = "Jacox Methodology", fill = "De-Trended SST Anomaly")
 ```
 
-
 ### Baseline: 1991-2020
-
 
 ```{r}
 detrended_91 %>% 
@@ -801,17 +760,12 @@ detrended_91 %>%
   heatwave_heatmap_plot(., temp_units = "C", start_yr = 2000, end_yr = 2022) +
   labs(title = "Jacox Methodology", fill = "De-Trended SST Anomaly")
 ```
-
-
-
 :::
 
-
 ## How the NE Science Center Plans to Report:
- 
-* Anomalies from 1991-2020 Climatology
-* MHW Events from De-trending 1982-2022 Data
 
+-   Anomalies from 1991-2020 Climatology
+-   MHW Events from De-trending 1982-2022 Data
 
 ## How Our Heatmap Would Change
 
@@ -831,11 +785,8 @@ detrended_full <- pull_heatwave_events(gom_sst,
 
 ```
 
-
-:::panel-tabset
-
+::: panel-tabset
 ### Old: 1982-2011
-
 
 ```{r}
 fixed_82 %>% 
@@ -843,9 +794,7 @@ heatwave_heatmap_plot(., temp_units = "C", start_yr = 1982, end_yr = 2022) +
   labs(title = "Current 1982-2011 Methodology")
 ```
 
-
 ### New: 1982-2022 De-Trended
-
 
 ```{r}
 detrended_full %>% 
@@ -854,8 +803,86 @@ detrended_full %>%
   heatwave_heatmap_plot(., temp_units = "C", start_yr = 1982, end_yr = 2022) +
   labs(title = "Proposed De-Trending Methodology", fill = "De-Trended SST Anomaly")
 ```
-
-
-
 :::
+
+## Hybrid Visualization (idea)
+
+-   Use color scheme from new 30-year baseline
+
+-   use events from full period de-trending
+
+-   flag "heat stress" or "scald stress"
+
+-   Maybe add a vertical indication of GSI or ENSO index 
+
+## Hybrid Visualization (fig)
+
+```{r}
+
+# Color limit for palettes
+temp_limits <- c(-4, 4)
+temp_breaks <- c(temp_limits[1], temp_limits[1]/2,  0, temp_limits[2]/2, temp_limits[2])
+temp_labels <- str_c(c(str_c("< ", temp_limits[1]), temp_limits[1]/2, 0, temp_limits[2]/2, str_c("> ", temp_limits[2])), deg_c)
+
+
+
+fixed_91 %>% 
+  ggplot(aes(x = flat_date, y = year)) +
+    
+    # tile for sst colors
+    geom_tile(aes(fill = sst_anom)) +
+    
+    # points for heatwave events (de-trended)
+    geom_point(data = filter(detrended_full, mhw_event == TRUE),
+             aes(flat_date, year), color ="black", size = .25) +
+    scale_x_date(date_labels = "%b", date_breaks = "1 month", 
+                 expand = expansion(add = c(0,0))) +
+    scale_y_continuous(limits = c(1982 + .5, 2022 + .5), 
+                       expand = expansion(add = c(0,0))) +
+    scale_fill_distiller(palette = "RdBu", 
+                         na.value = "transparent", 
+                         limit = temp_limits, 
+                         oob = scales::squish,
+                         breaks = temp_breaks, 
+                         labels = temp_labels) +
+    
+    #5 inches is default rmarkdown height for barheight
+    guides("fill" = guide_colorbar(
+      title = "Sea Surface Temperature Anomaly", 
+      title.position = "right", 
+      title.hjust = 0.5,
+      barheight = unit(3.5, "inches"), 
+      frame.colour = "black", 
+      ticks.colour = "black")) +  
+    theme(legend.title = element_text(angle = 90)) +
+  labs(title = "Heatwave & Anomaly Hybrid Figure",
+       subtitle = "Anomalies Colored Based on Fixed 91-2020 Climatology\nExtreme Heat Events Flagged using 82-2022 De-Trending",
+       x = "Month", 
+       y = "Year",
+       fill = "1991-2020 SST Anomaly")
+
+
+
+```
+
+
+## De-Trending Method Questions:
+
+Is a linear de-trending causing new problems: Was 1982 an outlier year?
+
+```{r}
+
+
+detrended_full %>% 
+  mutate(baseline = "1982-2022 De-Trended Heatwaves",
+         hw_type = "De-Trended Heatwave") %>% 
+  ggplot(aes(time, sst_anom)) +
+  geom_path(aes(color = status, alpha = status), linewidth = 0.5, group = 1) +
+  scale_color_manual(values = c( gmri_cols("gmri blue")[[1]], gmri_cols("orange")[[1]],  "gray80")) +
+  scale_alpha_manual(values = c(1, 1, 0.2)) +
+  facet_grid(~baseline) +
+  theme(legend.position = "bottom") +
+  guides(alpha = "none") +
+  labs(x = "Time", y = "SST Anomaly", color = "Heatwave Event:")
+```
 
