@@ -9,7 +9,7 @@ format:
   revealjs:
     slide-number: true
     logo: img/gmri_logo.png
-    self-contained: true
+    self-contained: false
 editor: visual
 execute: 
   echo: false
