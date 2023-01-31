@@ -22,7 +22,7 @@ params:
   in_celsius: FALSE
   save_figures: 
     label: "Save Figures?" 
-    value: FALSE
+    value: TRUE
 ---
 
 ```{r}
@@ -30,7 +30,8 @@ params:
 #| include: false
 
 ####  Packages  ####
-{library(lubridate)
+{
+library(lubridate)
 library(raster)
 library(here)
 library(rnaturalearth)
@@ -49,7 +50,8 @@ library(ggstream)
 library(ggforce)
 library(geomtextpath)
 library(ggHoriPlot)
-library(tidytext)}
+# library(tidytext)
+}
 
 #---------- Support Functions
 suppressPackageStartupMessages( source(here("R/oisst_support_funs.R"), verbose = FALSE) )
@@ -99,12 +101,14 @@ crop_y_expanded <- crop_y + c(-0.75, 0.75)
 # Make a new extent for cropping to larger area
 sfc <- make_cropbox(xlims = crop_x_expanded, ylims = crop_y_expanded)
 
+# Projection to use for everything
+master_crs <- st_crs("EPSG:4326")
+
 # Coastline Shapes
-# new_england <- ne_states("united states of america", returnclass = "sf")
-new_england <- gb_adm1(country = "usa", type = "sscgs")
-canada      <- ne_states("canada", returnclass = "sf")
-world_sf    <- ne_countries(returnclass = "sf")
-greenland   <- ne_states(country = "greenland", returnclass = "sf")
+canada      <- ne_states("canada", returnclass = "sf") %>% st_transform(master_crs)
+new_england <- gb_adm1(country = "usa", type = "sscgs")  %>% st_transform(master_crs)
+world_sf    <- ne_countries(returnclass = "sf")  %>% st_transform(master_crs)
+greenland   <- ne_states(country = "greenland", returnclass = "sf") %>% st_transform(master_crs)
 
 # Adding Logo to plots
 logo_path <- paste0(system.file("stylesheets", package = "gmRi"), "/gmri_logo.png")
@@ -175,8 +179,6 @@ region_hw <- region_hw %>%
          yr_rev = fct_rev(yr_rev))
 
 
-
-
 # # Global Temperature Anomalies
 global_anoms <- read_csv(
     paste0(oisst_path, "global_timeseries/global_anoms_1982to2011.csv"), 
@@ -193,6 +195,24 @@ global_summary <- global_anoms %>%
   mutate(yr_as_dtime = as.Date(paste0(year, "-07-02")),
          anom_direction = ifelse(area_wtd_anom > 0, "Hot", "Cold"))
 ```
+
+
+
+
+```{r}
+#| label: code-all-data-summary
+
+# Get the overall average and build labels
+all_year_avgs <- annual_summary %>% 
+  summarise(avg_temp_c = mean(area_wtd_sst),
+            avg_temp_f = mean(area_wtd_f),
+            avg_anom_c = mean(area_wtd_anom),
+            avg_anom_f = mean(area_wtd_anom_f),            
+            .groups = "drop") %>% 
+  mutate(temp_label = str_c(round(avg_temp_c, 2), " \u00b0C  |  ", round(avg_temp_f, 2), " \u00b0F"))
+
+```
+
 
 
 ```{r}
@@ -220,24 +240,12 @@ season_ranks <- region_timeseries %>%
     temperature_summaries()) %>% 
     filter(year == report_yr)
 
+
+# How many days in this year meet mhw criteria
 # add some acknowledgement of the extreme characteristics:
+hw_criteria <- report_yr_only %>% pull(mhw_event) %>% sum()
 ```
 
-
-
-```{r}
-#| label: code-all-data-summary
-
-# Get the overall average and build labels
-all_year_avgs <- annual_summary %>% 
-  summarise(avg_temp_c = mean(area_wtd_sst),
-            avg_temp_f = mean(area_wtd_f),
-            avg_anom_c = mean(area_wtd_anom),
-            avg_anom_f = mean(area_wtd_anom_f),            
-            .groups = "drop") %>% 
-  mutate(temp_label = str_c(round(avg_temp_c, 2), " \u00b0C  |  ", round(avg_temp_f, 2), " \u00b0F"))
-
-```
 
 
 
@@ -267,7 +275,7 @@ rate_data <- list(
     temp_col = "area_wtd_f", 
     year_col = "year", 
     year_lim = c(1982, report_yr), 
-    area_name = "Global", 
+    area_name = "Global Ocean", 
     degree_c = F))
 
 
@@ -279,9 +287,7 @@ eq_global_f <- rate_data[["Global All F"]][["eq_label"]]
 ```
 
 
-
-
-The annual average SST in the Gulf of Maine for `r report_yr` was `r report_annual_temp`°F; this was `r report_annual_anom`°F above the long-term (i.e., 1982-2011) average. This year fell short of the previous warmest year on record — 2021 — by a remarkable `r round(record_year_temp-report_annual_temp, 2)`°F. `r report_yr` was the second hottest year on record for the Gulf of Maine, shifting the 1982-`r report_yr` warming rate to `r str_c(rate_data[["GoM All F"]][["decadal_rate"]], "\u00b0F / Decade")`.  Since the early 1980s, the rate of warming in the Gulf of Maine has been nearly triple that of the world’s oceans (@fig-global-comparison). 
+The annual average SST in the Gulf of Maine for `r report_yr` was `r report_annual_temp`°F; this was `r report_annual_anom`°F above the long-term (i.e., 1982-2011) average. This year fell short of the previous warmest year on record — 2021 — `r round(record_year_temp-report_annual_temp, 2)`°F. Since the early 1980s, the rate of warming in the Gulf of Maine `r str_c(rate_data[["GoM All F"]][["decadal_rate"]], "\u00b0F / Decade")` has been more than triple that of the world’s oceans (`r str_c(rate_data[["Global All F"]][["decadal_rate"]], "\u00b0F / Decade")` @fig-global-comparison). 
 
 
 
@@ -308,23 +314,36 @@ temp_simplified
 
 ```
 
-The rate of warming in the region vary throughout the year. Comparisons across the four seasons (@fig-seasons-comparison) reveal that the Gulf of Maine is warming fastest during the Summer and Fall months (~4x the global average), nearly twice the rate seen during the spring (~2x the global average).
+The rate of warming in the region vary throughout the year. Comparisons across the four seasons (@fig-seasons-comparison) reveal that the Gulf of Maine is warming fastest during the July-September (nearly 4x the global ocean average), more than twice the rate seen during January-March (~3x the global ocean average).
+
 
 
 ```{r}
 #| label: fig-seasons-comparison
-#| fig-cap: "Four timeseries panels of the annual averages for each season (solid black lines) for the Gulf of Maine. Decadal trends are overlayed to compare decadal trends in the Gulf of Maine (blue) and the entire globe (green). Rates are much faster in the Gulf of Maine across all seasons, with the smallest difference in rates during the spring."
+#| fig-cap: "Four timeseries panels of the annual averages for each season (solid black lines) for the Gulf of Maine. Decadal trends are overlaid to compare decadal trends in the Gulf of Maine (blue) and the entire globe (green). Rates are much faster in the Gulf of Maine across all seasons, with the smallest difference in rates during the spring."
 #| fig.width: 8
 #| fig.height: 7
 
 
 # Pull the data out by season: annual_summary steps but for each season
 season_summary <- region_timeseries %>% 
-  group_by(season_yr, season_eng) %>% 
+  mutate(
+    month_groups = case_when(
+      month %in% c("Jan", "Feb", "Ma")   ~ "January - March",
+      month %in% c("Apr", "May", "Jun")  ~ "April - June",
+      month %in% c("Jul", "Aug", "Sep")  ~ "July - September",
+      month %in% c("Oct", "Nov", "Dec")  ~ "October - December")) %>% 
+  group_by(yr, month_groups) %>% 
   temperature_summaries()
 
 global_season_summary <- global_anoms %>% 
-  group_by(season_yr, season_eng) %>% 
+  mutate(
+    month_groups = case_when(
+      month %in% c("Jan", "Feb", "Ma")   ~ "January - March",
+      month %in% c("Apr", "May", "Jun")  ~ "April - June",
+      month %in% c("Jul", "Aug", "Sep")  ~ "July - September",
+      month %in% c("Oct", "Nov", "Dec")  ~ "October - December")) %>% 
+  group_by(yr, month_groups) %>% 
   temperature_summaries() 
 
 
@@ -334,16 +353,16 @@ global_season_summary <- global_anoms %>%
 season_avgs <- bind_rows(
   list(
     "Gulf of Maine" = season_summary,
-    "Global" = global_season_summary), 
+    "Global Ocean" = global_season_summary), 
   .id = "Region") %>% 
-  mutate(
-    season_eng = factor(season_eng, levels = c("Spring", "Summer", "Fall", "Winter")))
+  mutate(month_groups = factor(month_groups,
+    levels = c("January - March", "April - June", "July - September", "October - December")))
 
 
 # Decadal Rates Function
 rate_calc <- function(.data){
-   annual_lm <- lm(anom_f ~ season_yr, data = .data)
-    rate_x <- round(coef(annual_lm)["season_yr"] * 10, 2)
+   annual_lm <- lm(anom_f ~ yr, data = .data)
+    rate_x <- round(coef(annual_lm)["yr"] * 10, 2)
     eq_lab <- paste0(": ", rate_x, deg_f, " / Decade")
     mutate(.data, rate_eq = eq_lab)
 }
@@ -351,7 +370,7 @@ rate_calc <- function(.data){
 
 # Run the numbers to make the label
 season_avgs <- season_avgs %>% 
-  group_by(Region, season_eng) %>% 
+  group_by(Region, month_groups) %>% 
   group_map( ~rate_calc(.), .keep = TRUE) %>% 
   bind_rows() %>% 
   mutate(rate_eq = str_c(Region, rate_eq))
@@ -360,10 +379,10 @@ season_avgs <- season_avgs %>%
 
 # Make the four panels:
 season_panels <- season_avgs %>% 
-  split(.$season_eng) %>% 
+  split(.$month_groups) %>% 
   imap(function(x, y){
     
-    season_p <- ggplot(x, aes(season_yr, anom_f)) +
+    season_p <- ggplot(x, aes(yr, anom_f)) +
       geom_line( data = filter(x, Region == "Gulf of Maine"), linewidth = 1, linetype = 1) +
       geom_point(data = filter(x, Region == "Gulf of Maine"), size = 1.5) +
       stat_smooth(
@@ -374,7 +393,7 @@ season_panels <- season_avgs %>%
         linewidth = 1.5, 
         alpha = 0.8,
         se = FALSE) +
-      facet_wrap(~season_eng, ncol = 2) +
+      facet_wrap(~month_groups, ncol = 2) +
       scale_color_manual(values = c(gmri_cols("green"), gmri_cols("blue"))) +
       scale_y_continuous(labels = number_format(suffix = deg_f)) +
       theme(
@@ -387,25 +406,65 @@ season_panels <- season_avgs %>%
     
     if(y == "Winter"){
       season_p <- season_p +
-        geom_point(data = filter(x, season_yr == 2022, Region == "Gulf of Maine"), aes(season_yr, anom_f),
-                   shape = 21, color = "black", fill = "white", size = 1.5)
-    }
+        geom_point(data = filter(x, yr == 2022, Region == "Gulf of Maine"), aes(yr, anom_f),
+                   shape = 21, color = "black", fill = "white", size = 1.5)}
     
+    # Return the plot
     season_p
       
   })
 
 
 # Assemble the plot
-panel_plot <- (season_panels$Spring |season_panels$Summer) / (season_panels$Fall | season_panels$Winter) + plot_annotation(caption = "Winter temperatures for 2022 are not complete and will change through the end of February 2023.") &
-  theme(plot.margin = margin(t = 0.5, b = 0.5, r = 0.75, l = 0.75))
+panel_plot <- (season_panels$`January - March` |season_panels$`April - June`) / (season_panels$`July - September` | season_panels$`October - December`) + plot_annotation(caption = "") &
+  theme(plot.margin = margin(t = 1, b = 1, r = 1, l = 1))
 
 panel_plot
 grid::grid.raster(lab_logo, x = 0.08, y = 0.01, just = c('left', 'bottom'), height = unit(1, "cm"))
 ```
 
 
-There can be significant spatial variability in annually-averaged SST patterns. The Gulf of Maine in `r report_yr` illustrated this fact with the region southeast of Georges Bank experiencing the highest SST anomalies (@fig-new-england-map). This area is more susceptible to large-scale variability in major oceanic currents, such as the relative influence of the Gulf Stream versus the Labrador Current, than other areas of the Gulf of Maine.
+There can be significant spatial variability in annually-averaged SST patterns. The Gulf of Maine in `r report_yr` illustrated this fact with the region southeast of Georges Bank experiencing the highest SST anomalies (@fig-new-england-map). This area is more susceptible than other areas of the Gulf of Maine to large-scale variability in major oceanic currents, such as the relative influence of the Gulf Stream versus the Labrador Current.
+
+```{r}
+#| label: bathymetry-details
+
+# These work but the detail takes forever with ggplot...
+# Add the bottom contours:
+bathy <- raster(str_c(cs_path("res","Bathy/"), "ETOPO1/NEShelf_Etopo1_bathy.tiff")) 
+
+# # Contours for geom_contour()
+# bathy_df <- as.data.frame(raster::coordinates(bathy))
+# bathy_df$depth <- raster::extract(bathy, bathy_df)
+# bathy_df$depth <- bathy_df$depth * -1
+# contours_make <- c(200)
+
+# Or make terra for ggplot using tidyterra
+elev_terra <- terra::rast(bathy)
+
+# ggplot() +
+#   tidyterra::geom_spatraster_contour_filled(
+#     data = elev_terra,
+#     breaks = c(seq(0,-400,-100), -Inf),
+#     show.legend = F) +
+#   # tidyterra::geom_spatraster_contour(
+#   #   data = elev_terra, 
+#   #   breaks = seq(0,-400,-100), 
+#   #   alpha = 0.75) +
+#   geom_sf(data = new_england, fill = "gray90", linewidth = .15) +
+#   geom_sf(data = canada, fill = "gray90", linewidth = .15) +
+#   geom_sf(data = greenland, fill = "gray90", linewidth = .15) +
+#   geom_sf(data = region_extent,
+#           color = "black",
+#           linetype = 2, linewidth = 0.5,
+#           fill = "transparent") +
+#   scale_fill_brewer(palette = "Blues", direction = 1) +
+#   scale_y_continuous(breaks = seq(30, 50, by = 2)) +
+#   coord_sf(xlim = c(-78, -56.5), ylim = c(37.8, 48))
+
+```
+
+
 
 
 ```{r}
@@ -448,15 +507,21 @@ temp_labels <- str_c(c(str_c("< ", temp_limits[1]), temp_limits[1]/2, 0, temp_li
 # Make it a stars class to plot with ggplot
 ne_anoms_st <- st_as_stars(ne_annual_anom_f)
 
+
+
 #### 1. Map the Anomalies in Space
 annual_gom_map <- ggplot() +
   geom_stars(data = ne_anoms_st) +
-  geom_sf(data = new_england, fill = "gray90", size = .25) +
-  geom_sf(data = canada, fill = "gray90", size = .25) +
-  geom_sf(data = greenland, fill = "gray90", size = .25) +
-  geom_sf(data = region_extent, 
-          color = "black", 
-          linetype = 2, size = 1,
+  tidyterra::geom_spatraster_contour(
+    data = elev_terra,
+    breaks = seq(0,-200,-100),
+    alpha = 0.75) +
+  geom_sf(data = new_england, fill = "gray90", linewidth = .15) +
+  geom_sf(data = canada, fill = "gray90", linewidth = .15) +
+  geom_sf(data = greenland, fill = "gray90", linewidth = .15) +
+  geom_sf(data = region_extent,
+          color = "black",
+          linetype = 2, linewidth = 1,
           fill = "transparent") +
   scale_y_continuous(breaks = seq(30, 50, by = 2)) +
   scale_fill_distiller(palette = "RdBu", 
@@ -466,7 +531,7 @@ annual_gom_map <- ggplot() +
                        oob = scales::oob_squish) +
   coord_sf(xlim = c(-78, -56.5), ylim = c(37.8, 48)) +
   labs(title = str_c(report_yr, ": Average Temperature Anomalies"),
-       caption = "Anomalies calculated using 1982-2011 climatology.") +
+       caption = "Anomalies calculated using 1982-2011 climatology.\n100m & 200m contours overlaid to show bathymetric details.") +
   map_theme(
     legend.position = "bottom",
     legend.title = element_text(angle = 0))+
@@ -485,24 +550,25 @@ grid::grid.raster(lab_logo, x = 0.1, y = 0.06, just = c('left', 'bottom'), heigh
 
 ```
 
-Looking at these spatial patterns at a seasonal level (@fig-four-season-maps) shows just how "patchy" these pockets of above-average temperatures can be. In the spring months the areas to the south and south east of the Gulf of Maine are pocketed with a mixture of both above and below average water masses. During the summer months we can see that the water within the Gulf of Maine itself and the deeper waters just south of Georges Bank are higher than the surrounding areas. In the fall and winter the Gulf of Maine becomes less of a heat island itself, but remains hot as bands of elevated temperature water masses move up the coast nearby.
+Looking at these spatial patterns in 3-month averages (@fig-four-season-maps) shows just how “patchy” these pockets of above-average temperatures can be. During January-March, the areas to the south and southeast of the Gulf of Maine exhibit a strong mix of both above and below average surface temperature. During April-June, we can see that the water within the Gulf of Maine itself and the deeper waters just south of Georges Bank experienced warmer temperatures than the surrounding areas. In the second-half of the year, the exceptional warmth of the Gulf Stream is evident to the east and south of the area of study (dashed line), while the Gulf of Maine, itself, remains several degrees above the long-term average.
+
 
 
 ```{r}
 #| label: fig-four-season-maps
-#| fig-cap: "Map of each season's average sea surface temperature in 2022. Winter data is still ongoing and is subject to future changes in sea surface temperature."
+#| fig-cap: "Maps of the  3-month averages in sea surface temperature anomalies in 2022."
 #| fig.width: 8
 #| fig.height: 6
 
 # Four Season Panels
 
-# Process the stack into the four seasons (winter will be ongoing, make a note, its fine):
+# Process the stack into the four 3-month averages
 # Set time limits
 season_dates <- list(
-  "Spring" = distinct(filter(report_yr_only, season_eng == "Spring"), time) %>% pull(time),
-  "Summer" = distinct(filter(report_yr_only, season_eng == "Summer"), time) %>% pull(time),
-  "Fall"   = distinct(filter(report_yr_only, season_eng == "Fall"), time) %>% pull(time),
-  "Winter" = distinct(filter(report_yr_only, season_eng == "Winter"), time) %>% pull(time)
+  "January - March" = distinct(filter(report_yr_only, month %in% c("Jan", "Feb", "Mar")), time) %>% pull(time),
+  "April - June" = distinct(filter(report_yr_only, month %in% c("Apr", "May", "Jun")), time) %>% pull(time),
+  "July - September"   = distinct(filter(report_yr_only, month %in% c("Jul", "Aug", "Sep")), time) %>% pull(time),
+  "October - December" = distinct(filter(report_yr_only, month %in% c("Oct", "Nov", "Dec")), time) %>% pull(time)
 )
 
 # Grab the dates for each, process the mean 
@@ -521,12 +587,20 @@ season_panel_maps <- imap(season_stacks, function(x, seasn){
   ne_season_st <- st_as_stars(x)
   season_map <- ggplot(data = season_df) +
     geom_stars(data = ne_season_st) +
-    geom_sf(data = new_england, fill = "gray90", size = .25) +
-    geom_sf(data = canada, fill = "gray90", size = .25) +
-    geom_sf(data = greenland, fill = "gray90", size = .25) +
+    tidyterra::geom_spatraster_contour(
+      data = elev_terra,
+      breaks = seq(0,-200,-100),
+      alpha = 0.75) +
+    geom_sf(data = new_england, fill = "gray90", 
+            linewidth = .25) +
+    geom_sf(data = canada, fill = "gray90", 
+            linewidth = .25) +
+    geom_sf(data = greenland, fill = "gray90", 
+            linewidth = .25) +
     geom_sf(data = region_extent, 
             color = "black", 
-            linetype = 2, size = 1,
+            linetype = 2, 
+            linewidth = 1,
             fill = "transparent") +
     scale_y_continuous(breaks = seq(30, 50, by = 2)) +
     scale_fill_distiller(palette = "RdBu", 
@@ -535,7 +609,6 @@ season_panel_maps <- imap(season_stacks, function(x, seasn){
                          labels = temp_labels,
                          oob = scales::oob_squish) +
     coord_sf(xlim = c(-78, -56.5), ylim = c(37.8, 48)) +
-    labs() +
     facet_wrap(~season) +
     map_theme(
       legend.position = "bottom",
@@ -555,23 +628,23 @@ season_map
 
 
 # Put them together and format them
-season_panels_all <- (season_panel_maps$Spring | season_panel_maps$Summer)/(season_panel_maps$Fall | season_panel_maps$Winter) +
+season_panels_all <- (season_panel_maps$`January - March` | season_panel_maps$`April - June`)/(season_panel_maps$`July - September` | season_panel_maps$`October - December`) +
   plot_layout(guides = "collect") & 
   theme(legend.position = 'bottom', 
-        plot.margin = margin(t = 0, b = 0, r = 0.5, l = 0.5)) 
+        plot.margin = margin(t = 1, b = 1, r = 1, l = 1)) 
 
 # Display them
-season_panels_all + plot_annotation(caption = "Winter temperatures still being collected, numbers subject to future changes.")
+season_panels_all + plot_annotation(caption = "100m & 200m contours overlaid to show bathymetric details.")
 grid::grid.raster(lab_logo, x = 0.08, y = 0.04, just = c('left', 'bottom'), height = unit(1, "cm"))
 
 ```
 
 
-When we compare `r report_yr` to other unusually warm years in the Gulf of Maine, we see that in absolute terms it was roughly half a degree from 2021's record year. When we look at the deviation from the long-term average SST (i.e., the annual SST anomaly), the last decade stands out (@fig-yr-ranks). `r report_yr` continues a pattern that began in 2010 of sustained above-average temperatures. With the exception of 2019 (ranked 13th), all of the last ten years remain in the top 10 for SST.
+When we compare the annual average SST for `r report_yr` (`r str_c(report_annual_temp, deg_f)`) to other unusually warm years in the Gulf of Maine, we see that it was ~0.4`r deg_f` cooler than 2021, the warmest year on record(`r str_c(round(record_year_temp,2), deg_f)`). When we look at the deviation from the long-term average SST (i.e., the annual SST anomaly), the last decade stands out for its exceptional warmth (@fig-yr-ranks). `r report_yr` continues a pattern that began in 2010 of sustained above-average temperatures. With the exception of 2019 (ranked 13th), all of the last ten years remain in the top 10 for SST.
 
 ```{r}
 #| label: fig-yr-ranks
-#| fig-cap: "Bar plot ranking the top 5 annual sea surface temperature (SST) values and their equivelant SST anomalies. Absolute temperatures displayed in text with the corresponding year."
+#| fig-cap: "A ranking of the top 10 annual SST values [bars] and those years' respective SST anomalies [x-axis]."
 
 
 
@@ -617,13 +690,13 @@ temp_rankings_p <- annual_summary %>%
   geom_logo(x_npc = 0.1, y_npc = -0.15, logo_height = 1, height_units = "cm")
 
 temp_rankings_p
-
-
 ```
 
 ## Worldwide Temperatures
 
-It was not just the Gulf of Maine that experienced exceptional warmth in `r report_yr`, however. According to NOAA, `r report_yr` was the `r report_rank`nd warmest year on record for the contiguous United States and the `r global_report_rank` warmest year globally for sea surface temperatures. The figure below (@fig-global-anomalies) shows annual average SST anomalies for oceans all over the world in `r report_yr`. While much of the Southern Ocean and expanses of the southeastern Pacific off South America were anomalously cool (a feature of La Niña conditions), most of the world’s oceans experienced unusually warm temperatures in `r report_yr`. This is particularly true for James Bay in Canada, the Labrador Sea, the Baltic Sea, and a swath from ~35 °N to ~45 °N across ocean basins — a region that includes the Gulf of Maine.
+It was not just the Gulf of Maine that experienced exceptional warmth in `r report_yr`, however. Globally, `r report_yr` was the `r global_report_rank`rd warmest year for sea surface temperatures, and [6th-warmest for combined land & ocean temperatures.](https://www.noaa.gov/news/2022-was-worlds-6th-warmest-year-on-record). 
+
+@fig-global-anomalies shows annual average SST anomalies for oceans all over the world in `r report_yr`. While much of the Southern Ocean and expanses of the southeastern Pacific were anomalously cool (a feature of La Niña conditions), most of the world’s oceans experienced unusually warm temperatures in `r report_yr`. This is particularly true for northern mid-latitudes, especially the northwestern Pacific (off Japan) and along the eastern seaboard of the United States—a region that includes the Gulf of Maine.
 
 
 ```{r}
@@ -674,7 +747,7 @@ global_anoms_st <- st_as_stars(global_anom_mean_f)
 #### 1. Map the Anomalies in Space
 annual_anom_map <- ggplot() +
   geom_stars(data = global_anoms_st) +
-  geom_sf(data = world_sf, fill = "gray90", size = .25) +
+  geom_sf(data = world_sf, fill = "gray90", linewidth = .25) +
   scale_y_continuous(breaks = seq(-90, 90, by = 30)) +
   scale_fill_distiller(palette = "RdBu", 
                        na.value = "transparent", 
@@ -728,33 +801,53 @@ report_yr_min <- round(report_yr_min, 2)
 ```
 
 
-The annual cycle of SST in the Gulf of Maine exhibits a familiar pattern with low temperatures in March and high temperatures in August (@fig-annual_hw_timeseries). The average difference between the annual maximum SST in August and the annual minimum SST in March is `r seasonal_range` °F. In `r report_yr`, the difference between the maximum SST (`r report_yr_max_date`, `r report_yr_max`°F) and minimum SST (`r report_yr_min_date`, `r report_yr_min`°F) was `r report_yr_range` °F, with daily SST anomaly values never falling below +`r report_yr_min_anom` °F and reaching as high as +`r report_yr_max_anom` °F above the long-term average.
+The annual cycle of SST in the Gulf of Maine exhibits a familiar pattern with the lowest annual temperatures being observed in March, while the highest SSTs are observed in August (@fig-annual_hw_timeseries). The average difference between the annual maximum SST in August and the annual minimum SST in March is `r seasonal_range` °F. In `r report_yr`, the difference between the maximum SST (`r report_yr_max_date`, `r report_yr_max`°F) and minimum SST (`r report_yr_min_date`, `r report_yr_min`°F) was `r report_yr_range` °F. Daily SST anomaly values never fell below +`r report_yr_min_anom` °F and reached as high as +`r report_yr_max_anom` °F above the long-term average.
+
+
+```{r}
+#| label: fig-annual_hw_timeseries
+#| fig.height: 4
+#| fig-cap: "A timeseries of marine heatwave (MHW) conditions in the Gulf of Maine extending from January 1 through December 301 2022. Black lines representing the long-term (i.e., 1982 – 2011) average SST, the 10th percentile (i.e., cold spell threshold), and 90th percentile (i.e., heatwave threshold) for a given day in the Gulf of Maine are labeled to indicate climatological reference points. A solid line (red for marine heatwave or blue for a non-heatwave day) indicate the observed SST for each day; red and blue shading illustrates whether each day is considered part of a MHW event."
+#| fig-alt: "A line chart shows the average sea surface temperature for each day of the year, and overlaid against it are notably smoother black lines representing the long-term mean, 10th percentile, and 90th percentile temperatures for those same days of the year. The area between the mean and the observed temperature is filled in with a solid color to indicate whether that day meets marine heatwave criteris. The observed temperatures for 2022 are above the 90th percentile for nearly the entire year, with the exception of two periods less than a week long in June and October."
+
+
+# annual heatwave timeseries
+
+
+# Show MHW Status Through the Year:
+hw_temp_p <- year_hw_temps_two(year_hw_dat = report_yr_only, temp_units = "F") + 
+  labs(
+    title = str_c("Gulf of Maine SST: ", params$report_year))  +
+  scale_x_date(date_labels = "%b", date_breaks = "1 month", expand = expansion(add = c(0,0))) +
+  coord_cartesian(clip = "off") +
+  geom_logo(x_npc = 0.9, y_npc = 1.125, logo_height = 1, height_units = "cm")
+hw_temp_p
+
+```
+
+
 
 ## Record Setting Daily Temperatures
 
-
-The figure below shows the highest recorded SST values for every day of the year in the Gulf of Maine. Record-setting days that occurred in `r report_yr` are denoted with red dots (@fig-hottest-days). Indeed, record-setting daily high SSTs in the Gulf of Maine were set for more than 1/2 of all days in November and December. The most daily records were set in November, which experienced record high SSTs for 24/30 or 80% of the month. In total, `r report_yr` set 169 record high temperature days in the Gulf of Maine; stated another way, nearly 46% of days in `r report_yr` experienced record high SSTs in the Gulf of Maine.
+@fig-hottest-days shows the highest SST values ever recorded for each day of the year in the Gulf of Maine. Record-setting days that occurred in `r report_yr` are denoted with dark red dots (@fig-hottest-days). Indeed, daily high SST records were set for more than half of all days in November and December. The most daily records were set in November, which experienced record high SSTs for 24 of the month's 30 days - or 80% of the month. In total, record high daily temperatures were reached on 169 days during`r report_yr`; nearly 46% of days in `r report_yr` experienced record high SSTs in the Gulf of Maine.
 
 ```{r}
-#| label: fig-hottest-days
+#| label: code-hottest-days
+#| eval: true
 #| fig-cap: "Timeseries of the record high daily sea surface temperature in the Gulf of Maine for every day of the year. Record-breaking temperatures that were observed in `r report_yr` are denoted with red dots; when a record-breaking temperature for a given day was observed in any other year, that daily record is in gray."
 
-
 # New hottest daily temps - maybe scratch
-
 # Grab the hottest day for each day of the year
 hottest_days <- region_hw %>% 
   group_by(doy) %>% 
   slice_max(order_by = sst_anom, n = 1) %>% 
   ungroup() 
 
-
 # Total Number in report_yr
 hottest_report_yr <- hottest_days %>% 
   count(yr) %>% 
   filter(yr == report_yr) %>% 
   pull(n)
-
 
 # # Daily Record Temperatures
 hottest_days <- hottest_days %>%
@@ -764,10 +857,23 @@ hottest_days <- hottest_days %>%
       yr < report_yr & yr > 2000 ~ "Since 2010",
       yr < 2000 ~ "Before 2000"),
     flat_date = as.Date(str_c(report_yr, "-01-01")) + (doy - 1))
+```
 
+
+```{r}
+#| label: fig-hottest-days
+#| eval: false
+#| fig-cap: "Timeseries of the record high daily sea surface temperature in the Gulf of Maine for every day of the year. Record-breaking temperatures that were observed in `r report_yr` are denoted with red dots; when a record-breaking temperature for a given day was observed in any other year, that daily record is in gray."
+
+
+# Timeseries of what the temperatures are for the daily records
 hottest_days_plot <- ggplot() +
-  geom_point(data = filter(hottest_days, record_period != report_yr), aes(x = flat_date, y = sst_f, color = record_period), alpha = 0.5, size = 1) +
-  geom_point(data = filter(hottest_days, record_period == report_yr), aes(x = flat_date, y = sst_f, color = record_period), size = 1.5) +
+  geom_point(
+    data = filter(hottest_days, record_period != report_yr), 
+    aes(x = flat_date, y = sst_f, color = record_period), alpha = 0.5, size = 1) +
+  geom_point(
+    data = filter(hottest_days, record_period == report_yr), 
+    aes(x = flat_date, y = sst_f, color = record_period), size = 1.5) +
   scale_x_date(date_labels = "%b", date_breaks = "1 month", expand = expansion(add = c(0,0))) +
   scale_y_continuous(labels = number_format(suffix = deg_f)) +
   scale_color_manual(values = c("darkred", "black", gmri_cols("orange"))) +
@@ -785,15 +891,90 @@ hottest_days_plot <- ggplot() +
 
 
 hottest_days_plot
+
+
+#--------------  As geom_tile instead
+
+{
+# # New hottest daily temps - maybe scratch
+# 
+# # Grab the hottest day for each day of the year
+# hottest_days <- region_hw %>% 
+#   group_by(doy) %>% 
+#   slice_max(order_by = sst_anom, n = 1) %>% 
+#   ungroup() 
+# 
+# 
+# # Total Number in report_yr
+# hottest_report_yr <- hottest_days %>% 
+#   count(yr) %>% 
+#   filter(yr == report_yr) %>% 
+#   pull(n)
+# 
+# 
+# # # Daily Record Temperatures
+# hottest_days <- hottest_days %>%
+#   mutate(
+#     record_period = case_when(
+#       yr == report_yr ~ "New Record Daily Temperature",
+#       yr < report_yr & yr > 2000 ~ "Last Decade",
+#       yr < 2000 ~ "No Record Set"),
+#     flat_date = as.Date(str_c(report_yr, "-01-01")) + (doy - 1))
+# 
+# 
+# 
+# hottest_days_plot <- hottest_days %>% 
+#   mutate(record_period = ifelse(record_period == "New Record Daily Temperature", "New Record Daily Temperature", "No Record Set")) %>% 
+#   ggplot() +
+#   geom_tile(aes(x = flat_date, y = 0, fill = record_period)) +
+#   scale_x_date(date_labels = "%b", date_breaks = "1 month", expand = expansion(add = c(0,0))) +
+#   scale_y_continuous(expand = expansion(add = c(0,0))) +
+#   scale_fill_manual(values = c("purple", "gray90")) +
+#   labs(x = "Day of the Year",
+#        y = NULL,
+#        title = "Record Setting Daily Temperatures of 2022",
+#        subtitle = "Gulf of Maine",
+#        fill = "Record Setting Year",
+#        caption = NULL)  +
+#    theme(legend.position = "top",
+#          axis.text.y = element_blank(),
+#          axis.ticks.y = element_blank()) +
+#   guides(color = guide_legend(title.position = "top", title.hjust = 0.5))  
+# 
+# 
+# hottest_days_decade <-  hottest_days %>% 
+#   mutate(record_period = ifelse(record_period %in% c("Last Decade", "New Record Daily Temperature"), as.character(report_yr), "No Record Set")) %>% 
+#   ggplot() +
+#   geom_tile(aes(x = flat_date, y = 0, fill = record_period), show.legend = FALSE) +
+#   scale_x_date(date_labels = "%b", date_breaks = "1 month", expand = expansion(add = c(0,0))) +
+#   scale_y_continuous(expand = expansion(add = c(0,0))) +
+#   scale_fill_manual(values = c("purple", "gray90")) +
+#   labs(x = "Day of the Year",
+#        y = NULL,
+#        title = "Record Temperatures in the Last Decade",
+#        subtitle = NULL,
+#        fill = "Record Setting Year",
+#        caption = str_c("Temperature data covers period of 1982-", report_yr))  +
+#    theme(legend.position = "top",
+#          axis.text.y = element_blank(),
+#          axis.ticks.y = element_blank()) +
+#   guides(color = guide_legend(title.position = "top", title.hjust = 0.5)) 
+# 
+# 
+# hottest_days_plot / hottest_days_decade
+}
 ```
+
+
+
 
 
 ```{r}
 #| label: fig-percent-records-bars
-#| fig-cap: "A bar plot showing the percentage of days during each month in 2022 when a record-high temperature was observed in the Gulf of Maine (e.g., 80% — 24 days — of November were new record-setting high temperatures)."
+#| fig-cap: "An illustration of the percentage of days during each month in 2022 when a record-high temperature was observed in the Gulf of Maine (e.g., 80% — 24 days — of November were new record-setting high temperatures)."
 #| fig.height: 4
 
-# Fraction of each month setting records
+# Fraction of each month that were set
 
 
 # What days set records in report_yr
@@ -801,7 +982,6 @@ records_report_yr <- hottest_days %>%
   filter(yr == report_yr) %>% #count(month)
   mutate(record_temp = TRUE) %>% 
   select(yr, time, sst, seas, sst_anom, record_temp)
-
 
 # What percent of days in month were records:
 record_percents <- region_hw %>% 
@@ -818,7 +998,6 @@ record_percents <- region_hw %>%
              alpha = highlight_oct)
          ) +
   geom_col() +
-  # scale_fill_grey() +
   geom_col(fill = as.character(gmri_cols("orange"))) +
   scale_alpha_manual(values = c("flag" = 1, "filler" = 0.4)) +
   scale_y_continuous(labels = percent_format(), limits = c(0,1), expand = expansion(add = c(0,0))) +
@@ -831,54 +1010,26 @@ record_percents <- region_hw %>%
   geom_logo(x_npc = 0.1, y_npc = -0.18, logo_height = 1, height_units = "cm")
 
 
+# Show plot
 record_percents
 
 ```
 
-## More Persistant, Intense Heatwaves
+## More Persistent, Intense Heatwaves
 
 
-A marine heatwave (MHW) is defined as a period when there are 5 or more consecutive days when the observed SST is greater than the 90th percentile of the long-term average for that day. In the figure below, the long-term average is illustrated with the gray dashed line and the threshold for being a MHW day is illustrated by the dashed red line. The solid red line in the figure shows the observed SST for that day.
-
-
-```{r}
-#| label: txt-hw-conditions
-
-hw_criteria <- report_yr_only %>% pull(mhw_event) %>% sum()
-
-
-```
-
+A marine heatwave (MHW) is defined as a period when there are five or more consecutive days when the observed SST is greater than the 90th percentile of the long-term average for that day. Subsequent MHW periods that are separated by two or fewer daily average SSTs that fall below the threshold are still considered part of a MHW event. @fig-annual_hw_timeseries shows the long-term average SST (gray line labeled "Climatological Mean"), as well as the threshold for a MHW day (gray line labeled "Heatwave Threshold"). The solid line and shaded area in the figure shows the observed SST for that day and its distance from the climatological average; when it is red, the Gulf of Maine is experiencing MHW conditions.
 
 The Gulf of Maine met the criteria for MHW status for `r hw_criteria` days in `r report_yr`. While the warmest temperatures of the year were experienced in August (as we would expect from the climatology for the region), the largest temperature anomalies were observed during the last days of November, when they breached `r floor(report_yr_max_anom)` °F above the long-term average.
 
-```{r}
-#| label: fig-annual_hw_timeseries
-#| fig.height: 4
-#| fig-cap: "A timeseries of marine heatwave (MHW) conditions in the Gulf of Maine extending from January 1 through November 30, 2022. Black lines representing the long-term (i.e., 1982 – 2011) average SST, the 10th percentile, and 90th percentile for a given day in the Gulf of Maine are labelled to indicate climatological reference points; a solid line (red for marine heatwave or blue for a non-event) indicate the observed SST this year; red and blue shading illustrates how far the observed SST falls from the climatological mean."
-#| fig-alt: "A line chart shows the average sea surface temperature for each day of the year, and overlaid against it are notably smoother black lines representing the long-term mean, 10th percentile, and 90th percentile temperatures for those same days of the year. The area between the mean and the observed temperature is filled in with a solid color to indicate whether that day meets marine heatwave criteris. The observed temperatures for 2022 are above the 90th percentile for nearly the entire year, with the exception of two periods less than a week long in June and October."
 
+Comparing daily SST anomalies and MHW status for `r report_yr` to the long-term record (@fig-mhw-heatmap), as in the figure below — it becomes clear that the frequency, duration, and intensity of MHWs has not only increased in the past decade. In a world without human-caused climate change, we would expect, positive (warm) and negative (cool)  SST anomalies to more or less balance out over the span of several years, as various patterns of natural climate variability alternate having a dominant influence in Earth’s climate (e.g., La Niña vs El Niño). What is being observed in the Gulf of Maine (and elsewhere around the world), however, is a loss of that balance: larger fractions of recent years are experiencing above average temperatures and cold spells are becoming vanishingly rare.
 
-# annual heatwave timeseries
-
-
-# Show MHW Status Through the Year:
-hw_temp_p <- year_hw_temps_two(year_hw_dat = report_yr_only, temp_units = "F") + 
-  labs(
-    title = str_c("Gulf of Maine SST: ", params$report_year))  +
-  coord_cartesian(clip = "off") +
-  geom_logo(x_npc = 0.9, y_npc = 1.125, logo_height = 1, height_units = "cm")
-hw_temp_p
-
-```
-
-
-Comparing daily SST anomalies and MHW status for `r report_yr` to the longer-term record — as in the figure below — it becomes clear that the frequency, duration, and intensity of MHWs has not only increased in the past decade, but reached a peak last year. Under historical levels of natural variability in the region, hot and cold SST anomalies tend to balance out within a year or over several years. What is being observed in the Gulf of Maine, however, is a loss of that balance: larger fractions of recent years are experiencing above average temperatures and cold spells are becoming vanishingly rare.
 
 
 ```{r}
 #| label: fig-mhw-heatmap
-#| fig-cap: "Heat map of daily SST anomalies from the beginning of 1982 through the fall of 2022. Not only do more large warm anomalies (darker reds) appear more frequently in recent years, but the frequency and duration of marine heatwave events (black lines) in the Gulf of Maine has become more pronounced in the past decade."
+#| fig-cap: "Heat map of daily SST anomalies from the beginning of 1982 through the end of 2022. Not only do more large warm anomalies (darker reds) appear more frequently in recent years, but the frequency and duration of marine heatwave events (black lines) in the Gulf of Maine has become more pronounced in the past decade."
 #| fig-alt: "A figure displays the temperatures for each day of year as a colored stripe, organized with a row for each day such that the day of year aligns vertically. The lower two-thirds has a roughly equal balance between colors for warm (red) and cold (blue) temperature anomalies. The top third of the image is almost completely red as temperature anomalies rarely fall below the long-term average. Black dots are overlaid onto days that meet the criteria for a heatwave, they are rare in the lower section and common in the red section."
 #| fig.height: 8
 
@@ -948,17 +1099,18 @@ top_rate <- region_ranks$`Max Rate`
 
 
 
-GMRI research was the first to reveal that the Gulf of Maine has been warming faster than the vast majority of the world’s ocean. The figure below updates this historical analysis by including data for `r report_yr`. Indeed, the story has not changed: it’s clear that the Gulf of Maine is warming faster than ~`r round(avg_rank, 2)`% of the world’s ocean. The reason why this is so important is because the rate of change can have profound consequences for the biology of individual species and for entire food webs. These aspects are areas of ongoing work (and captured well in the recent IPCC Working Group II report on impacts, adaptation, and vulnerability).
+GMRI research was the first to reveal that the Gulf of Maine has been warming faster than the vast majority of the world’s ocean. @fig-warming-rank-map  updates this historical analysis by including data for 2022. Indeed, the story has not changed: the Gulf of Maine is warming faster than ~`r round(avg_rank, 2)`% of the world’s ocean. The reason why this is so important is because the rate of change can have profound consequences for the biology of individual species and for the integrated ecology of entire food webs. 
+
 
 
 
 ```{r}
 #| label: fig-warming-rank-map
-#| fig-cap: "Maps of the northwest atlantic and global rate of warming displayed as their relative percentiles."
-#| column: page-inset-left
+#| fig-cap: "Maps illustrating the rate of warming (from 1982 through 2022) displayed as their relative percentiles for [left] the northwest Atlantic Ocean and [right] entire global ocean surface."
 #| fig.width: 8
 
 # Map of fastest Warming Regions:
+# #| column: page-inset-left
 
 # Idea: Global Map & Highlighted Regions
 # Fix Colors
@@ -982,14 +1134,14 @@ world_ranks_binned <- world_rank_stars %>%
 # Northeast Shelf
 global_ranks_zoom <- ggplot() +
   geom_stars(data = world_ranks_binned) +
-  geom_sf(data = new_england, color = "white", fill = "gray30", size = .05) +
-  geom_sf(data = canada, color = "white", fill = "gray30", size = .05) +
-  geom_sf(data = greenland, color = "white", fill = "gray30", size = .05) +
+  geom_sf(data = new_england, color = "white", fill = "gray30", linewidth = .05) +
+  geom_sf(data = canada, color = "white", fill = "gray30", linewidth = .05) +
+  geom_sf(data = greenland, color = "white", fill = "gray30", linewidth = .05) +
   scale_y_continuous(breaks = seq(-90, 90, by = 5)) +
   scale_x_continuous(breaks = seq(-180, 180, by = 10))+
   scale_fill_brewer(palette = "Spectral", direction = -1, na.value = "transparent") +
-  # scale_fill_viridis_d(option = "viridis", direction = 1, na.value = "transparent", na.translate = FALSE) +
   map_theme() +
+  labs(title = NULL, subtitle = NULL) +
   coord_sf(
     xlim = c("xmin" = -77, "xmax" = -50),
     ylim = c("ymin" = 32, "ymax" = 48),
@@ -998,7 +1150,7 @@ global_ranks_zoom <- ggplot() +
     title = str_c("Warming Rate Percentile: 1982-", report_yr),
     title.position = "top", 
     title.hjust = 0.5,
-    barwidth = unit(2.5, "in"),
+    barwidth = unit(4, "in"),
     frame.colour = "black",
     ticks.colour = "black")) 
 
@@ -1006,9 +1158,9 @@ global_ranks_zoom <- ggplot() +
 # Global View
 global_ranks <- ggplot() +
   geom_stars(data = world_ranks_binned) +
-  geom_sf(data = world_sf, color = "white", fill = "gray30", size = .1) +
+  geom_sf(data = world_sf, color = "white", fill = "gray30", linewidth = .1) +
   scale_fill_brewer(palette = "Spectral", direction = -1, na.value = "transparent") +
-  # scale_fill_viridis_d(option = "viridis", direction = 1, na.value = "transparent", na.translate = FALSE) +
+  labs(title = NULL, subtitle = NULL) +
   map_theme(
     axis.text.x = element_blank(),
     axis.ticks.x = element_blank()) +
@@ -1018,17 +1170,18 @@ global_ranks <- ggplot() +
     title = str_c("Warming Rate Percentile: 1982-", report_yr),
     title.position = "top", 
     title.hjust = 0.5,
-    barwidth = unit(2.5, "in"),
+    barwidth = unit(4, "in"),
     frame.colour = "black",
     ticks.colour = "black")) 
 
 
 # plot map
 ranks_global_figure <- (global_ranks_zoom | global_ranks ) + 
-  plot_annotation(title = "Global SST Change Rankings", 
+  plot_annotation(title = "Rates of Ocean Temperature Change", 
                   caption = "Data Source: OISSTv2") +
   plot_layout(guides = "collect") & 
-  theme(legend.position = "bottom")
+  theme(legend.position = "bottom",
+        plot.margin = margin(t = 5, r = 5, l = 10, b = 5))
 
 
 # plot patchwork
@@ -1040,13 +1193,17 @@ grid::grid.raster(lab_logo, x = 0.115, y = 0.115, just = c('left', 'bottom'), he
 
 ## Concluding Thoughts:
 
-In recent years, SSTs in the Gulf of Maine (and adjacent waters) have increased and the rate of warming has accelerated. Research suggests there are two major factors at play, one oceanographic and one atmospheric:
-
-1. **Oceanographic:** The Gulf of Maine is influenced by two primary oceanic currents: the Labrador Current and the Gulf Stream. Historically, there was a stronger southward flow of the Labrador Current. That stronger flow helped keep the heat transported northward along the U.S. east coast by the Gulf Stream further out to sea. More recently scientists have observed changes occurring in the interplay between the Labrador Current and Gulf Stream. More Arctic-origin freshwater from melting sea ice and land-based ice is constricting the southward flow of the Labrador Current. This is allowing the Gulf Stream to spread out more at lower latitudes around the Gulf of Maine. This then allows warmer water to “spill over” into the Gulf of Maine that otherwise would be kept further offshore.
+In recent years, SSTs in the Gulf of Maine (and adjacent waters) have increased significantly and the rate of warming has accelerated. Combined, these climate-related impacts are beginning to have profound consequences for the marine ecology in the Gulf of Maine, with implications for the people and communities who rely on marine resources for their livelihoods and well-being. Research suggests there are two major factors driving these trends, one oceanographic and one atmospheric:
 
 
-2. **Atmospheric:** The North Atlantic Oscillation — a large-scale pattern of natural variability in the atmosphere — has been in a “positive phase” more frequently over the past 10-15 years, meaning a more zonal (i.e., west-to-east) atmospheric pattern has dominated in the region. The relative decrease in “waviness” of the jet stream inhibits more consistent intrusions of cooler, Arctic air into the region.
-The relative contribution of these two climatological drivers may vary through time, but the result (in sea surface temperature terms) is similar: a warmer Gulf of Maine.
+1. **Oceanographic:** The Gulf of Maine is influenced by two primary oceanic currents: the Labrador Current and the Gulf Stream. Historically, there was a stronger influence of the Labrador Current on the water in the Gulf of Maine. That stronger flow helped keep the heat transported northward along the U.S. East Coast by the Gulf Stream further out to sea. More recently, scientists have observed changes occurring in the interplay between the Labrador Current and Gulf Stream. More Arctic-origin freshwater from melting sea ice and land-based ice is constricting the southward flow of the Labrador Current. This is allowing the Gulf Stream—which transports warm water from lower latitudes to spread out more at latitudes around the Gulf of Maine. This, in turn, allows warmer water, more heavily influenced by the Gulf Stream to “spill over” into the Gulf of Maine.
+
+
+2. **Atmospheric:** The North Atlantic Oscillation (NAO)— a large-scale pattern of natural variability in the atmosphere — has been in a “positive phase” more frequently over the past 10-15 years, meaning a more zonal (i.e., west-to-east) atmospheric pattern has dominated in the region. The relative decrease in “waviness” of the jet stream inhibits more consistent intrusions of cooler, Arctic air into the region.
+
+While the oceanographic driver of the observed SST change in the Gulf of Maine has clear links to human-caused climate change, more research is needed to ascertain whether the NAO is experiencing significant changes as a result of anthropogenic climate change. Regardless, the atmospheric and oceanic conditions of the past several years combine to reveal an unambiguous trend: The Gulf of Maine is experiencing unprecedented warmth—and is heating up at a rate that is faster than almost anywhere else in the world’s oceans. 
+
+---
 
 **A Note on Data Sources**     
 
@@ -1058,6 +1215,10 @@ The relative contribution of these two climatological drivers may vary through t
 
 
 
+
+## Technical Report Preview
+
+The study of Marine heatwaves is a new area of study that began with GMRI scientists bringing public attention to the extreme temperatures in the Gulf of Maine during 2012. Since that original work, scientific debate has emerged on how "best" to identify and measure the impacts of these rare events. GMRI scientists are part of an international community that is actively studying different approaches to identifying and studying the impacts of these extreme events. 
 
 
 
@@ -1307,108 +1468,127 @@ hw_streamplot
 if(params$save_figures){
   
   
-  # simplified temperature plot
-  ggsave(plot = temp_simplified, filename = str_c(save_location, "oisst_simple_trends.png"),
-         dpi = "retina", bg = "white")
+  # Gom VS Global - annual
+  ggsave(plot = temp_simplified, filename = str_c(save_location, "gom_and_global_trends_annual.jpeg"),
+         height = unit(6, "in"),
+         width = unit(8, "in"),
+         dpi = "retina", 
+         bg = "white")
   
   
-  
-  # report_yr Record daily temperatures
-  ggsave(plot = hottest_days_plot,
-         filename = str_c(save_location, report_yr, "_hottest_days.png"),
-         dpi = "retina", bg = "white")
-  
-  # Percentage of record temperatures bars
-  ggsave(plot = record_percents,
-         filename = str_c(save_location, report_yr, "_percent_record_bars.png"),
-         dpi = "retina", bg = "white")
+  # GOM vs Global - Seasons
+  ggsave(plot = panel_plot, filename = str_c(save_location, "gom_and_global_trends_seasonal.jpeg"),
+         height = unit(8, "in"),
+         width = unit(10, "in"),
+         dpi = "retina", 
+         bg = "white")
   
   
-  
-  # Full Year Temperatures
-  ggsave(plot = hw_temp_p, filename = str_c(save_location, "oisst_lastyr_temps.png"),
-         dpi = "retina", bg = "white")
-  
-  
-  
-  # Full Year Anomalies
-  ggsave(plot = hw_anom_p, filename = str_c(save_location, "oisst_lastyr_anoms.png"),
-         dpi = "retina", bg = "white")
-  
-  
-  
-  # Full year timeline of temps and anomalies
-  ggsave(plot = year_timeline, filename = str_c(save_location, "oisst_lastyr_timeline.png"),
-         dpi = "retina", bg = "white")
-  
-  
-  # Heatwave status heatmap
-  ggsave(plot = heatwave_heatmap, filename = str_c(save_location, "oisst_gom_heatmap.png"),
-         dpi = "retina", bg = "white")
-  
-  
-  # All year temperature horizons
-  ggsave(plot = gom_annual_horizons, filename = str_c(save_location, "oisst_gom_horizons.png"),
-         dpi = "retina", bg = "white")
-  
-  
-  # report_yr | 2021 horizons
-  ggsave(plot = comparison_horizons, filename = str_c(save_location, "gom_hottest_horizons.png"),
-         dpi = "retina", bg = "white")
-  
-  
-  # streamplot
-  ggsave(plot = hw_streamplot, filename = str_c(save_location, "gom_anomaly_streamplot.png"),
-         dpi = "retina", bg = "white")
-  
-  
-  # record years panels
-  ggsave(plot = hottest_yr_panels, 
-         filename = str_c(save_location, "gom_hottest_year_panels.png"),
-         dpi = "retina", bg = "white")
   
   # Annual Temperature Anomalies Map(s)
   ggsave(plot = annual_gom_map, 
-         filename = str_c(save_location, "gom_annual_anom_map.png"),
-         dpi = "retina", bg = "white")
+         filename = str_c(save_location, "gom_annual_anom_map.jpeg"),
+         height = unit(5, "in"),
+         width = unit(8, "in"),
+         dpi = "retina", 
+         bg = "white")
   
-  # Global version
-  ggsave(plot = annual_anom_map, 
-         filename = str_c(save_location, "global_annual_anom_map.png"),
-         dpi = "retina", bg = "white")
-  
-  # Ranks maps
-  ggsave(plot = ranks_map, filename = str_c(save_location, "record_years_map.png"),
-         dpi = "retina", bg = "white")
-  
-  
-  # northeast warmest years
-  ggsave(plot = northeast_records, filename = str_c(save_location, "record_years_ne_map.png"),
-         dpi = "retina", bg = "white")
+  # seasonal Temperature Anomalies Map(s)
+  ggsave(plot = season_panels_all, 
+         filename = str_c(save_location, "gom_seasonal_anom_map.jpeg"),
+         height = unit(5, "in"),
+         width = unit(8, "in"),
+         dpi = "retina", 
+         bg = "white")
   
   
-  # Global warming rates
-  ggsave(plot = rates_global_figure, filename = str_c(save_location, "global_rates_map.png"),
-         dpi = "retina", bg = "white")
+  # Warmest Years Plot
+  ggsave(plot = season_panels_all, 
+         filename = str_c(save_location, "Annual_temp_ranks_plot.png"),
+         height = unit(5, "in"),
+         width = unit(8, "in"),
+         dpi = "retina", 
+         bg = "white")
+  
+    # Global Anomaly Map
+    ggsave(plot = annual_anom_map, 
+           filename = str_c(save_location, "global_annual_anom_map.jpeg"),
+           height = unit(5, "in"),
+           width = unit(8, "in"),
+           dpi = "retina", 
+           bg = "white")
+  
+  
+  
+  # # Record daily temperatures plot
+  # ggsave(plot = hottest_days_plot,
+  #        filename = str_c(save_location, report_yr, "_hottest_days.jpeg"),
+  #        height = unit(5, "in"),
+  #        width = unit(8, "in"),
+  #        dpi = "retina", 
+  #        bg = "white")
+  
+  
+  
+  # Percentage of months that set record temperatures bars
+  ggsave(plot = record_percents,
+         filename = str_c(save_location, report_yr, "_percent_record_bars.jpeg"),
+         height = unit(4, "in"),
+         width = unit(8, "in"),
+         dpi = "retina", 
+         bg = "white")
+  
+  
+  
+  # Full Year Temperature Timeseries
+  ggsave(plot = hw_temp_p, filename = str_c(save_location, "oisst_lastyr_temps.jpeg"),
+         height = unit(5, "in"),
+         width = unit(8, "in"),
+         dpi = "retina", 
+         bg = "white")
+  
+  
+  
+  # Heatwave status heatmap
+  ggsave(plot = heatmap_p, filename = str_c(save_location, "oisst_gom_heatmap.jpeg"),
+         height = unit(8, "in"),
+         width = unit(8, "in"),
+         dpi = "retina", 
+         bg = "white")
+  
+  
+  
   
   
   # global warming rankings
-  ggsave(plot = ranks_global_figure, filename = str_c(save_location, "global_ranks_map.png"),
-         dpi = "retina", bg = "white")
+  ggsave(plot = ranks_global_figure, filename = str_c(save_location, "global_ranks_map.jpeg"),
+         height = unit(5, "in"),
+         width = unit(8, "in"),
+         dpi = "retina", 
+         bg = "white")
   
-  # top 20% rankings
-  ggsave(plot = top_ranks_figure, filename = str_c(save_location, "ranks_top20.png"),
-         dpi = "retina", bg = "white")
-  
-  
-  
-  # LME Report Table
-  gtsave(data = lme_rank_table, 
-         filename = str_c(save_location, "lme_warming_table.png"))
 
 
+
+
+    # All year temperature horizons
+  ggsave(plot = gom_annual_horizons, filename = str_c(save_location, "oisst_gom_horizons.jpeg"),
+         height = unit(8, "in"),
+         width = unit(8, "in"),
+         dpi = "retina", 
+         bg = "white")
+
+
+  # # report_yr | 2021 horizons
+  # ggsave(plot = comparison_horizons, filename = str_c(save_location, "gom_hottest_horizons.jpeg"),
+  #        dpi = "retina", bg = "white")
   
-  
+  # streamplot
+  ggsave(plot = hw_streamplot, filename = str_c(save_location, "gom_anomaly_streamplot.jpeg"),
+         height = unit(6, "in"),
+         width = unit(8, "in"),
+         dpi = "retina", 
+         bg = "white")
   
   
 }
@@ -1418,6 +1598,52 @@ if(params$save_figures){
   
 ```
 
+
+
+```{r}
+#| label: additional-figures
+#| eval: false
+
+# Load ragg for re-scaling
+library(ragg)
+
+
+
+# make a lcal save path
+new_save <- here::here("local_data", report_yr)
+
+# Re-size them for large plotting
+# temp_simplified: 6x8
+# panel plot: 8x10
+
+
+
+#-------JPEG
+
+# Gom VS Global - annual
+ragg::agg_jpeg(filename = str_c(new_save, "gom_and_global_trends_annual.jpeg"), 
+              height = 18, 
+              width = 24, 
+              units = "in",
+              res = 320, 
+              scaling = 2)
+plot(temp_simplified)
+invisible(dev.off())
+
+
+# GOM vs Global - Seasons
+ragg::agg_jpeg(filename = str_c(new_save, "gom_and_global_trends_seasonal.jpeg"), 
+              height = 24, 
+              width = 30, 
+              units = "in",
+              res = 320, 
+              scaling = 3)
+plot(panel_plot)
+grid::grid.raster(lab_logo, x = 0.08, y = 0.01, just = c('left', 'bottom'), height = unit(1, "cm"))
+invisible(dev.off())
+
+
+```
 
 
 
