@@ -232,11 +232,11 @@ global_report_rank <- filter(global_summary, year == report_yr) %>% pull(sst_ran
 record_year_temp <- filter(annual_summary, sst_rank == 1) %>% pull(sst_f)
 
 # Note on how the seasons ranked:
-season_ranks <- region_timeseries %>% 
+month_ranks <- region_timeseries %>% 
   supplement_season_info() %>% 
-  split(.$season_eng) %>% 
+  split(.$month) %>% 
   map_dfr(~ .x %>% 
-    group_by(year, season_eng) %>% 
+    group_by(year, month) %>% 
     temperature_summaries()) %>% 
     filter(year == report_yr)
 
@@ -246,14 +246,17 @@ season_ranks <- region_timeseries %>%
 hw_criteria <- report_yr_only %>% pull(mhw_event) %>% sum()
 ```
 
-
-
-
-With an annual average sea surface temperature (SST) of `r report_annual_temp`°F — more than `r report_annual_anom`°F above normal — the Gulf of Maine experienced its `r report_rank`nd warmest year on record in `r report_yr`. The region ranked in the top 3 warmest temperatures across all seasons, with the most extreme temperatures occurring in November.
-
-
-
 ## Annual Sea Surface Temperatures
+
+
+With an annual average sea surface temperature (SST) of `r report_annual_temp`°F — more than `r report_annual_anom`°F above normal — the Gulf of Maine experienced its `r report_rank`nd warmest year on record in `r report_yr`. This year fell short of the previous warmest year on record — 2021 — `r round(record_year_temp-report_annual_temp, 2)`°F, but was record-breaking in a number of regards. 
+
+
+In nine of the twelve months this year, average monthly SST was within the top 3 warmest among all years. The most extreme temperatures this year occurred in November and December, each setting new record highs. Monthly temperatures ranked lowest during July and September (ranked 8th and 6th respectively), but were still within the top ten for each of those months. These temperatures all contribute to what has been a decade-long pattern of above-average temperatures in the area.
+
+
+
+## Annual Trends in Sea Surfacae Temperature
 
 
 
@@ -287,7 +290,7 @@ eq_global_f <- rate_data[["Global All F"]][["eq_label"]]
 ```
 
 
-The annual average SST in the Gulf of Maine for `r report_yr` was `r report_annual_temp`°F; this was `r report_annual_anom`°F above the long-term (i.e., 1982-2011) average. This year fell short of the previous warmest year on record — 2021 — `r round(record_year_temp-report_annual_temp, 2)`°F. Since the early 1980s, the rate of warming in the Gulf of Maine `r str_c(rate_data[["GoM All F"]][["decadal_rate"]], "\u00b0F / Decade")` has been more than triple that of the world’s oceans (`r str_c(rate_data[["Global All F"]][["decadal_rate"]], "\u00b0F / Decade")` @fig-global-comparison). 
+Since the early 1980s, the rate of warming in the Gulf of Maine `r str_c(rate_data[["GoM All F"]][["decadal_rate"]], "\u00b0F / Decade")` has been more than triple that of the world’s oceans (`r str_c(rate_data[["Global All F"]][["decadal_rate"]], "\u00b0F / Decade")` @fig-global-comparison).  The rapid warming in the Gulf of Maine began to catch scientists' attention around 2012 when temperatures jumped to new record highs. Since then, annual average SST has remained high, contributing to the Gulf of Maine’s distinction as one of the fastest warming locations globally.
 
 
 
@@ -295,7 +298,7 @@ The annual average SST in the Gulf of Maine for `r report_yr` was `r report_annu
 
 ```{r}
 #| label: fig-global-comparison
-#| fig-cap: "A timeseries of annual average sea surface temperature anomalies for the Gulf of Maine (solid black line) from 1982 through `r report_yr`, illustrating that `r report_yr` was the 2nd warmest year on record. Long-term trendlines for the Gulf of Maine (blue) and the entire globe (green) show how much more quickly the Gulf of Maine is warming compared to the rest of the world."
+#| fig-cap: "A timeseries of annual average sea surface temperature anomalies for the Gulf of Maine (solid black line) from 1982 through 2022, illustrating that 2022 was the 2nd warmest year on record. Long-term trendlines for the Gulf of Maine (blue) and the entire globe (green) show how much more quickly the Gulf of Maine is warming compared to the rest of the world."
 
 
 # Fahrenheit plot
@@ -314,13 +317,13 @@ temp_simplified
 
 ```
 
-The rate of warming in the region vary throughout the year. Comparisons across the four seasons (@fig-seasons-comparison) reveal that the Gulf of Maine is warming fastest during the July-September (nearly 4x the global ocean average), more than twice the rate seen during January-March (~3x the global ocean average).
+The observed rate of warming in the Gulf of Maine varies throughout the year. Comparisons across four, three-month periods (@fig-seasons-comparison) reveal that the Gulf of Maine is warming fastest during July-September (nearly 4x the global ocean average), more than twice the rate seen during January-March (~3x the global ocean average).
 
 
 
 ```{r}
 #| label: fig-seasons-comparison
-#| fig-cap: "Four timeseries panels of the annual averages for each season (solid black lines) for the Gulf of Maine. Decadal trends are overlaid to compare decadal trends in the Gulf of Maine (blue) and the entire globe (green). Rates are much faster in the Gulf of Maine across all seasons, with the smallest difference in rates during the spring."
+#| fig-cap: "Four timeseries panels of the annual averages for 3-month periods (solid black lines) for the Gulf of Maine. Decadal trends are overlaid to compare decadal trends in the Gulf of Maine (blue) and the entire globe (green). Rates are much faster in the Gulf of Maine across all periods, with the smallest difference in rates during January-March."
 #| fig.width: 8
 #| fig.height: 7
 
@@ -424,7 +427,7 @@ grid::grid.raster(lab_logo, x = 0.08, y = 0.01, just = c('left', 'bottom'), heig
 ```
 
 
-There can be significant spatial variability in annually-averaged SST patterns. The Gulf of Maine in `r report_yr` illustrated this fact with the region southeast of Georges Bank experiencing the highest SST anomalies (@fig-new-england-map). This area is more susceptible than other areas of the Gulf of Maine to large-scale variability in major oceanic currents, such as the relative influence of the Gulf Stream versus the Labrador Current.
+In addition to within-year variation, there can also be significant spatial variability in annually-averaged SST patterns. The Gulf of Maine in `r report_yr` illustrated this fact with the region southeast of Georges Bank experiencing the highest SST anomalies (@fig-new-england-map). This area is more susceptible than other areas of the Gulf of Maine to large-scale variability in major oceanic currents, such as the relative influence of the Gulf Stream versus the Labrador Current.
 
 ```{r}
 #| label: bathymetry-details
@@ -550,7 +553,7 @@ grid::grid.raster(lab_logo, x = 0.1, y = 0.06, just = c('left', 'bottom'), heigh
 
 ```
 
-Looking at these spatial patterns in 3-month averages (@fig-four-season-maps) shows just how “patchy” these pockets of above-average temperatures can be. During January-March, the areas to the south and southeast of the Gulf of Maine exhibit a strong mix of both above and below average surface temperature. During April-June, we can see that the water within the Gulf of Maine itself and the deeper waters just south of Georges Bank experienced warmer temperatures than the surrounding areas. In the second-half of the year, the exceptional warmth of the Gulf Stream is evident to the east and south of the area of study (dashed line), while the Gulf of Maine, itself, remains several degrees above the long-term average.
+Looking at these spatial patterns in three-month averages (@fig-four-season-maps) shows just how “patchy” these pockets of above-average temperatures can be. During January-March, the areas to the south and southeast of the Gulf of Maine exhibited a strong mix of both above and below average surface temperature. In April-June the size and number of below-average SST patches declined. By July-September the water within the Gulf of Maine itself and the deeper waters just south of Georges Bank experienced warmer temperatures than the surrounding areas. And in October-December, the influence of the Gulf Stream warmth is evident along the shelf break (200m contour), while the Gulf of Maine itself remained several degrees above the long-term average.
 
 
 
@@ -640,7 +643,7 @@ grid::grid.raster(lab_logo, x = 0.08, y = 0.04, just = c('left', 'bottom'), heig
 ```
 
 
-When we compare the annual average SST for `r report_yr` (`r str_c(report_annual_temp, deg_f)`) to other unusually warm years in the Gulf of Maine, we see that it was ~0.4`r deg_f` cooler than 2021, the warmest year on record(`r str_c(round(record_year_temp,2), deg_f)`). When we look at the deviation from the long-term average SST (i.e., the annual SST anomaly), the last decade stands out for its exceptional warmth (@fig-yr-ranks). `r report_yr` continues a pattern that began in 2010 of sustained above-average temperatures. With the exception of 2019 (ranked 13th), all of the last ten years remain in the top 10 for SST.
+When we compare the annual average SST for `r report_yr` (`r str_c(report_annual_temp, deg_f)`) to other years in the Gulf of Maine, we see that it was ~0.4`r deg_f` cooler than 2021, the warmest year on record(`r str_c(round(record_year_temp,2), deg_f)`). When we look at the deviation from the long-term average SST (i.e., the annual SST anomaly), the last decade stands out for its exceptional warmth (@fig-yr-ranks). `r report_yr` extends a pattern that began in 2010 of sustained above-average temperatures. With the exception of 2019 (ranked 13th), all of the last ten years remain in the top 10 for SST.
 
 ```{r}
 #| label: fig-yr-ranks
@@ -694,7 +697,7 @@ temp_rankings_p
 
 ## Worldwide Temperatures
 
-It was not just the Gulf of Maine that experienced exceptional warmth in `r report_yr`, however. Globally, `r report_yr` was the `r global_report_rank`rd warmest year for sea surface temperatures, and [6th-warmest for combined land & ocean temperatures.](https://www.noaa.gov/news/2022-was-worlds-6th-warmest-year-on-record). 
+It was not just the Gulf of Maine that experienced exceptional warmth in `r report_yr`, however. Globally, `r report_yr` was the `r global_report_rank`rd warmest year for sea surface temperatures, and [6th-warmest year for combined land & ocean temperatures.](https://www.noaa.gov/news/2022-was-worlds-6th-warmest-year-on-record). 
 
 @fig-global-anomalies shows annual average SST anomalies for oceans all over the world in `r report_yr`. While much of the Southern Ocean and expanses of the southeastern Pacific were anomalously cool (a feature of La Niña conditions), most of the world’s oceans experienced unusually warm temperatures in `r report_yr`. This is particularly true for northern mid-latitudes, especially the northwestern Pacific (off Japan) and along the eastern seaboard of the United States—a region that includes the Gulf of Maine.
 
@@ -793,15 +796,17 @@ report_yr_min <- min(report_yr_only$sst_f)
 report_yr_min_anom <- round(min(report_yr_only$anom_f), 2)
 report_yr_min_date <- format(report_yr_only$time[report_yr_only$sst_f == report_yr_min], "%b-%d")
 report_yr_max <- max(report_yr_only$sst_f)
-report_yr_max_anom <- round(max(report_yr_only$anom_f), 2)
 report_yr_max_date <- format(report_yr_only$time[report_yr_only$sst_f == report_yr_max], "%b-%d")
+report_yr_max_anom <- max(report_yr_only$anom_f)
+report_yr_max_anom_date <- format(report_yr_only$time[report_yr_only$anom_f == report_yr_max_anom], "%b-%d")
 report_yr_range <- round(report_yr_max - report_yr_min, 2)
 report_yr_max <- round(report_yr_max, 2)
+report_yr_max_anom <- round(report_yr_max_anom, 2)
 report_yr_min <- round(report_yr_min, 2)
 ```
 
 
-The annual cycle of SST in the Gulf of Maine exhibits a familiar pattern with the lowest annual temperatures being observed in March, while the highest SSTs are observed in August (@fig-annual_hw_timeseries). The average difference between the annual maximum SST in August and the annual minimum SST in March is `r seasonal_range` °F. In `r report_yr`, the difference between the maximum SST (`r report_yr_max_date`, `r report_yr_max`°F) and minimum SST (`r report_yr_min_date`, `r report_yr_min`°F) was `r report_yr_range` °F. Daily SST anomaly values never fell below +`r report_yr_min_anom` °F and reached as high as +`r report_yr_max_anom` °F above the long-term average.
+The annual cycle of SST in the Gulf of Maine exhibits a familiar pattern with the lowest temperatures observed in March, with the highest SSTs observed in August (@fig-annual_hw_timeseries). The average difference between the annual maximum SST in August and the annual minimum SST in March is `r seasonal_range` °F. In `r report_yr`, the difference between the maximum SST (`r report_yr_max_date`, `r report_yr_max`°F) and minimum SST (`r report_yr_min_date`, `r report_yr_min`°F) was `r report_yr_range` °F. Daily SST anomaly values in `r report_yr` never fell below +`r report_yr_min_anom` °F and reached as high as +`r report_yr_max_anom` °F above the long-term average. The largest temperature anomalies were observed on November 7th, when they breached `r floor(report_yr_max_anom)` °F above the long-term average.
 
 
 ```{r}
@@ -829,7 +834,7 @@ hw_temp_p
 
 ## Record Setting Daily Temperatures
 
-@fig-hottest-days shows the highest SST values ever recorded for each day of the year in the Gulf of Maine. Record-setting days that occurred in `r report_yr` are denoted with dark red dots (@fig-hottest-days). Indeed, daily high SST records were set for more than half of all days in November and December. The most daily records were set in November, which experienced record high SSTs for 24 of the month's 30 days - or 80% of the month. In total, record high daily temperatures were reached on 169 days during`r report_yr`; nearly 46% of days in `r report_yr` experienced record high SSTs in the Gulf of Maine.
+Daily SST values in `r report_yr` were some of the highest ever recorded in the Gulf of Maine. Record daily high SSTs were set for more than half of all days in November and December, with new records set in all months but July (@fig-percent-record-bars). The most daily records for a single month occurred in November, which experienced record high SSTs for 24 of the month's 30 days - or 80% of the month. In total, record high daily temperatures were reached on 169 days in `r report_yr`; nearly 46% of the year experiencing record high SSTs.
 
 ```{r}
 #| label: code-hottest-days
@@ -1018,9 +1023,10 @@ record_percents
 ## More Persistent, Intense Heatwaves
 
 
-A marine heatwave (MHW) is defined as a period when there are five or more consecutive days when the observed SST is greater than the 90th percentile of the long-term average for that day. Subsequent MHW periods that are separated by two or fewer daily average SSTs that fall below the threshold are still considered part of a MHW event. @fig-annual_hw_timeseries shows the long-term average SST (gray line labeled "Climatological Mean"), as well as the threshold for a MHW day (gray line labeled "Heatwave Threshold"). The solid line and shaded area in the figure shows the observed SST for that day and its distance from the climatological average; when it is red, the Gulf of Maine is experiencing MHW conditions.
+A marine heatwave (MHW) is defined as a period when there are five or more consecutive days when the observed SST is greater than the 90th percentile of the long-term average for that day. Gaps of 2 days or less in this threshold do not constitute a break in the MHW event. 
 
-The Gulf of Maine met the criteria for MHW status for `r hw_criteria` days in `r report_yr`. While the warmest temperatures of the year were experienced in August (as we would expect from the climatology for the region), the largest temperature anomalies were observed during the last days of November, when they breached `r floor(report_yr_max_anom)` °F above the long-term average.
+
+@fig-annual_hw_timeseries shows the long-term average SST (line labeled "Climatological Mean"), as well as the threshold for being a MHW day (line labeled "Heatwave Threshold") or a marine cold spell MCS day (line labeled "Cold Spell Threshold"). The colored line and shaded area in the figure shows the observed SST for that day and its distance from the climatological average; when it is red, the Gulf of Maine is experiencing MHW conditions. The Gulf of Maine met the criteria for MHW status for `r hw_criteria` days in `r report_yr`. 
 
 
 Comparing daily SST anomalies and MHW status for `r report_yr` to the long-term record (@fig-mhw-heatmap), as in the figure below — it becomes clear that the frequency, duration, and intensity of MHWs has not only increased in the past decade. In a world without human-caused climate change, we would expect, positive (warm) and negative (cool)  SST anomalies to more or less balance out over the span of several years, as various patterns of natural climate variability alternate having a dominant influence in Earth’s climate (e.g., La Niña vs El Niño). What is being observed in the Gulf of Maine (and elsewhere around the world), however, is a loss of that balance: larger fractions of recent years are experiencing above average temperatures and cold spells are becoming vanishingly rare.
@@ -1099,7 +1105,8 @@ top_rate <- region_ranks$`Max Rate`
 
 
 
-GMRI research was the first to reveal that the Gulf of Maine has been warming faster than the vast majority of the world’s ocean. @fig-warming-rank-map  updates this historical analysis by including data for 2022. Indeed, the story has not changed: the Gulf of Maine is warming faster than ~`r round(avg_rank, 2)`% of the world’s ocean. The reason why this is so important is because the rate of change can have profound consequences for the biology of individual species and for the integrated ecology of entire food webs. 
+GMRI research was the first to reveal that the Gulf of Maine has been warming faster than the vast majority of the world’s ocean. @fig-warming-rank-map  updates this historical analysis by including data for 2022. Indeed, the story has not changed: the Gulf of Maine is warming faster than ~`r round(avg_rank, 2)`% of the world’s ocean. The reason why this is so important is because the rate of change can have profound consequences for the biology of individual species and for the integrated ecology of entire food webs. Marine species are responding to warming trends by adjusting their latitudinal range and the depths that they occupy in attempts to track their preferred conditions. Not all species are capable of tracking rapid environmental change, and scientists are concerned that ecosystem resilience will decline as the environment outpaces the communities they once supported.
+
 
 
 
@@ -1211,14 +1218,19 @@ While the oceanographic driver of the observed SST change in the Gulf of Maine h
 
 **Recommended Citation:**    
 
-> Gulf of Maine Research Institute. 2022. Gulf of Maine Warming Update: 2022 . https://gmri.org/stories/warming-22
+> Gulf of Maine Research Institute. 2022. Gulf of Maine Warming Update: 2022. https://gmri.org/stories/warming-22
 
 
 
 
-## Technical Report Preview
+## Marine Heatwave Technical Report Preview:
 
-The study of Marine heatwaves is a new area of study that began with GMRI scientists bringing public attention to the extreme temperatures in the Gulf of Maine during 2012. Since that original work, scientific debate has emerged on how "best" to identify and measure the impacts of these rare events. GMRI scientists are part of an international community that is actively studying different approaches to identifying and studying the impacts of these extreme events. 
+The study of Marine heatwaves is a relatively new area of study. Scientists here at GMRI were first to use the phrase when they brought public attention to the extreme temperatures in the Gulf of Maine during 2012. The concept of a “marine heatwave” emerged as a way to communicate a rare phenomenon where temperatures were much higher than the observed historical and seasonal fluctuations. These extreme conditions caught scientists' attention for their ecological & economic consequences, and they became a tool for studying future climate-change-related impacts before they occur elsewhere.
+
+As temperatures increase globally, SST observations that were once rare have become more and more common. Understanding this pattern, scientists now are considering new ways to define what it means to be a marine heatwave. Debate has now emerged on how “best” to identify and measure the impacts of these rare events. GMRI scientists are part of this evolving discussion among the international community that is weighing the trade offs in these proposed changes.
+
+In an upcoming technical report series, GMRI scientists will be covering this discussion in detail. Explaining the rationale between the competing approaches, how scientists think about their impacts, and how the heatwave record for the Gulf of Maine can change with these decisions.
+
 
 
 
@@ -1468,7 +1480,7 @@ hw_streamplot
 if(params$save_figures){
   
   
-  # Gom VS Global - annual
+  # Gom VS Global - annual trends
   ggsave(plot = temp_simplified, filename = str_c(save_location, "gom_and_global_trends_annual.jpeg"),
          height = unit(6, "in"),
          width = unit(8, "in"),
@@ -1476,7 +1488,7 @@ if(params$save_figures){
          bg = "white")
   
   
-  # GOM vs Global - Seasons
+  # GOM vs Global - quarterly trends
   ggsave(plot = panel_plot, filename = str_c(save_location, "gom_and_global_trends_seasonal.jpeg"),
          height = unit(8, "in"),
          width = unit(10, "in"),
@@ -1502,8 +1514,8 @@ if(params$save_figures){
          bg = "white")
   
   
-  # Warmest Years Plot
-  ggsave(plot = season_panels_all, 
+  # Ranking of warmest years
+  ggsave(plot = temp_rankings_p, 
          filename = str_c(save_location, "Annual_temp_ranks_plot.png"),
          height = unit(5, "in"),
          width = unit(8, "in"),
