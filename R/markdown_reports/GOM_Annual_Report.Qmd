@@ -967,7 +967,7 @@ fig_percents <- ggplot(record_percents, aes(month, percent_records, alpha = high
        title = str_c(report_yr, ": Record Warm Daily Temperatures"),
        subtitle = "Large fraction of Nov. & Dec. dates set all-time highs for the Gulf of Maine ")   +
   coord_cartesian(clip = "off") +
-  geom_logo(x_npc = 0.875, y_npc = 1.08, logo_height = 1, height_units = "cm")
+  geom_logo(x_npc = 0.9, y_npc = 1.125, logo_height = 1, height_units = "cm")
 
 
 # Show plot
