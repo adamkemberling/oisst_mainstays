@@ -255,7 +255,7 @@ season_text_details <- function(season_op, year_op){
     "Spring" = "-05-31",
     "Summer" = "-08-31",
     "Fall"   = "-11-30",
-    "Winter" = "-01-28")
+    "Winter" = "-02-28")
   
   
   # Make names for the months to pull based on the season and current year

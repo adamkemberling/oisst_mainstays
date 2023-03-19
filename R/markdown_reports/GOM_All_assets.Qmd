@@ -100,6 +100,10 @@ lab_logo <- magick::image_read(logo_path)
 
 # Box Location to save hi-res images
 save_location <- cs_path("root", "GoM Seasonal Climate Update/annual_update_figures")
+
+
+# Params
+report_yr <- params$report_year
 ```
 
 
@@ -738,6 +742,18 @@ heatwave_heatmap  +
   coord_cartesian(clip = "off") +
   geom_logo(x_npc = 0.1, y_npc = -0.175, logo_height = 1, height_units = "cm")
 
+```
+
+
+### Monthly Heatmap
+
+```{r}
+month_rank_heatmap(
+  hw_dat = grid_data, 
+  temp_units = "F",
+    no_dates_before = "2022-12-31") +
+    coord_cartesian(clip = "off") +
+    geom_logo(x_npc = 0.9, y_npc = 1.15, logo_height = 1, height_units = "cm")
 ```
 
 
