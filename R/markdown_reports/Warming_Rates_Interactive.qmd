@@ -1,0 +1,277 @@
+---
+title: "Warming Rates Interactive"
+author: "Adam Kemberling"
+url: "https://github.com/adamkemberling"
+affiliation: "Gulf of Maine Research Institute"
+affiliation_url: "https://www.gmri.org"
+description: | 
+  An Interactive Map of the 1982-2022 SST Warming Rates
+date: "Updated on: `r Sys.Date()`"
+format: 
+  html:
+    toc: true
+    self-contained: true
+execute: 
+  echo: false
+  warning: false
+  message: false
+  comment: ""
+  fig.align: center
+---
+
+# Ocean Warming Rates
+
+The following maps display the surface warming rates from 1982-2022. Data for these estimates come from NOAA's OISSTv2 satellite data and excludes polar regions (for rankings as well.)
+
+
+```{r}
+#| label: packages
+#| include: false
+#| echo: false
+#| warning: false
+
+####  Packages  ####
+library(lubridate)
+library(terra)
+library(here)
+library(rnaturalearth)
+library(leaflet)
+library(sf)
+library(stars)
+library(gmRi)
+library(tidyverse)
+library(scales)
+library(patchwork)
+
+# Support Functions
+source(here("R/oisst_support_funs.R"), verbose = FALSE)
+source(here("R/temp_report_support.R"), verbose = FALSE)
+
+# Box paths
+oisst_path <- cs_path("res", "OISST/oisst_mainstays")
+
+# Polygons for mapping
+new_england <- ne_states("united states of america", returnclass = "sf")
+canada      <- ne_states("canada", returnclass = "sf")
+world_sf    <- ne_countries(returnclass = "sf")
+greenland   <- ne_states(country = "greenland", returnclass = "sf")
+
+# File paths for various extents based on "apershing_gulf_of_maine"
+region_paths <- get_timeseries_paths(region_group = "gmri_sst_focal_areas", 
+                                     box_location = "cloudstorage")
+# Polygon Path
+gom_poly <- read_sf(region_paths[["apershing_gulf_of_maine"]][["shape_path"]])
+
+# With raster
+
+# Warming Rates Raster
+# Warming Ranks Raster
+# # 1. Warming Rates and Rankings
+rates_path <- str_c(oisst_path, "warming_rates/annual_warming_rates1982to2022.nc")
+rates_nc <- raster(rates_path, varname= "annual_warming_rate") 
+ranks_nc <- raster(rates_path, varname = "rate_percentile") 
+
+
+# Do the regular sst layers work
+anom_r <- stack()
+```
+
+
+## Warming Rates Static
+
+```{r}
+
+# Change to F
+world_rate_stars <- calc(rotate(rates_nc), function(x) as_fahrenheit(x, data_type = "anomalies")) %>% 
+  st_as_stars()
+
+
+# Color limit for palettes
+temp_limits <- c(-.1, .1)
+temp_breaks <- c(temp_limits[1], temp_limits[1]/2,  0, temp_limits[2]/2, temp_limits[2])
+temp_labels <- str_c(c(str_c("< ", temp_limits[1]), temp_limits[1]/2, 0, temp_limits[2]/2, str_c("> ", temp_limits[2])), "\u00b0F")
+
+                     
+# Northeast Shelf
+global_rates_zoom <- ggplot() +
+  geom_stars(data = world_rate_stars) +
+  geom_sf(data = new_england, color = "white", fill = "gray30", size = .05) +
+  geom_sf(data = canada, color = "white", fill = "gray30", size = .05) +
+  geom_sf(data = greenland, color = "white", fill = "gray30", size = .05) +
+  scale_y_continuous(breaks = seq(-90, 90, by = 5)) +
+  scale_x_continuous(breaks = seq(-180, 180, by = 10))+
+  scale_fill_distiller(palette = "RdBu", 
+                       na.value = "transparent", 
+                       limit = temp_limits, 
+                       breaks = temp_breaks, 
+                       labels = temp_labels,
+                       oob = oob_squish) +
+  map_theme() +
+  coord_sf(
+    xlim = c("xmin" = -77, "xmax" = -50),
+    ylim = c("ymin" = 32, "ymax" = 48),
+    expand = T) +
+  guides("fill" = guide_colorbar(
+    title = "Annual Warming Rate: 1982-2022",
+    title.position = "top", 
+    title.hjust = 0.5,
+    barwidth = unit(5, "in"),
+    frame.colour = "black",
+    ticks.colour = "black")) 
+
+
+# Global View
+global_rates <- ggplot() +
+  geom_stars(data = world_rate_stars) +
+  geom_sf(data = world_sf, color = "white", fill = "gray30", size = .1) +
+  scale_fill_distiller(palette = "RdBu", 
+                       na.value = "transparent", 
+                       limit = temp_limits, 
+                       breaks = temp_breaks, 
+                       labels = temp_labels,
+                       oob = oob_squish) +
+  map_theme(
+    axis.text.x = element_blank(),
+    axis.ticks.x = element_blank()) +
+  coord_sf(expand = F) +
+  scale_y_continuous(breaks = seq(-90, 90, by = 30)) +
+  guides("fill" = guide_colorbar(
+    title = "Annual Warming Rate: 1982-2022",
+    title.position = "top", 
+    title.hjust = 0.5,
+    barwidth = unit(5, "in"),
+    frame.colour = "black",
+    ticks.colour = "black"))  
+
+
+# plot map
+rates_global_figure <- (global_rates_zoom | global_rates ) + 
+  plot_annotation(title = "Global SST Change", 
+                  caption = "Data Source: OISSTv2") +
+  plot_layout(guides = "collect") & 
+  theme(legend.position = "bottom")
+
+
+# plot patchwork
+rates_global_figure
+```
+
+
+
+
+## Warming Ranks Static
+
+```{r}
+# for an expanded view need to use the global ranks
+world_rank_stars <- st_as_stars(rotate(ranks_nc))
+
+# Reclassify raster into 10% Bins
+world_ranks_binned <- world_rank_stars %>% 
+  mutate(
+    rank = Annual.Sea.Surface.Temperature.Warming.Rate.Rank,
+    rank_bin = cut(rank, breaks = seq(0, 1, by = 0.1))) %>% 
+  select(-c(rank, Annual.Sea.Surface.Temperature.Warming.Rate.Rank))
+
+# # Define the number of colors you want
+# nb.cols <- 10
+# mycolors <- RColorBrewer::brewer.pal(n = 10, "Reds")
+
+
+# Northeast Shelf
+global_ranks_zoom <- ggplot() +
+  geom_stars(data = world_ranks_binned) +
+  geom_sf(data = new_england, color = "white", fill = "gray30", size = .05) +
+  geom_sf(data = canada, color = "white", fill = "gray30", size = .05) +
+  geom_sf(data = greenland, color = "white", fill = "gray30", size = .05) +
+  scale_y_continuous(breaks = seq(-90, 90, by = 5)) +
+  scale_x_continuous(breaks = seq(-180, 180, by = 10))+
+  scale_fill_brewer(palette = "RdYlBu", direction = -1, na.value = "transparent") +
+  # scale_fill_viridis_d(option = "viridis", direction = 1, na.value = "transparent", na.translate = FALSE) +
+  map_theme() +
+  coord_sf(
+    xlim = c("xmin" = -77, "xmax" = -50),
+    ylim = c("ymin" = 32, "ymax" = 48),
+    expand = T) +
+  guides("fill" = guide_colorsteps(
+    title = "Warming Rate Percentile: 1982-2022",
+    title.position = "top", 
+    title.hjust = 0.5,
+    barwidth = unit(5, "in"),
+    frame.colour = "black",
+    ticks.colour = "black")) 
+
+
+# Global View
+global_ranks <- ggplot() +
+  geom_stars(data = world_ranks_binned) +
+  geom_sf(data = world_sf, color = "white", fill = "gray30", size = .1) +
+  scale_fill_brewer(palette = "RdYlBu", 
+                    direction = -1, 
+                    na.value = "transparent") +
+  # scale_fill_viridis_d(option = "viridis", direction = 1, na.value = "transparent", na.translate = FALSE) +
+  map_theme(
+    axis.text.x = element_blank(),
+    axis.ticks.x = element_blank()) +
+  coord_sf(expand = F) +
+  scale_y_continuous(breaks = seq(-90, 90, by = 30)) +
+  guides("fill" = guide_colorsteps(
+    title = "Warming Rate Percentile: 1982-2022",
+    title.position = "top", 
+    title.hjust = 0.5,
+    barwidth = unit(5, "in"),
+    frame.colour = "black",
+    ticks.colour = "black")) 
+
+
+# plot map
+ranks_global_figure <- (global_ranks_zoom | global_ranks ) + 
+  plot_annotation(title = "Global SST Change Rankings", 
+                  caption = "Data Source: OISSTv2") +
+  plot_layout(guides = "collect") & 
+  theme(legend.position = "bottom") &
+  guides("fill" = guide_colorsteps(
+    title = "Warming Rate Percentile: 1982-2022",
+    title.position = "top", 
+    title.hjust = 0.5,
+    barwidth = unit(5, "in"),
+    frame.colour = "black",
+    ticks.colour = "black")) 
+
+
+# plot patchwork
+ranks_global_figure
+grid::grid.raster(lab_logo, x = 0.05, y = 0.03, just = c('left', 'bottom'), width = unit(0.8, 'inches'))
+```
+
+
+## Warming Rates Interactive 
+
+```{r}
+
+# Project raster:
+r1 <- projectRaster(from = rates_nc, crs = CRS("+init=EPSG:3857"))
+r1 <- rates_nc
+#crs(r1) <- CRS("+init=EPSG:4326")
+
+pal <- colorNumeric(
+  c("#0C2C84", "#41B6C4", "#FFFFCC"), 
+  values(r1),
+  na.color = "transparent")
+
+
+# Make the map
+leaflet() %>% 
+  addTiles() %>%
+  addRasterImage(r1, colors = pal, opacity = 0.8) %>%
+  addLegend(
+    pal = pal, 
+    values = values(r1),
+    title = "Surface Temperature Warming Rate")
+
+```
+
+
+
+## Warming Rankings Interactive
+
+The following map is produced by taking the warming rates that power the previous map, and ranking them. Each pixel displays the percentile that corresponds to the warming rate at that location.

@@ -813,7 +813,7 @@ detrended_full %>%
 
 -   flag "heat stress" or "scald stress"
 
--   Maybe add a vertical indication of GSI or ENSO index 
+-   Maybe add a vertical indication of GSI or ENSO index
 
 ## Hybrid Visualization (fig)
 
@@ -865,7 +865,6 @@ fixed_91 %>%
 
 ```
 
-
 ## De-Trending Method Questions:
 
 Is a linear de-trending causing new problems: Was 1982 an outlier year?
@@ -885,4 +884,3 @@ detrended_full %>%
   guides(alpha = "none") +
   labs(x = "Time", y = "SST Anomaly", color = "Heatwave Event:")
 ```
-

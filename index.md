@@ -6,7 +6,9 @@ This index page serves as a link directory to temperature reports. Use the follo
 
 ### TOC
 
- 1. [Gulf of Maine Seasonal Update](https://adamkemberling.github.io/oisst_mainstays/R/markdown_reports/GOM_Seasonal_Update.html)
+ 
+ 
+ 1. [Gulf of Maine Seasonal Update (1991-2020 Climatology)](https://adamkemberling.github.io/oisst_mainstays/R/markdown_reports/GOM_Seasonal_23.html)
 
  2. [Gulf of Maine Current Year Sea Surface Temperature Update](https://adamkemberling.github.io/oisst_mainstays/R/markdown_reports/GulfOfMaine_CurrentYear.html)
  
@@ -29,4 +31,8 @@ This index page serves as a link directory to temperature reports. Use the follo
  Shifting Baselines Methodology
   - [Heatwave Methodology Impacts](https://adamkemberling.github.io/oisst_mainstays/R/presentations/changing_mhw_baseline.html)
  
+ 
+ ### Retired Reports
+ 
+ 1. [Gulf of Maine Seasonal Update (1982-2011 Climatology)](https://adamkemberling.github.io/oisst_mainstays/R/markdown_reports/GOM_Seasonal_Update.html)
  

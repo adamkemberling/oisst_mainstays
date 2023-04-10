@@ -86,13 +86,15 @@ reclassify_to_discrete <- function(ranks_stack,
 ####_____________________________####
 
 
+#### Remove Trend in Annual Values
 
 
 #' @title Detrend Annual Values
 #' 
 #' @ Removes linear trend from a timeseries of annual values. Model is 
 #' a linear regression using lm(), returns original dataframe with new 
-#' column for detrended values `detrend_vals`.
+#' column for detrended values `detrend_vals` which are the original values
+#' minus the prediction from the regression.
 #'
 #' @param x dataframe containing data for the model
 #' @param vals string indicating the column for the response variable to detrend
@@ -109,6 +111,7 @@ detrend_sst <- function(x, vals, yr_col){
   
   # remove trend from the data
   trend_pred <- predict(linear_trend, x)
+  x$trend_pred <- trend_pred
   x$detrend_vals <- x[[vals]] - trend_pred
   return(x)
   

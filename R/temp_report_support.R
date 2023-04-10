@@ -19,32 +19,35 @@ deg_f <- "\u00b0F"
 
 
 # Set ggplot theme for figures
-theme_set(theme_bw() + 
-            theme(
-              # Titles
-              plot.title = element_text(hjust = 0, face = "bold", size = 14),
-              plot.subtitle = element_text(size = 9),
-              plot.caption = element_text(size = 8, margin = margin(t = 20), color = "gray40"),
-              plot.margin = unit(c(1, 1, 1, 1), "cm"),
-              legend.title = element_text(size = 9),
-              legend.text = element_text(size = 9),
-              # Axes
-              axis.line.y = element_line(color = "black"),
-              axis.ticks.y = element_line(), 
-              axis.line.x = element_line(color = "black"),
-              axis.ticks.x = element_line(), 
-              axis.text = element_text(size = 11),
-              axis.title = element_text(size = 12),
-              rect = element_rect(fill = "transparent", color = "black"),
-              # Facets
-              strip.text = element_text(color = "white", 
-                                        face = "bold",
-                                        size = 11),
-              strip.background = element_rect(
-                color = "#00736D", 
-                fill = "#00736D", 
-                linewidth = 1, 
-                linetype="solid")))
+theme_set(
+  theme_bw() + 
+    theme(
+      # Titles
+      plot.title = element_text(hjust = 0, face = "bold", size = 14),
+      plot.subtitle = element_text(size = 9),
+      plot.caption = element_text(size = 8, margin = margin(t = 20), color = "gray40"),
+      plot.margin = unit(c(1, 1, 1, 1), "cm"),
+      legend.title = element_text(size = 9),
+      legend.text = element_text(size = 9),
+      # Axes
+      axis.line.y = element_line(color = "black"),
+      axis.ticks.y = element_line(), 
+      axis.line.x = element_line(color = "black"),
+      axis.ticks.x = element_line(), 
+      axis.text = element_text(size = 11),
+      axis.title = element_text(size = 12),
+      rect = element_rect(fill = "transparent", color = "black"),
+      # Facets
+      strip.text = element_text(color = "white", 
+                                face = "bold",
+                                size = 11),
+      strip.background = element_rect(
+        color = "#00736D", 
+        fill = "#00736D", 
+        linewidth = 1, 
+        linetype="solid")
+      )
+  )
 
 
 
@@ -280,10 +283,19 @@ season_text_details <- function(season_op, year_op){
   # Season End cutoff using day of the year
   season_end <- switch(
     EXPR = season_op,
-    "Winter" = yday("2000-02-28"),
-    "Spring" = yday("2000-05-31"),
-    "Summer" = yday("2000-08-31"),
-    "Fall"   = yday("2000-11-30")
+    "Winter" = yday("2001-02-28"),
+    "Spring" = yday("2001-05-31"),
+    "Summer" = yday("2001-08-31"),
+    "Fall"   = yday("2001-11-30")
+  )
+  
+  # Season Start cutoff using day of the year
+  season_start <- switch(
+    EXPR = season_op,
+    "Winter" = yday("2001-12-01"),
+    "Spring" = yday("2001-03-01"),
+    "Summer" = yday("2001-06-01"),
+    "Fall"   = yday("2001-09-01")
   )
   
   
@@ -295,12 +307,12 @@ season_text_details <- function(season_op, year_op){
     right_lim      = season_right,
     range_label    = season_range,
     season_color   = season_col,
+    season_start_doy = season_start,
     season_end_doy = season_end
     )
   
   # Return the lists
   return(season_details)
-  
   
   
 }
@@ -1045,7 +1057,7 @@ annual_avgs_annotated <- function(annual_avgs, all_years_average, rate_data, foc
   # Assemble plot highlighting 2021 characteristics
   annual_temps_plot <- ggplot(annual_avgs, aes(year, {{ temp_col }})) +
     geom_hline(yintercept = temp_ops$all_yr_temp, color = "darkblue", linetype = 2) +
-    geom_line(linetype = 3, size = 0.5, alpha = 0.5) +
+    geom_line(linetype = 3, linewidth = 0.5, alpha = 0.5) +
     geom_smooth(formula = y ~ x, 
                 linetype = 1,
                 method = "lm", 
@@ -1262,7 +1274,7 @@ global_rate_comparison <- function(
 #'                  color = "darkred", alpha = 0.25) +
 #'     geom_line(aes(y = {{ temp_col }}, color = "Sea Surface Temperature")) +
 #'     geom_line(aes(y = {{ hw_temp_col }}, color = "Heatwave Event")) +
-#'     geom_line(aes(y = {{ hw_thresh_col }}, color = "MHW Threshold"), lty = 3, size = .5) +
+#'     geom_line(aes(y = {{ hw_thresh_col }}, color = "MHW Threshold"), lty = 3, linewidth = .5) +
 #'     geom_textpath(aes(y = {{ clim_col }}), color = "gray30", label = "Climatological Mean", hjust = 0.5, lty = 2) +
 #'     scale_color_manual(values = color_vals) +
 #'     #scale_x_date(date_labels = "%b", date_breaks = "1 month", expand = expansion(mult = c(0,0))) +
@@ -1350,8 +1362,8 @@ global_rate_comparison <- function(
 #'                  color = "darkred", alpha = 0.25) +
 #'     geom_line(aes(y = {{ anom_col }}, color = "Sea Surface Temperature Anomaly")) +
 #'     geom_line(aes(y = anom_hwe, color = "Heatwave Event")) +
-#'     geom_line(aes(y = anom_thresh, color = "MHW Threshold"), lty = 3, size = .5) +
-#'     geom_line(aes(y = 0, color = "Daily Climatology"), lty = 2, size = .5) +
+#'     geom_line(aes(y = anom_thresh, color = "MHW Threshold"), lty = 3, linewidth = .5) +
+#'     geom_line(aes(y = 0, color = "Daily Climatology"), lty = 2, linewidth = .5) +
 #'     scale_color_manual(values = color_vals) +
 #'     scale_linetype_manual(values = linetype_key, guide = "none") +
 #'     # scale_x_date(date_labels = "%b", date_breaks = "1 month", expand = expansion(mult = c(0,0))) +
@@ -1907,15 +1919,17 @@ monthly_sst_map <- function(month_avg_layer, month_id, plot_yr, temp_lim = 8, de
   # build plot
   month_fig <- ggplot() +
     geom_stars(data = month_stars) +
-    geom_sf(data = new_england, fill = "gray90", size = .25) +
-    geom_sf(data = canada, fill = "gray90", size = .25) +
-    geom_sf(data = greenland, fill = "gray90", size = .25) +
+    geom_sf(data = new_england, fill = "gray90", linewidth = .25) +
+    geom_sf(data = canada, fill = "gray90", linewidth = .25) +
+    geom_sf(data = greenland, fill = "gray90", linewidth = .25) +
     geom_contour(data = bathy_df, aes(x, y, z = depth),
                  breaks = depth_contours,
-                 color = "gray20", size = 0.25) +
+                 color = "gray20", 
+                 linewidth = 0.25) +
     geom_sf(data = region_extent, 
             color = "black", 
-            linetype = 2, size = 0.5,
+            linetype = 2, 
+            linewidth = 0.5,
             fill = "transparent") +
     scale_y_continuous(breaks = seq(30, 50, by = 2)) +
     scale_fill_distiller(palette = "RdBu", 
@@ -1951,7 +1965,7 @@ monthly_sst_map <- function(month_avg_layer, month_id, plot_yr, temp_lim = 8, de
 ####________####
 
 
-####  Belkin Oreailly Fronts  ####
+####  Belkin Oreilly Fronts  ####
 # remotes::install_github("galuardi/boaR", 
 #                         force = T, 
 #                         build = T, 
@@ -2084,7 +2098,7 @@ warp_grid_projections <- function(in_grid_st, projection_crs = c("world robinson
 #     formula = y ~ x, se = F,
 #     aes(color = `Warming Rate`),
 #     alpha = 0.90,
-#     size = 1.5,
+#     linewidth = 1.5,
 #     linetype = 2) + 
 #    scale_color_gmri() +
 #    scale_y_continuous(labels =  number_format(suffix = " \u00b0F")) +
@@ -2101,7 +2115,7 @@ warp_grid_projections <- function(in_grid_st, projection_crs = c("world robinson
 # gom_c <- ggplot(data = annual_summary, aes(year, area_wtd_anom)) +
 # 
 #   # Overlay yearly means
-#   geom_line(color = "gray10", size = 1.5, linetype = 1) +
+#   geom_line(color = "gray10", linewidth = 1.5, linetype = 1) +
 #   geom_point(color = "gray10", size = 1.5) +
 #   geom_smooth(
 #     data = annual_summary %>% 
@@ -2110,7 +2124,7 @@ warp_grid_projections <- function(in_grid_st, projection_crs = c("world robinson
 #     formula = y ~ x, se = F,
 #     aes(color = `Warming Rate`),
 #     alpha = 0.90,
-#     size = 1.5,
+#     linewidth = 1.5,
 #     linetype = 2) + 
 #    scale_color_gmri() +
 #    scale_y_continuous(labels =  number_format(suffix = " \u00b0C")) +
