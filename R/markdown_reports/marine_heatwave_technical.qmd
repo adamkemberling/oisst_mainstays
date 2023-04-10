@@ -1,0 +1,455 @@
+---
+title: "Marine Heatwaves Technical Report"
+author: "Adam Kemberling"
+url: "https://github.com/adamkemberling"
+affiliation: "Gulf of Maine Research Institute"
+affiliation_url: "https://www.gmri.org"
+description: | 
+  A Deep-Dive into the Debate on Extreme Event Detection in the Ocean
+date: "Updated on: `r Sys.Date()`"
+format: 
+  html:
+    toc: true
+    self-contained: true
+    css:
+      - https://cdn.knightlab.com/libs/juxtapose/latest/css/juxtapose.css
+execute: 
+  echo: false
+  warning: false
+  message: false
+  comment: ""
+  fig.align: center
+editor: source
+bibliography: references.bib
+---
+
+```{r}
+#| label: packages
+#| include: false
+#| echo: false
+#| warning: false
+
+####  Packages  ####
+library(lubridate)
+library(raster)
+library(here)
+library(rnaturalearth)
+library(scales)
+library(sf)
+library(stars)
+library(gmRi)
+library(heatwaveR)
+library(gt)
+library(gtExtras)
+library(patchwork)
+library(tidyverse)
+library(ggforce)
+library(geomtextpath)
+
+# Support Functions
+source(here("R/oisst_support_funs.R"), verbose = FALSE)
+source(here("R/temp_report_support.R"), verbose = FALSE)
+
+# Box paths
+oisst_path <- cs_path("res", "OISST/oisst_mainstays")
+
+# Polygons for mapping
+new_england <- ne_states("united states of america", returnclass = "sf")
+canada      <- ne_states("canada", returnclass = "sf")
+world_sf    <- ne_countries(returnclass = "sf")
+greenland   <- ne_states(country = "greenland", returnclass = "sf")
+
+
+# File paths for various extents based on "apershing_gulf_of_maine"
+region_paths <- get_timeseries_paths(region_group = "gmri_sst_focal_areas", 
+                                     box_location = "cloudstorage")
+
+# Polygon Path
+gom_poly <- read_sf(region_paths[["apershing_gulf_of_maine"]][["shape_path"]])
+
+```
+
+```{r}
+#| label: style-setup
+#| echo: false
+#| results: asis
+
+# Use GMRI style
+use_gmri_style_rmd()
+
+# # Fonts for plots if they worked
+# sysfonts::font_add_google("lato")
+# showtext::showtext_auto()
+# showtext::showtext_opts(dpi = 300)
+```
+
+```{r}
+#| label: source-juxtapose
+#| eval: false
+
+htmltools::tagList(
+  htmltools::tags$script(src = "https://cdn.jsdelivr.net/npm/juxtaposejs@1.1.6/build/js/juxtapose.min.js")
+)
+```
+
+```{ojs}
+//| output: false
+require("https://cdn.jsdelivr.net/npm/juxtaposejs@1.1.6/build/js/juxtapose.min.js")
+  .catch(() => null)
+```
+
+# Goals:
+
+This Technical Report aims to explain/explore the trade-offs of methodological choices that have split the scientific community, and their discussions around Marine Heatwave Events (MHW). Within this report we will explore the methodological changes being adopted in detail, while also providing some examples of how this change will manifest in the statistics and figures we present.
+
+## Re-Framing What is "Normal"
+
+In future iterations of our seasonal and annual warming updates, you can expect to see two significant methodological changes that impact how we report SST changes and how they compare to what we expect as "normal":
+
+1.  One involves updating the climatological (i.e., 30-year) reference period against which SST anomalies are calculated.
+2.  The other methodological change we anticipate making is a revision to how we define "marine heatwaves" (MHW).
+
+# Changes We are Adopting
+
+### Updating our Point of Reference
+
+To date, we have used 1982-2011 as the 30-year climatological reference period. Going forward, in an effort to remain consistent with the broader scientific community, we will be using 1991-2020 as our climatological reference period.
+
+Since the period of 1991-2020 was warmer than 1982-2011 (primarily as a result of human-caused climate change), we can expect reported warm anomalies to be of a lower number than they have been in our analyses to date. To be clear, this is merely an artifact of the shifting baseline reference period, not an indication that climate change or warming trends in SSTs have decreased.
+
+### Re-Defining the "Extreme"
+
+The concept of a MHW "marine heatwave" emerged as a way to communicate a rare phenomenon where temperatures were significantly higher than the historical conditions for a prolonged period of time. These extreme conditions caught scientists' attention for their ecological & economic consequences, and they became a metric for assessing how projected climate change decades into the future may affect marine ecosystems.
+
+As temperatures increase globally, SST observations that were once rare have become more and more common. Understanding this pattern, scientists now are considering new ways to define what it means to be a marine heatwave. Debate has now emerged on how "best" to identify and measure the impacts of these rare events. GMRI scientists are part of this evolving discussion among the international community that is weighing the trade offs in these proposed methodological changes.
+
+## Diving Deeper
+
+In this technical report series, we invite readers to dig a little deeper into the tradeoffs of these decisions. This technical report is an opportunity to dig deeper into the thinking behind the science, and the challenges of scientific communication in a changing climate. We will explain the rationale between the competing approaches, how scientists think about their impacts, and how the heatwave record for the Gulf of Maine can change with these decisions.
+
+## 1. "Normal" for Who? - The need for a Baseline
+
+Scientists use climatological periods to set a reference point for climate conditions. Having a set reference period allows scientists to then make statements on how rare certain weather conditions are, relative to what we've seen over that reference period. Without an explicit reference point it is difficult to communicate what conditions are typical for a given area at a given time of the year.
+
+## 2. How Long is Long Enough? - Capturing Natural Variability
+
+A 30-year span is standard for a climatological reference period, and sets an anchor-point for framing expectations about what is normal and what is unusual. This length of time is sufficient to capture the ups-and-downs of major climate patterns like El Niño Southern Oscillation (ENSO) or the its Atlantic counterpart: the North-Atlantic Oscillation (NAO), that have large-scale impacts on regional weather patterns. However, 30-years is not long enough to capture the complete picture of Earth's climate climate variability.
+
+The **length of a reference period is a choice that scientists make based on the application at hand**. The standard 30-year periods have their history in setting expectations for agriculture, helping farmers understand which crops are suitable for their near-term climate futures. Other areas of expertise approach this communication challenge differently, but to address similar goals. Flooding events are described based on how infrequent they have occurred in the past, earning names such as "100 year" or "50-year" flood events.
+
+In each of these cases scientists lean on the lived experience of conditions within recent memory to set reasonable expectations for what to expect in the near future. There is an appreciation that weather patterns are hard to predict, and an assumption that things that have been rare in the past will remain similarly rare in the future.
+
+## 3. Keeping Pace with Change - Updating the Reference
+
+Over time with natural variability, these reference periods are updated by scientists to keep pace with how conditions evolve over time. By routinely updating a climate reference period to cover more-recent periods of time, we allow our predictions to adjust to newer information that is likely more relevant than the distant past.
+
+## 4. Can a Static Reference Maintain Meaning? - Picking the Right Reference Under Warming
+
+The scientific community is again at one of these junctions where we update the reference period. Organizations like NOAA and the World Meteorological Organization have transitioned their climatological reference period, and have made this recommendation for the broader community. This decision is a routine step for maintaining the most-relevant climate "normal", however there is now debate among scientists on whether this approach makes sense under observed climate trends.
+
+## 5. A New "Normal" for the Gulf of Maine
+
+Work by scientists at GMRI has in the past used the static baseline approach when communicating SST patterns in the region. Following our best judgement and under the recommendations of the broader scientific community we have adopted a new 30-year reference period. This climatology will determine the baseline for communicating temperature anomalies, as well as any designations of marine heatwave events (MHW).
+
+In adopting this new climatology communication around temperature anomalies and marine heatwaves will be impacted in a few different ways. We will explore these trade-offs in the following sections. First, let's take a look at what the average daily temperature "normals" are for the region.
+
+```{r}
+#| label: regional-sst-setup
+
+# Timeseries Path +
+timeseries_path <- region_paths[["apershing_gulf_of_maine"]][["timeseries_path"]]
+
+
+# Load timeseries of SST for Region
+region_timeseries <- read_csv(timeseries_path, 
+                              col_types = cols(), 
+                              guess_max = 1e5) 
+
+
+# Format timeseries for group estimates
+region_timeseries <- region_timeseries %>% 
+  mutate(
+    time = as.Date(time),
+    area_wtd_f = as_fahrenheit(area_wtd_sst),
+    anom_f     = as_fahrenheit(area_wtd_anom, "anomalies")) %>% 
+  distinct(time, .keep_all = T) %>% 
+  supplement_season_info() 
+
+
+# Run climatology for old reference period
+sst_old <- pull_heatwave_events(
+  temperature_timeseries = region_timeseries,
+  threshold = 90, 
+  clim_ref_period = c("1982-01-01", "2011-12-31")) %>% 
+  supplement_hw_data() %>% 
+  filter(doy != 366)
+
+# Run climatology for new reference period
+sst_new <- pull_heatwave_events(
+  temperature_timeseries = region_timeseries,
+  threshold = 90, 
+  clim_ref_period = c("1991-01-01", "2020-12-31")) %>% 
+  supplement_hw_data() %>% 
+  filter(doy != 366)
+
+
+# Pull one year's data so we can plot the climatology and example data
+clim_only_old <- sst_old %>% filter(yr == 2012)%>% 
+  mutate(clim_ref = "Climatological Reference Period: 1982-2011")
+clim_only_new <- sst_new %>% filter(yr == 2012)%>% 
+  mutate(clim_ref = "Climatological Reference Period: 1991-2020")
+
+
+```
+
+#### Our Original Reference Point
+
+Our original reporting on SST trends used a reference period of 1982-2011. This was the earliest 30-year period that could be used for the satellite derived data sources that we rely on. These data assets came online in the fall of 1981, making 1982 the first full-year for data coming from that satellite sensor array.
+
+From this resource the natural variation in sea surface temperature for the Gulf of Maine can be plotted, with reasonable expectations around how many degrees warmer/colder it is likely be, assuming the near-future is not radically different from the near-past.
+
+::: {.juxtapose data-startingposition="65%" style="margin-bottom:2em"}
+```{r}
+#| eval: true
+
+# Create figures for the old and new reference cycles:
+
+(clim_cycle_old <- clim_only_old %>% 
+  ggplot() +
+    geom_ribbon(aes(x = time, ymin = mcs_thresh, ymax = mhw_thresh), 
+                alpha = 0.3, fill = "royalblue") +
+    geom_line(aes(time, y = seas), linewidth = 1 ) +
+    geom_line(aes(time, y = mhw_thresh), color = "royalblue", linewidth = 0.1, linetype = 1) +
+    geom_line(aes(time, y = mcs_thresh), color = "royalblue", linewidth = 0.1, linetype = 1) +
+    
+    scale_x_date(date_breaks = "1 month", 
+                 labels = date_format("%b"), 
+                 expand = expansion(add = c(0,0))) +
+    scale_y_continuous(labels = label_number(suffix = deg_c), limits = c(3.25,20)) +
+    facet_wrap(~ clim_ref) +
+    theme_gmri() +
+    labs(y = "Sea Surface Temperature", x = "Calendar Day"))
+
+```
+
+```{r}
+#| eval: true
+
+# Idea:
+# Use the ribbon color to show where it overlaps and where it doesnt...
+# Would need to combine data, and do some sort of gradient between the two limits to see if they fall between the limits of the other, kind of sounds like a pain...
+
+
+(clim_cycle_new <- clim_only_new %>% 
+  ggplot() +
+   geom_ribbon(aes(x = time, ymin = mcs_thresh, ymax = mhw_thresh), 
+                alpha = 0.5, fill = "orange") +
+   geom_ribbon(
+     data = select(clim_only_old, -clim_ref),
+     aes(x = time, ymin = mcs_thresh, ymax = mhw_thresh), 
+     alpha = 0.3, fill = "royalblue") +
+    
+    geom_line(aes(time, y = seas), linewidth = 1 ) +
+    geom_line(aes(time, y = mhw_thresh), color = "orange", linewidth = 0.1, linetype = 1) +
+    geom_line(aes(time, y = mcs_thresh), color = "orange", linewidth = 0.1, linetype = 1) +
+    scale_x_date(date_breaks = "1 month", 
+                 labels = date_format("%b"), 
+                 expand = expansion(add = c(0,0))) +
+    scale_y_continuous(labels = label_number(suffix = deg_c), limits = c(3.25,20)) +
+    facet_wrap(~ clim_ref) +
+    theme_gmri() +
+    labs(y = "Sea Surface Temperature", x = "Calendar Day"))
+
+```
+:::
+
+#### Consequences of the Shift: 1991-2020
+
+The seasonal cycle for the new reference period follows the same pattern, as expected, but is warmer than what we've seen in the past. Temperature in April is the closest to past conditions, but during Summer it is now normal for temperatures to be \~.5$^oC$ than they were ten years prior.
+
+```{r}
+
+# Make table of the differences
+change_df <- tibble(
+  "time" = clim_only_new$time,
+  "clim_82" = clim_only_old$seas,
+  "clim_91" = clim_only_new$seas,
+  "clim_change" = clim_only_new$seas - clim_only_old$seas
+)
+
+
+# Idea, horizontal bars for seasonal averages
+# Get mean, var and display it with text anotations
+# geom_mark_ellipse the centerpoints
+
+# Plotting Just the Changes
+ggplot(change_df, aes(time, y = clim_change)) +
+  #geom_line() +
+  geom_segment(aes(x = time, xend = time, yend = 0, y = clim_change), color = "red") +
+  geom_hline(yintercept = 0) +
+  scale_y_continuous(labels = label_number(suffix = deg_c)) +
+  scale_x_date(date_breaks = "1 month", 
+                 labels = date_format("%b"), 
+                 expand = expansion(add = c(0,0))) +
+  theme_gmri() +
+  #coord_flip() +
+  labs(y = "Temperature Increase", x = "Calendar Day", title = "Ten Year Shift in Gulf of Maine Climate")
+
+
+```
+
+By shifting the baseline reference period, we are making a decision to update our ideas of what we find shocking/startling and their distinction from what has become common. This transition accommodates the idea that the Gulf of Maine is warmer, particularly in the summer and fall, and we should no longer be surprised by that.
+
+## 6. When Trends Run-away, Questioning the Static Baseline
+
+Here in the Gulf of Maine, reporting on the occurrence and frequency of marine heatwave events has become a home to some differing opinions. Until recently, routinely updating these reference points was an un-eventful procedure. However, with climate change pushing us further and faster from historical conditions towards warmer temperatures, the question has been raised whether this approach still makes. We now live in a world where the pace of change is fast, and the direction of change is in one single direction. "Extremes" have become the norm, as the rate of change is outpacing the pace of the climatology updates. Following current standards for MHW reporting, the Gulf of Maine has seen an increasingly large fraction of its daily temperatures meet the criteria for a marine heatwave event. As temperatures which at had been extreme in recent memory become common, scientists are now challenged to communicate what
+
+### The Power of a Fixed Baseline
+
+### The Problem with a Fixed Baseline
+
+While the act of moving the reference period to a more recent period can accommodate modest climate variation, these efforts will always lag behind the emerging conditions if the climate is following a trend towards one direction. Even if a reference period is well-centered, if there is a long-term trend, "extreme events" will appear at either end of the timeseries.
+
+> By constantly moving a fixed baseline to follow trends, historic conditions will appear more rare compared to current conditions, and more recent temperature records become the new norm.
+
+::: {.juxtapose data-startingposition="65%" style="margin-bottom:2em"}
+```{r}
+
+# Compare warming rates
+sst_old %>% 
+  mutate(clim_ref = "1982-2011 Baseline") %>% 
+  ggplot() +
+  geom_ribbon(aes(x = time, 
+                  ymax = Inf, 
+                  ymin = mhw_thresh - seas),
+              fill = "red", alpha = 0.3) +
+  geom_ribbon(aes(x = time, 
+                  ymax = mcs_thresh - seas, 
+                  ymin = -Inf),
+              fill = "lightblue", alpha = 0.5) +
+  geom_path(aes(time, sst_anom, color = status), linewidth = 0.5, alpha = 0.8, show.legend = F, group = 1) +
+  scale_color_manual(values = c("royalblue", "darkred",  "gray20")) +
+  annotate(geom = "text", label = "Heatwave Conditions", x = as.Date("1992-01-01"), y = 3.5, fontface = "bold") +
+  annotate(geom = "text", label = "Coldspell Conditions", x = as.Date("2012-01-01"), y = -2.5, fontface = "bold") +
+  scale_x_date(expand = expansion(add = c(0,0))) + 
+  scale_y_continuous(limits = c(-3,4),
+                     labels = label_number(suffix = deg_c)) +
+  facet_wrap(~clim_ref) +
+  labs(x = "Date", y = "SST Anomaly")
+```
+
+```{r}
+
+# Compare warming rates
+sst_new %>% 
+  mutate(clim_ref = "1991-2020 Baseline") %>% 
+  ggplot() +
+  geom_ribbon(aes(x = time, 
+                  ymax = Inf, 
+                  ymin = mhw_thresh - seas),
+              fill = "red", alpha = 0.3) +
+  geom_ribbon(aes(x = time, 
+                  ymax = mcs_thresh - seas, 
+                  ymin = -Inf),
+              fill = "lightblue", alpha = 0.5) +
+  geom_path(aes(time, sst_anom, color = status), linewidth = 0.5, alpha = 0.8, show.legend = F, group = 1) +
+  scale_color_manual(values = c("royalblue", "darkred",  "gray20")) +
+  annotate(geom = "text", label = "Heatwave Conditions", x = as.Date("1992-01-01"), y = 3.5, fontface = "bold") +
+  annotate(geom = "text", label = "Coldspell Conditions", x = as.Date("2012-01-01"), y = -2.5, fontface = "bold") +
+  scale_x_date(expand = expansion(add = c(0,0))) + 
+  scale_y_continuous(limits = c(-3,4),
+                     labels = label_number(suffix = deg_c)) +
+  facet_wrap(~clim_ref) +
+  labs(x = "Date", y = "SST Anomaly")
+```
+:::
+
+## Removing the Trends to Identify "True" Extremes
+
+Seeing this pattern unfolding, scientists needed a new way to communicate what it meant to be an extreme event, one that can handle a long-term trend. To accomplish this, scientists adopted new methods for flagging these rare heatwave/coldspell events.
+
+### New Methodology
+
+The new approach developed by @jacox2019 involves abandoning a fixed reference point, and setting thresholds using all the available data. Scientists then remove the long-term trend, and identify events that stand out with that pattern taken away.
+
+Applying the new methods for identifying marine heatwaves, this is our new view of the Gulf of Maine's SST trends:
+
+```{r}
+#| label: detrending-results
+
+detrended_sst <- pull_heatwave_events(
+  temperature_timeseries = region_timeseries,
+  threshold = 90, 
+  clim_ref_period = c("1982-01-01", "2022-12-31"), 
+  detrend = TRUE) %>% 
+  supplement_hw_data() %>% 
+  filter(doy != 366) %>% 
+  mutate(
+    seas_trend = seas + trend_pred,
+    mhw_trend_thresh = mhw_thresh + trend_pred,
+    mcs_trend_thresh = mcs_thresh + trend_pred
+  )
+
+
+
+detrended_sst %>% 
+  mutate(clim_ref = "1982-2022 De-trended Heatwaves") %>% 
+  ggplot() +
+  geom_ribbon(aes(x = time, 
+                  ymax = Inf, 
+                  ymin = (mhw_thresh - seas) + trend_pred),
+              fill = "red", alpha = 0.3) +
+  geom_ribbon(aes(x = time, 
+                  ymax = (mcs_thresh - seas) + trend_pred, 
+                  ymin = -Inf),
+              fill = "lightblue", alpha = 0.5) +
+  geom_path(aes(time, sst_anom, color = status), linewidth = 0.5, alpha = 0.8, show.legend = F, group = 1) +
+  scale_color_manual(values = c("royalblue", "darkred",  "gray20")) +
+  annotate(geom = "text", label = "Heatwave Conditions", x = as.Date("1992-01-01"), y = 3.5, fontface = "bold") +
+  annotate(geom = "text", label = "Coldspell Conditions", x = as.Date("2012-01-01"), y = -2.5, fontface = "bold") +
+  scale_x_date(expand = expansion(add = c(0,0))) + 
+  scale_y_continuous(limits = c(-3,4),
+                     labels = label_number(suffix = deg_c)) +
+  facet_wrap(~clim_ref) +
+  labs(x = "Date", y = "SST Anomaly")
+```
+
+### What we gain
+
+By applying this new method we remove the persistent MHW state that has been present in our own communication on the topic. Rare, rapid swings in temperatures now stand out among the noise of daily temperature variability and a long-term trend.
+
+### What we lose
+
+By applying this new methodology we as scientists lose our anchor to the timescales that life operates on, and the importance of different temperature thresholds for life. By applying this lens for the identification of extreme swings in temperature, we more accurately capture the profoundness of these temperature swings in a mathematical sense, but we lose a perspective from which to see how far the environment has drifted. We also implicitly presume that the species impacted by them share this lens. Left unsaid from this view is that species may be incapable of sensing, following, or avoiding either/both the long-term patterns and the extreme temperature pulses. This new methodology may better capture how profound these pulses of temperature stress are, but they obscure how far the ecosystem is from the conditions many species are accustomed to.
+
+### New Challenges
+
+In addition to the challenges of communicating from an ever-shifting baseline, one that constantly rewrites the framing for past conditions, there is a methodological challenge of accurately capturing what we have referred to here as the long-term trend.
+
+## Moving Forward
+
+2.  Make the language clear
+
+3.  Compare differences
+
+4.  Some clear takeaways on what we will be using moving forward and what the language we're using means
+
+5.  Foreshadow the challenges of the de-trending approach: Deer in the thicket
+
+# Keywords
+
+**Climatology** -
+
+**Anomaly** -
+
+**Marine Heatwave** -
+
+**Marine Cold-Spell** -
+
+@amaya2023
+
+@jacox2019
+
+@saba2016
+
+@mills2013

@@ -28,6 +28,7 @@ docs/*
 local_data/
 notebooks/testing_data/
 R/markdown_reports/local_report_data/
+R/markdown_reports/tech_report_imgs/
 
 # Prefect configs
 .prefect/
