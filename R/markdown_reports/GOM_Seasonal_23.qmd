@@ -764,7 +764,7 @@ temp_rankings_p <- seasonal_ranks %>%
   geom_col(aes(x = anom_f, y = year_rank, fill = flag_year)) +
   # Year Labels
   geom_text(
-    mapping = aes(x = 0, y = year_rank, label = str_c(rank, ".  ", year_rank)),
+    mapping = aes(x = 0, y = year_rank, label = str_c(rank, ".  ", year_rank, " - ", as.numeric(as.character(year_rank))+1)),
     hjust = -.1,
     color = 'white',
     size = 5) +
@@ -836,7 +836,7 @@ Using this broadly accepted definition, **the Gulf of Maine has experienced MHW 
 
 # Show MHW Status Through the Year:
 hw_temp_p <- year_hw_temps_two(year_hw_dat = last_yr_heatwaves, temp_units = "F") + 
-  labs(title = str_c(params$year, " Gulf of Maine SST"),
+  labs(title = str_c("Winter 2022-23 Gulf of Maine SST"),
        subtitle = str_c("Temperatures through the end of ", tolower(params$season)))  +
   coord_cartesian(clip = "off") +
   geom_logo(x_npc = 0.9, y_npc = 1.2, logo_height = 1, height_units = "cm")
@@ -860,7 +860,7 @@ Presenting SST conditions in terms of anomalies (@fig-season-anoms-rework) as op
 
 # Show MHW Status Through the Year:
 hw_anom_p <- year_hw_anoms_two(year_hw_dat = last_yr_heatwaves, temp_units = "F") + 
-  labs(title = str_c(params$year, " Gulf of Maine SST Anomalies"),
+  labs(title = str_c("Winter 2022-23 Gulf of Maine SST Anomalies"),
        subtitle = str_c("Temperature anomalies through the end of ", tolower(params$season))) +
   coord_cartesian(clip = "off") +
   geom_logo(x_npc = 0.9, y_npc = 1.2, logo_height = 1, height_units = "cm")
