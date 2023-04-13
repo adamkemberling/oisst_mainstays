@@ -1,7 +1,6 @@
 ---
 format: 
   html:
-    toc: true
     self-contained: true
     css:
       - https://cdn.knightlab.com/libs/juxtapose/latest/css/juxtapose.css
