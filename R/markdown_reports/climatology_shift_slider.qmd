@@ -1,0 +1,164 @@
+---
+format: 
+  html:
+    toc: true
+    self-contained: true
+    css:
+      - https://cdn.knightlab.com/libs/juxtapose/latest/css/juxtapose.css
+execute: 
+  echo: false
+  warning: false
+  message: false
+  comment: ""
+  fig.align: center
+---
+
+```{r}
+#| label: packages
+#| include: false
+#| echo: false
+#| warning: false
+
+####  Packages  ####
+library(lubridate)
+library(here)
+library(scales)
+library(gmRi)
+library(heatwaveR)
+library(tidyverse)
+
+conflicted::conflict_prefer("select", "dplyr")
+conflicted::conflict_prefer("filter", "dplyr")
+conflicted::conflict_prefer("lag", "dplyr")
+
+# Support Functions
+source(here("R/oisst_support_funs.R"), verbose = FALSE)
+source(here("R/temp_report_support.R"), verbose = FALSE)
+
+# Box paths
+oisst_path <- cs_path("res", "OISST/oisst_mainstays")
+
+# File paths for various extents based on "apershing_gulf_of_maine"
+region_paths <- get_timeseries_paths(region_group = "gmri_sst_focal_areas", 
+                                     box_location = "cloudstorage")
+
+```
+
+
+
+```{ojs}
+//| output: false
+require("https://cdn.jsdelivr.net/npm/juxtaposejs@1.1.6/build/js/juxtapose.min.js")
+  .catch(() => null)
+```
+
+
+```{r}
+#| label: regional-sst-setup
+
+# Timeseries Path +
+timeseries_path <- region_paths[["apershing_gulf_of_maine"]][["timeseries_path"]]
+
+
+# Load timeseries of SST for Region
+region_timeseries <- read_csv(timeseries_path, 
+                              col_types = cols(), 
+                              guess_max = 1e5) 
+
+
+# Format timeseries for group estimates
+region_timeseries <- region_timeseries %>% 
+  mutate(
+    time = as.Date(time),
+    area_wtd_f = as_fahrenheit(area_wtd_sst),
+    anom_f     = as_fahrenheit(area_wtd_anom, "anomalies")) %>% 
+  distinct(time, .keep_all = T) %>% 
+  supplement_season_info() 
+
+
+# Run climatology for old reference period
+sst_old <- pull_heatwave_events(
+  temperature_timeseries = region_timeseries,
+  threshold = 90, 
+  clim_ref_period = c("1982-01-01", "2011-12-31")) %>% 
+  supplement_hw_data() %>% 
+  filter(doy != 366)
+
+# Run climatology for new reference period
+sst_new <- pull_heatwave_events(
+  temperature_timeseries = region_timeseries,
+  threshold = 90, 
+  clim_ref_period = c("1991-01-01", "2020-12-31")) %>% 
+  supplement_hw_data() %>% 
+  filter(doy != 366)
+
+
+# Pull one year's data so we can plot the climatology and example data
+clim_only_old <- sst_old %>% filter(yr == 2012)%>% 
+  mutate(clim_ref = "Climatological Reference Period: 1982-2011",
+         mcs_thresh_f = as_fahrenheit(mcs_thresh))
+clim_only_new <- sst_new %>% filter(yr == 2012)%>% 
+  mutate(clim_ref = "Climatological Reference Period: 1991-2020",
+         mcs_thresh_f = as_fahrenheit(mcs_thresh))
+
+
+
+```
+
+
+
+::: {.juxtapose data-startingposition="65%" style="margin-bottom:2em; width = 70%; height =70%"}
+```{r}
+# Old climatological cycle
+
+# Create figures for the old and new reference cycles:
+
+(clim_cycle_old <- clim_only_old %>% 
+  ggplot() +
+    geom_ribbon(aes(x = time, 
+                    ymin = mcs_thresh_f, 
+                    ymax = mhw_thresh_f), 
+                alpha = 0.3, fill = "royalblue", color = "royalblue") +
+    geom_line(aes(time, y = seas_f), linewidth = 1 ) +
+    scale_x_date(date_breaks = "1 month", 
+                 labels = date_format("%b"), 
+                 expand = expansion(add = c(0,0))) +
+    scale_y_continuous(labels = label_number(suffix = deg_f), limits = c(38,67)) +
+    facet_wrap(~ clim_ref) +
+    theme_gmri() +
+    labs(y = "Sea Surface Temperature", x = NULL))
+
+
+```
+
+
+```{r}
+# New climatological cycle
+
+(clim_cycle_new <- clim_only_new %>% 
+  ggplot() +
+   geom_ribbon(
+     data = select(clim_only_old, -clim_ref),
+     aes(x = time, 
+         ymin = mcs_thresh_f, 
+         ymax = mhw_thresh_f), 
+     alpha = 0.3, fill = "royalblue",
+     color = "royalblue") +
+   geom_ribbon(aes(x = time, 
+                   ymin = mcs_thresh_f, 
+                   ymax = mhw_thresh_f), 
+                alpha = 0.5, fill = "orange", color = "orange") +
+    geom_line(aes(time, y = seas_f), linewidth = 1 ) +
+    scale_x_date(date_breaks = "1 month", 
+                 labels = date_format("%b"), 
+                 expand = expansion(add = c(0,0))) +
+    scale_y_continuous(labels = label_number(suffix = deg_f), limits = c(38,67)) +
+    facet_wrap(~ clim_ref) +
+    theme_gmri() +
+    labs(y = "Sea Surface Temperature", x = NULL))
+
+
+```
+
+:::
+

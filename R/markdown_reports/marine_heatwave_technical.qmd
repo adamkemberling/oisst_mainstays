@@ -83,14 +83,6 @@ use_gmri_style_rmd()
 # showtext::showtext_opts(dpi = 300)
 ```
 
-```{r}
-#| label: source-juxtapose
-#| eval: false
-
-htmltools::tagList(
-  htmltools::tags$script(src = "https://cdn.jsdelivr.net/npm/juxtaposejs@1.1.6/build/js/juxtapose.min.js")
-)
-```
 
 ```{ojs}
 //| output: false
