@@ -1,6 +1,7 @@
 ---
 format: 
   html:
+    page-layout: full
     self-contained: true
     css:
       - https://cdn.knightlab.com/libs/juxtapose/latest/css/juxtapose.css
