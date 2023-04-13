@@ -23,7 +23,7 @@ params:
   year: 2023
   season: "Winter"
   save_data: FALSE
-  save_figures: TRUE
+  save_figures: FALSE
 editor: source
 ---
 
@@ -259,8 +259,6 @@ require("https://cdn.jsdelivr.net/npm/juxtaposejs@1.1.6/build/js/juxtapose.min.j
 ```
 
 
-For the Gulf of Maine, the update of the seasonal climatology can be seen most clearly in February and March as temperatures no longer reach peak-lows. As well as in August and September where temperatures are setting new records. SST is higher throughout the year with this new climatology, and this will be reflected in all figures and tables as anomalies from this CRP will be lowered. However, underlying trends will remain unchanged, as will warming rates.
-
 ```{r}
 #| label: climatology-shift-prep
 
@@ -284,11 +282,99 @@ sst_new <- pull_heatwave_events(
 
 # Pull one year's data so we can plot the climatology and example data
 clim_only_old <- sst_old %>% filter(yr == 2012)%>% 
-  mutate(clim_ref = "Climatological Reference Period: 1982-2011")
+  mutate(clim_ref = "Climatological Reference Period: 1982-2011",
+         mcs_thresh_f = as_fahrenheit(mcs_thresh))
 clim_only_new <- sst_new %>% filter(yr == 2012)%>% 
-  mutate(clim_ref = "Climatological Reference Period: 1991-2020")
+  mutate(clim_ref = "Climatological Reference Period: 1991-2020",
+         mcs_thresh_f = as_fahrenheit(mcs_thresh))
+
+
+# Make table of the differences
+change_df <- tibble(
+  "time" = clim_only_new$time,
+  "clim_82" = clim_only_old$seas,
+  "clim_91" = clim_only_new$seas,
+  "clim_change" = clim_only_new$seas - clim_only_old$seas
+)
+
+
+
+
+
 
 ```
+
+
+```{r}
+#| eval: false
+#| label: monthly-climatology-change-consequences
+
+
+# Get monthly average of these changes - all in F
+month_diff <- change_df %>% 
+  mutate(clim_82 = as_fahrenheit(clim_82),
+         clim_91 = as_fahrenheit(clim_91),
+         clim_change = as_fahrenheit(clim_change, data_type = "anomaly")) %>%
+  group_by(mnth = month(time, label = T, abbr = T)) %>% 
+  summarise(
+    min_82 = min(clim_82), # Monthly lows
+    min_91 = min(clim_91),
+    max_82 = max(clim_82), # Monthly highs
+    max_91 = max(clim_91),
+    mean_82 = mean(clim_82), # monthly means
+    mean_91 = mean(clim_91)) %>% 
+  mutate(
+    min_change = min_91 - min_82, # Change in monthly low
+    max_change = max_91 - max_82, # Change in monthly high
+    mean_change = mean_91 - mean_82) %>% ungroup() # change in monthly mean
+
+
+# the annual monthly min temp (March) increased by XX deg F in shifting the CRP from 1982-2011 to 1991-2020
+month_diff %>% filter(mnth == "Mar") %>% pull(min_change)
+
+# the annual monthly max temp (August) increased by XX deg F in shifting the CRP from 1982-2011 to 1991-2020
+month_diff %>% filter(mnth == "Aug") %>% pull(max_change)
+
+
+# the month with the largest change in updating the CRP is YYY (XX deg F); the season (MAM vs JJA vs SON vs DJF) with the largest change is ZZZ (XX deg F)
+
+# a.
+month_diff %>% arrange(desc(mean_change)) %>% slice(1) 
+
+# b.
+season_label_df <- data.frame(
+      "mnth" = month.abb,
+      "szn" = c("Winter", "Winter", "Spring", "Spring", "Spring", "Summer", "Summer", "Summer", "Fall", "Fall", "Fall", "Winter"))
+month_diff %>% 
+  left_join(season_label_df) %>% 
+  group_by(szn) %>% 
+  summarise(mean_change = mean(mean_change))
+
+# How different is it if I do the mean on daily values...
+change_df %>% 
+  mutate(clim_change = as_fahrenheit(clim_change, data_type = "anomaly"),
+         mnth = month(time, label = T, abbr = T)) %>%
+  left_join(season_label_df) %>% 
+  group_by(szn) %>% 
+  summarise(mean_change = mean(clim_change))
+
+# the month with the smallest change in updating the CRP is YYY (XX deg F); the season with the smallest change is ZZZ (XX deg F)
+
+# a.
+month_diff %>% arrange(mean_change) %>% slice(1) 
+
+#b. 
+month_diff %>% 
+  left_join(season_label_df) %>% 
+  group_by(szn) %>% 
+  summarise(mean_change = mean(mean_change))
+
+```
+
+
+
+For the Gulf of Maine, the update of the seasonal climatology can be seen most clearly in February and March as temperatures no longer reach peak-lows. As well as in August and September where temperatures are setting new records. SST is higher throughout the year with this new climatology, and this will be reflected in all figures and tables as anomalies from this CRP will be lowered. However, underlying trends will remain unchanged, as will warming rates.
+
 
 
 ::: {.juxtapose data-startingposition="65%" style="margin-bottom:2em; width = 70%; height =70%"}
@@ -299,16 +385,18 @@ clim_only_new <- sst_new %>% filter(yr == 2012)%>%
 
 (clim_cycle_old <- clim_only_old %>% 
   ggplot() +
-    geom_ribbon(aes(x = time, ymin = mcs_thresh, ymax = mhw_thresh), 
+    geom_ribbon(aes(x = time, 
+                    ymin = mcs_thresh_f, 
+                    ymax = mhw_thresh_f), 
                 alpha = 0.3, fill = "royalblue", color = "royalblue") +
-    geom_line(aes(time, y = seas), linewidth = 1 ) +
+    geom_line(aes(time, y = seas_f), linewidth = 1 ) +
     scale_x_date(date_breaks = "1 month", 
                  labels = date_format("%b"), 
                  expand = expansion(add = c(0,0))) +
-    scale_y_continuous(labels = label_number(suffix = deg_c), limits = c(3.25,20)) +
+    scale_y_continuous(labels = label_number(suffix = deg_f), limits = c(38,67)) +
     facet_wrap(~ clim_ref) +
     theme_gmri() +
-    labs(y = "Sea Surface Temperature", x = "Calendar Day"))
+    labs(y = "Sea Surface Temperature", x = NULL))
 
 
 ggsave(plot = clim_cycle_old,
@@ -326,19 +414,23 @@ ggsave(plot = clim_cycle_old,
   ggplot() +
    geom_ribbon(
      data = select(clim_only_old, -clim_ref),
-     aes(x = time, ymin = mcs_thresh, ymax = mhw_thresh), 
+     aes(x = time, 
+         ymin = mcs_thresh_f, 
+         ymax = mhw_thresh_f), 
      alpha = 0.3, fill = "royalblue",
      color = "royalblue") +
-   geom_ribbon(aes(x = time, ymin = mcs_thresh, ymax = mhw_thresh), 
+   geom_ribbon(aes(x = time, 
+                   ymin = mcs_thresh_f, 
+                   ymax = mhw_thresh_f), 
                 alpha = 0.5, fill = "orange", color = "orange") +
-    geom_line(aes(time, y = seas), linewidth = 1 ) +
+    geom_line(aes(time, y = seas_f), linewidth = 1 ) +
     scale_x_date(date_breaks = "1 month", 
                  labels = date_format("%b"), 
                  expand = expansion(add = c(0,0))) +
-    scale_y_continuous(labels = label_number(suffix = deg_c), limits = c(3.25,20)) +
+    scale_y_continuous(labels = label_number(suffix = deg_f), limits = c(38,67)) +
     facet_wrap(~ clim_ref) +
     theme_gmri() +
-    labs(y = "Sea Surface Temperature", x = "Calendar Day"))
+    labs(y = "Sea Surface Temperature", x = NULL))
 
 
 ggsave(plot = clim_cycle_new, 
