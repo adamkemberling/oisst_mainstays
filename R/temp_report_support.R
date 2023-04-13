@@ -1903,7 +1903,7 @@ monthly_sst_map <- function(month_avg_layer, month_id, plot_yr, temp_lim = 8, de
   
   # Set up text label  
   month_yr <- plot_yr
-  month_label <- str_c(month_id, ", ", month_yr)
+  month_label <- str_c(month_id, " ", month_yr)
   
   # Convert to F
   if(convert_to_f){month_avg_layer <- as_fahrenheit(month_avg_layer, data_type = "anomalies")}
@@ -1945,7 +1945,7 @@ monthly_sst_map <- function(month_avg_layer, month_id, plot_yr, temp_lim = 8, de
              ylim = crop_y, 
              expand = F) +
     guides("fill" = guide_colorbar(
-      title = expression("Temperature Anomaly"~degree*F),
+      title = "Sea Surface Temperature Anomaly",
       title.position = "top",
       title.hjust = 0.5,
       barwidth = unit(3, "in"),
