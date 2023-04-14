@@ -23,7 +23,7 @@ params:
   year: 2023
   season: "Winter"
   save_data: FALSE
-  save_figures: FALSE
+  save_figures: TRUE
 editor: source
 ---
 
@@ -872,6 +872,7 @@ temp_rankings_p <- seasonal_ranks %>%
                                 "unflag" = as.character(gmri_cols("gmri blue")))) +
   labs(x = "Seasonal Temperature Anomaly",
        y = "",
+       caption = "",
        title = str_c("Warmest ", params$season, " Temperature Anomalies in the Gulf of Maine")) +
   theme(plot.title = element_text(face = "bold", size = 14, hjust = 0),
         legend.position = "none", 
@@ -1003,7 +1004,7 @@ heatmap_p + labs(caption = "")
 
 ## The Visual Impact of a New Climate Reference Period
 
-If we compare our new heatmap figure (@fig-mhw-heatmap) to what it was previously, the transition to a new climatological reference period can be seen more clearly. Using the slider below, we can reveal that the transition has removed many of the heatwave events prior to 2012. The new CRP has also impacted how severe the thermal stress of the last decade appears. This period is still clearly distinct in terms of higher temperatures and the frequency of MHW events, but the MHW record has been changed.
+The identification and communication surrounding marine heatwaves is an area of active scientific discussion. Using our heatmap figure (@fig-mhw-heatmap) as a visual guide, we can compare what the competing MHW methodologies say is the MHW record for the region. The transition to a full climatological reference period that covers all years (1982-2022) and the removal of the long-term trend brings a focus onto only the most "extreme" events. Using the slider below, we can showcase what a transition from the fixed-baseline methodology used in this report (and previous reporting), to an approach that removes long-term trends. 
 
 ::: {.juxtapose data-startingposition="65%" style="margin-bottom:2em; width = 70%; height =70%"}
 
@@ -1012,13 +1013,13 @@ If we compare our new heatmap figure (@fig-mhw-heatmap) to what it was previousl
 #| label: fig-heatmap-comparison-old
 
 base_date <- as.Date("2000-01-01")
-grid_old <- sst_old %>% 
+grid_old <- sst_new %>% 
   mutate(year = year(time),
          yday = yday(time),
          flat_date = as.Date(yday-1, origin = base_date),
          yr_rev = factor(year),
          yr_rev = fct_rev(yr_rev),
-         clim_ref = "Climatological Reference Period: 1982-2011") 
+         clim_ref = "MHW Method: 1991-2020 Fixed Basline MHW") 
 
 
 # All years:
@@ -1047,14 +1048,23 @@ grid_old %>%
 #| fig.height: 8
 #| label: fig-heatmap-comparison-new
 
+# Run climatology for new reference period
+sst_detrend <- pull_heatwave_events(
+  temperature_timeseries = region_timeseries,
+  threshold = 90, 
+  clim_ref_period = c("1982-01-01", "2022-12-31"), detrend = T) %>% 
+  supplement_hw_data() %>% 
+  filter(doy != 366)
+
+# Same thing but with the different heatwave method:
 base_date <- as.Date("2000-01-01")
-grid_new <- sst_new %>% 
+grid_new <- sst_detrend %>% 
   mutate(year = year(time),
          yday = yday(time),
          flat_date = as.Date(yday-1, origin = base_date),
          yr_rev = factor(year),
          yr_rev = fct_rev(yr_rev),
-         clim_ref = "Climatological Reference Period: 1991-2020") 
+         clim_ref = "MHW Method: 1982-2022 De-Trended MHW") 
 
 
 # All years:
@@ -1078,6 +1088,9 @@ grid_new %>%
 ```
 :::
 
+From this view we can reveal that the transition has removed the majority of marine heatwave events, solving a communication challenge of the "year long heatwave". By adopting this new method scientists have succeeded in identifying the extreme temperature swings, but there is ongoing debate on when to apply this method, and on some of the unintended consequences of doing so. Among the concerns that scientists have voiced is that this new method retroactively changes the history of past events by accommodating all the more recent (often more extreme) conditions. This makes it difficult to preserve the significance that these events had during their own times. 
+
+A second major concern surrounds removing the "trend", and methodological choices scientists must make to achieve this. This new MHW methodology portrays this step in its simplest form, a linear trend. This structure may not be appropriate across all areas and at varying lengths of temporal coverage. The selection choices of the years to include or exclude and how best to model the observed trends create more "knobs" for practitioners to tune and with them more challenges for clarity of communication. To learn more about these tradeoffs and the discussion around Marine Heatwaves, please check out our technical report on the subject.
 
 
 ## Spatial Distribution of Seasonal Anomalies
@@ -1134,13 +1147,37 @@ max_season <- round(max(values(season_mean), na.rm = T), 2)
 # Get the Maximum Daily Temperature Value
 max_daily_actual  <- max(values(season_anoms_f), na.rm = T)
 max_daily  <- round(max(values(season_anoms_f), na.rm = T), 2)
+
+
+# Where was it seasonally the highest:
+# Flag the exact location
+idx <- which.max(season_mean)
+pos <- as.data.frame(xyFromCell(season_mean, idx))
+
+# Make some table with context
+set.seed(123)
+peak_temp_df <- data.frame(
+  max_val = str_c(round(max_season, 2), deg_f),
+  lon = pos$x,
+  lat = pos$y,
+  do_circle = T) %>% 
+  mutate(descr = "Largest Seasonally-Averaged SST Anomaly") %>% 
+  bind_rows(
+    data.frame(
+      max_val = rep(NA, 25),
+      lon = rnorm(25,mean = -68.25, sd = 2),
+      lat = rnorm(25,mean = 43, sd = 2),
+      do_circle = rep(F, 25),
+      descr = rep("", 25)
+    )
+  )
 ```
 
 
 
 ```{r}
 #| label: fig-warmest-anom-map
-#| eval: true
+#| eval: false
 #| echo: false
 
 #### Where did the Most Extreme Heat Occur:
@@ -1189,7 +1226,7 @@ peak_temp_df <- data.frame(
 
 ```
 
-From a spatial perspective, the Gulf of Maine and (most) surrounding areas experienced above average SSTs during `r tolower(params$season)` 2022-23, but the warmest patches were to the south and east of Georges Bank, mostly outside the domain analyzed in preceding sections. The highest seasonally averaged anomaly of any location above was `r max_season`°F.
+From a spatial perspective, the Gulf of Maine and (most) surrounding areas experienced above average SSTs during `r tolower(params$season)` 2022-23, but the warmest patches were to the south and east of Georges Bank, mostly outside the domain analyzed in preceding sections. The highest seasonally averaged anomaly of any location above was `r max_season`°F - along the southern edge of the domain analyzed.
 
 ```{r}
 #| label: contour-details
@@ -1204,14 +1241,16 @@ contours_make <- c(200)
 
 ```
 
+
+
 ```{r}
 #| label: fig-season-anom-map
 #| fig.width: 8
 #| fig.height: 8
 #| fig-cap: "Map of average SST anomalies for each grid cell in the satellite record for winter 2022-23. The box outlined by the black dashed line denotes the region of study for the analysis (see @fig-map). Darker red regions indicate warmer anomalies."
 
-# Make it a stars class to plot with ggplot
-anoms_st <- st_as_stars(season_anoms_f)
+# Make the seasonal average a stars class to plot with ggplot
+anoms_st <- st_as_stars(season_mean)
 
 
 # Set Plot legend limits
@@ -1243,9 +1282,9 @@ season_map <- ggplot() +
     data = peak_temp_df,
     aes(lon, lat, 
         filter = do_circle == T,
-        label = date, description = descr), 
+        label = max_val, description = descr), 
     color = "black", 
-    label.fill = "#FAFAFA80") +
+    label.fill = "#FAFAFA90") +
   scale_y_continuous(breaks = seq(30, 50, by = 2)) +
   scale_fill_distiller(palette = "RdBu", 
                        na.value = "transparent", 
