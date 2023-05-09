@@ -252,8 +252,7 @@ Over the past decade, scientists at [the Gulf of Maine Research Institute](https
 
 In the field of climate science, 30-year time periods are a standard measure for a "climatological reference period". Such a timescale adequately captures the natural inter-annual variability of the Earth system to enable rigorous statistical analysis of trends in environmental conditions. This is particularly relevant when presenting statistics such as temperature "anomalies"---or deviations from these 30-year climatological averages. To date, when we present temperature anomaly data in our seasonal and annual warming updates, we have used a climatological reference period of 1982-2011. In part, this is motivated by the fact that reliable satellite data for sea surface temperatures (SST) in the Gulf of Maine became available in 1982 (and 30 years hence brought us to 2011). Beginning with this winter 2022-23 Gulf of Maine warming report, we are using a new 30-year climatological reference period, 1991-2020, reflecting the fact that an additional decade's worth of data has been collected, enabling us to update our baseline reference period. This change is consistent with best practices used by the international science community. For more information on 30-year climatological (or baseline) reference periods, the motivation for, and implications of updating it to 1991-2020, visit the [U.S. "Climate Normals"](https://www.ncei.noaa.gov/products/land-based-station/us-climate-normals) database or [this explainer](https://www.ncei.noaa.gov/news/noaa-delivers-new-us-climate-normals) from the National Oceanic and Atmospheric Administration (NOAA).
 
-```{ojs}
-//| output: false
+```{ojs, output = FALSE}
 require("https://cdn.jsdelivr.net/npm/juxtaposejs@1.1.6/build/js/juxtapose.min.js")
   .catch(() => null)
 ```
@@ -303,6 +302,76 @@ change_df <- tibble(
 
 
 ```
+
+```{r}
+#| eval: false
+#| label: monthly shift change
+
+# Take the data that goes into each climatology,
+# Plot the data points and boundaries as horizontal/vertical dashes colored by the climatology
+# x = Month
+# y = sst
+# color = reference period
+# 
+
+clim_in_old <- sst_old %>% 
+  mutate(yr = year(time), 
+         mnth = month(time, label = T),
+         mnth_num = as.numeric(mnth),
+         ref_period = "1982-2011 Temperature") %>% 
+  filter(yr %in% c(1982:2011))
+clim_in_new <- sst_new %>% 
+  mutate(yr = year(time), 
+         mnth = month(time, label = T),
+         mnth_num = as.numeric(mnth),
+         ref_period = "1991-2020 Temperature") %>% 
+  filter(yr %in% c(1991:2020))
+
+
+# Combine
+p_df <- bind_rows(clim_in_old, clim_in_new)
+
+# Make monthly 10th/90th percentile averages
+mnth_thresh <- p_df %>% 
+  group_by(ref_period, mnth, mnth_num) %>% 
+  summarise("Average" = mean(sst),
+            "90th Percentile" = mean(mhw_thresh),
+            "10th Percentile" = mean(mcs_thresh),
+            .groups = "drop") %>% 
+  pivot_longer(cols = c(4:6), names_to = "label", values_to = "val") %>% 
+  mutate(mnth_num = ifelse(ref_period == "1982-2011 Temperature", mnth_num + 0.125, mnth_num-0.125))
+
+# Make monthly Mean quartiles
+
+
+
+# Put that big mess together
+ggplot(p_df, aes(sst, mnth_num)) + 
+  geom_point(
+    data = clim_in_old,
+    aes(sst, mnth_num+0.125 ,  color = ref_period), 
+    shape = "|", alpha = 0.3) +
+  geom_point(
+    data = clim_in_new,
+    aes(sst, mnth_num-0.125 ,  color = ref_period), 
+    shape = "|", alpha = 0.3) +
+  geom_segment(
+    data = mnth_thresh,
+    aes(x = val, xend = val, y = mnth_num+.15, yend = mnth_num-.15, color = label), linewidth = 1) +
+  scale_color_manual(
+    values = c(
+      "10th Percentile" = gmri_cols("blue"),
+      "1982-2011 Temperature" = "skyblue1",
+      "1991-2020 Temperature" = "skyblue3",
+      "90th Percentile" = gmri_cols("orange"),
+      "Average" = "black")) +
+  scale_y_reverse(
+    breaks = c(12:1),
+    labels = rev(month.name)) +
+  labs(x = "SST", y = "Month")
+  
+```
+
 
 
 ```{r}
@@ -1239,6 +1308,11 @@ bathy_df$depth <- raster::extract(bathy, bathy_df)
 bathy_df$depth <- bathy_df$depth * -1
 contours_make <- c(200)
 
+
+# Or make terra for ggplot using tidyterra
+elev_terra <- terra::rast(bathy)
+
+
 ```
 
 
@@ -1263,10 +1337,16 @@ temp_labels <- str_c(c(str_c("< ", temp_limits[1]), temp_limits[1]/2, 0, temp_li
 #### 1. Map the Anomalies in Space
 season_map <- ggplot() +
   geom_stars(data = anoms_st) +
-  geom_contour(data = bathy_df, aes(x, y, z = depth),
-                     breaks = contours_make,
-                     color = "gray20", 
-               linewidth = 0.25) +
+  tidyterra::geom_spatraster_contour(
+    data = elev_terra,
+    breaks = seq(0,-200,-100),
+    alpha = 0.75,
+    linewidth = 0.25,
+    color = "gray20") +
+  # geom_contour(data = bathy_df, aes(x, y, z = depth),
+  #                    breaks = contours_make,
+  #                    color = "gray20", 
+  #              linewidth = 0.25) +
   geom_sf(data = new_england, fill = "gray90", linewidth = .25) +
   geom_sf(data = canada, fill = "gray90", linewidth = .25) +
   geom_sf(data = greenland, fill = "gray90", linewidth = .25) +

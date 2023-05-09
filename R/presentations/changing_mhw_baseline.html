@@ -7,7 +7,7 @@
 <link href="changing_mhw_baseline_files/libs/quarto-html/tippy.css" rel="stylesheet">
 <link href="changing_mhw_baseline_files/libs/quarto-html/quarto-html.min.css" rel="stylesheet" data-mode="light">
 <link href="changing_mhw_baseline_files/libs/quarto-html/quarto-syntax-highlighting.css" rel="stylesheet" id="quarto-text-highlighting-styles"><meta charset="utf-8">
-  <meta name="generator" content="quarto-1.2.269">
+  <meta name="generator" content="quarto-1.2.335">
 
   <title>Shifting Baselines</title>
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -448,31 +448,19 @@
 <p>For the detrended analysis, we removed linear trends over the 1991–2020 period from the observed SST anomalies and the lead-time-dependent forecast SST anomalies at each grid cell.</p>
 </blockquote>
 </section>
-<section id="vincent-saba-process" class="slide level2">
-<h2>Vincent Saba Process:</h2>
+<section id="de-trending-approach-process" class="slide level2">
+<h2>De-Trending Approach Process:</h2>
 <ol type="1">
-<li><p>Calculate recent climatology (e.g., last 30 years)</p></li>
+<li><p>Calculate recent climatology (e.g., last 30 years or all available years)</p></li>
 <li><p>Calculate anomalies</p></li>
-<li><p>Detrend anomalies</p></li>
-<li><p>Calculate thresholds</p></li>
-<li><p>Identify MHWs</p></li>
+<li><p>De-trend anomalies by removing long-term trends for each day of year</p></li>
+<li><p>Calculate thresholds using 10th and 90th percentile of climatological period</p></li>
+<li><p>Identify MHWs using the Hobday definition of 5 days above threshold etc.</p></li>
 </ol>
 </section>
-<section id="saba-questions" class="slide level2">
-<h2>Saba Questions:</h2>
-<p><strong>1. Calculate recent climatology (e.g., last 30 years)</strong></p>
-<ol start="2" type="1">
-<li>Calculate anomalies</li>
-</ol>
-<p><strong>3. Detrend anomalies</strong> - Why not just temperature? <strong>(answer: confusing to match them to thresholds but same results)</strong></p>
-<ol start="4" type="1">
-<li>Calculate thresholds</li>
-</ol>
-<p><strong>5. Identify MHWs</strong> - Won’t these change retroactively? <strong>(answer: yes)</strong></p>
-</section>
-<section id="comparing-the-four-options" class="slide level2">
-<h2>Comparing the Four Options:</h2>
-<p>Changing the Baseline &amp; De-Trending</p>
+<section id="comparison-of-four-outcomes" class="slide level2">
+<h2>Comparison of Four Outcomes:</h2>
+<p>Changing the baseline &amp; removing long-term trends over different periods</p>
 <div class="cell">
 
 </div>
@@ -761,9 +749,14 @@
 <section id="de-trending-method-questions" class="slide level2">
 <h2>De-Trending Method Questions:</h2>
 <p>Is a linear de-trending causing new problems: Was 1982 an outlier year?</p>
+
+<img data-src="changing_mhw_baseline_files/figure-revealjs/unnamed-chunk-26-1.png" width="960" class="r-stretch"></section>
+<section id="choosing-the-right-method" class="slide level2">
+<h2>Choosing the Right Method</h2>
+<p>Part of the debate on which method is best hinges on what the application is. Different species/communities may have different sensitivities to the prolonged heat exposure that is more clear from a fixed baseline method. Whereas other species may be more sensitive to the acute stress of a rapid change in temperature that is better captured by a methodology that removes the long-term trend.</p>
 <div class="cell">
 <div class="cell-output-display">
-<p><img data-src="changing_mhw_baseline_files/figure-revealjs/unnamed-chunk-26-1.png" width="960"></p>
+<p><img data-src="changing_mhw_baseline_files/figure-revealjs/unnamed-chunk-27-1.png" width="960"></p>
 </div>
 </div>
 <p><img src="img/gmri_logo.png" class="slide-logo"></p>

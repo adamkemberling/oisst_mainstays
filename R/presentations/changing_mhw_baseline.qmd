@@ -289,33 +289,21 @@ year_hw_temps_two(year_hw_dat = ., temp_units = "C") +
 
 > For the detrended analysis, we removed linear trends over the 1991--2020 period from the observed SST anomalies and the lead-time-dependent forecast SST anomalies at each grid cell.
 
-## Vincent Saba Process:
+## De-Trending Approach Process:
 
-1.  Calculate recent climatology (e.g., last 30 years)
-
-2.  Calculate anomalies
-
-3.  Detrend anomalies
-
-4.  Calculate thresholds
-
-5.  Identify MHWs
-
-## Saba Questions:
-
-**1. Calculate recent climatology (e.g., last 30 years)**
+1.  Calculate recent climatology (e.g., last 30 years or all available years)
 
 2.  Calculate anomalies
 
-**3. Detrend anomalies** - Why not just temperature? **(answer: confusing to match them to thresholds but same results)**
+3.  De-trend anomalies by removing long-term trends for each day of year
 
-4.  Calculate thresholds
+4.  Calculate thresholds using 10th and 90th percentile of climatological period
 
-**5. Identify MHWs** - Won't these change retroactively? **(answer: yes)**
+5.  Identify MHWs using the Hobday definition of 5 days above threshold etc.
 
-## Comparing the Four Options:
+## Comparison of Four Outcomes:
 
-Changing the Baseline & De-Trending
+Changing the baseline & removing long-term trends over different periods
 
 ```{r}
 #| label: better-comparison-code
@@ -883,4 +871,49 @@ detrended_full %>%
   theme(legend.position = "bottom") +
   guides(alpha = "none") +
   labs(x = "Time", y = "SST Anomaly", color = "Heatwave Event:")
+```
+
+## Choosing the Right Method
+
+Part of the debate on which method is best hinges on what the application is. Different species/communities may have different sensitivities to the prolonged heat exposure that is more clear from a fixed baseline method. Whereas other species may be more sensitive to the acute stress of a rapid change in temperature that is better captured by a methodology that removes the long-term trend.
+
+```{r}
+# Prepare a MHW dataset that contains both:
+
+# Fixed Baseline, new ref period
+method_1 <- fixed_91 %>% select(time, sst, static_mhw_event = mhw_event, static_mcs_event = mcs_event)
+
+# Linear de-trend, 1982-2011
+method_2 <- detrended_full %>% select(time, sst, detrend_mhw_event = mhw_event, detrend_mcs_event = mcs_event) 
+
+# can't remember if the seasonal climatology includes the trend, it doesn't
+# we'd need to add the trend prediction to get it:
+#ggplot(detrended_full, aes(time, mhw_thresh+trend_pred)) + geom_line()
+
+
+both_methods <- left_join(method_1, method_2) 
+
+both_methods %>% 
+  pivot_longer(
+    names_to = "extreme_event_flag",
+    values_to = "status",
+    cols = -c(time, sst)) %>% 
+  mutate(
+    method = ifelse(
+      str_detect(extreme_event_flag, "static"), 
+      "1991-2020 Static Baseline", 
+      "1982-2022 De-Trended"),
+    status_color = ifelse(status, "darkred", "transparent"),
+    status_color = ifelse(
+      str_detect(extreme_event_flag, "mcs") & status == T, 
+      "skyblue3", 
+      status_color)) %>% 
+  ggplot(aes(time, y = extreme_event_flag)) +
+    geom_point(aes(color = I(status_color), fill = I(status_color)), size = 0.75) +
+    facet_wrap(~ method, nrow = 2, scales = "free") +
+    labs(y = "Extreme Event Methodology", x = "Date")
+  
+  
+# both_methods %>% 
+#   write_csv(here::here("local_data/gom_mhw_outcome_comparison.csv"))
 ```

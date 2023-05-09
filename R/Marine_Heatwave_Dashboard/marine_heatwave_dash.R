@@ -30,7 +30,7 @@ conflicted::conflict_prefer("filter", "dplyr")
 conflicted::conflict_prefer("lag", "dplyr")
 
 #box paths
-box_paths <- research_access_paths(mac_os = "mojave")
+box_paths <- research_access_paths(box_location = "cloudstorage")
 
 # File Paths
 mills_path <- box_paths$mills
@@ -39,7 +39,7 @@ okn_path   <- box_paths$okn
 oisst_path <- box_paths$oisst_mainstays
 
 # Set ggplot theme for figures
-theme_set(theme_bw())
+theme_set(theme_gmri())
 
 
 # Polygons for mapping
@@ -87,11 +87,11 @@ sf_to_rect <- function(sf_obj) {
 
 #### 1. Group Selection Choices  ####
 # Build List of Regional Timeline Resources
-region_groups <- list(#"A. Allyn: NELME Regions" = "nelme_regions",
-                   "GMRI: SST Focal Areas"   = "gmri_sst_focal_areas", 
-                   "NMFS Trawl Regions"      = "nmfs_trawl_regions",
-                   "Large Marine Ecosystems" = "lme"
-                   )
+region_groups <- list(
+  #"A. Allyn: NELME Regions" = "nelme_regions",
+  "GMRI: SST Focal Areas"   = "gmri_sst_focal_areas", 
+  "NMFS Trawl Regions"      = "nmfs_trawl_regions",
+  "Large Marine Ecosystems" = "lme")
 
 
 
@@ -110,14 +110,14 @@ region_list <- map(region_groups, function(region_group){
 #### 3. Timeseries Data  ####
 
 
-# Get the timeseries paths for each group
+# A. Get the timeseries paths for each group
 region_paths_l <- map(region_groups, function(shape_fam){
-  paths <- get_timeseries_paths(shape_fam, mac_os = "mojave")
+  paths <- get_timeseries_paths(shape_fam, box_location = "cloudstorage")
   return(paths)
 })  %>% setNames(region_groups)
 
 
-# get the timeseries data
+# B. Load the timeseries data
 region_timeseries_l <- map(region_paths_l, function(file_paths){
   
   # Go through each path and load the timeseries
@@ -154,7 +154,7 @@ timeseries_list <- map(region_timeseries_l, function(x){
     region_hw <- pull_heatwave_events(
       temperature_timeseries = drop_na(x2), 
       threshold = 90, 
-      clim_ref_period = as.Date(c("1982-01-01", "2011-12-31"))) %>% 
+      clim_ref_period = as.Date(c("1991-01-01", "2020-12-31"))) %>% 
       supplement_hw_data() %>% 
       filter(doy != 366)
     

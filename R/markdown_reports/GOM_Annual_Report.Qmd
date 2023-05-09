@@ -371,13 +371,27 @@ rate_data <- list(
     year_lim = c(1982, report_yr), 
     area_name = "GoM", 
     degree_c = F),
+  "GoM All C" = get_decadal_rates(
+    temp_df = annual_summary, 
+    temp_col = "area_wtd_sst", 
+    year_col = "year", 
+    year_lim = c(1982, report_yr), 
+    area_name = "GoM", 
+    degree_c = T),
   "Global All F" = get_decadal_rates(
     temp_df = global_summary, 
     temp_col = "area_wtd_f", 
     year_col = "year", 
     year_lim = c(1982, report_yr), 
     area_name = "Global Ocean", 
-    degree_c = F))
+    degree_c = F),
+  "Global All C" = get_decadal_rates(
+    temp_df = global_summary, 
+    temp_col = "area_wtd_sst", 
+    year_col = "year", 
+    year_lim = c(1982, report_yr), 
+    area_name = "Global Ocean", 
+    degree_c = T))
 
 
 
@@ -410,6 +424,26 @@ temp_simplified <- global_rate_comparison(
 # add logo
 temp_simplified 
 
+
+
+#------------
+
+# eq_all_c    <- rate_data[["GoM All C"]][["eq_label"]]
+# eq_global_c <- rate_data[["Global All C"]][["eq_label"]]
+# 
+# # Celsius Version
+# temp_simplified_c <- global_rate_comparison(
+#   annual_summary_dat = annual_summary, 
+#   global_summary_dat = global_summary, 
+#   eq_all = str_remove(eq_all_c, "1982-2022"), 
+#   eq_global = str_remove(eq_global_c, "1982-2022"), 
+#   temp_units = "C",
+#   region_label = "Gulf of Maine") +
+#   coord_cartesian(clip = "off") +
+#   geom_logo(x_npc = 0.115, y_npc = -0.175, logo_height = 1, height_units = "cm")
+# 
+# # add logo
+# temp_simplified_c
 ```
 
 
