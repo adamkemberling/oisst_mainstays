@@ -1388,13 +1388,13 @@ def update_regional_timeseries_collection(start_yr, end_yr, region_collection, b
 
 
 
-  # Use paths to make list of loaded polygons
+  # Use paths to make list of loaded polygons based on the collection
   mask_list = []
   for mask_path_i in mask_paths:
       mask_shape = gpd.read_file(mask_path_i)
       mask_list.append(mask_shape)
 
-  # Load OISST using ot.load_box_oisst()
+  # Load the OISST SST grid using ot.load_box_oisst()
   oisst_grid = load_box_oisst(box_root, 
                               start_yr, 
                               end_yr, 

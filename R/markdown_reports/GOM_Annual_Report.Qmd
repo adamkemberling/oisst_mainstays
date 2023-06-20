@@ -50,7 +50,6 @@ library(ggstream)
 library(ggforce)
 library(geomtextpath)
 library(ggHoriPlot)
-# library(tidytext)
 }
 
 #---------- Support Functions
@@ -178,46 +177,14 @@ old_england <- ne_states("united states of america", returnclass = "sf")
 # Attempts at upgrading the new map
 area_labs<- tribble(
   ~"label",              ~"lat", ~"lon", ~"angle", ~"color",
-  "Georges\nBank",       41.15, -67.75,  0,        "black",        
+  "Georges\nBank",       41.15,  -67.75, 0,        "black",        
   "Jordan\nBasin",       43.5,   -67.5,  0,        "black", 
   "Wilkinson\nBasin",    42.29,  -69.2,  0,        "black", 
-  "Northeast\nChannel",  42.385,  -66.2,  0,        "black", 
-  "Scotian\nShelf",      43.675, -63.2, 0,        "black", 
-  "Mid-Atlantic\nBight", 40,   -72.6,  0,        "black", 
+  "Northeast\nChannel",  42.385, -66.2,  0,        "black", 
+  "Scotian\nShelf",      43.675, -63.2,  0,        "black", 
+  "Mid-Atlantic\nBight", 40,     -72.6,  0,        "black", 
   "Laurentian Channel",  46.3,   -58.2,  310,      "black" )
   
-
-# # Make the map
-# ggplot() +
-#   tidyterra::geom_spatraster_contour_filled(
-#     data = elev_terra,
-#     breaks = c(seq(0,-400,-100), -500, -1000, -1500,  -8000),
-#     show.legend = T) +
-#   # tidyterra::geom_spatraster_contour(
-#   #   data = elev_terra,
-#   #   breaks = seq(0,-400,-100),
-#   #   alpha = 0.75) +
-#   geom_sf(data = old_england, fill = "gray90", linewidth = .15) +
-#   geom_sf(data = canada, fill = "gray90", linewidth = .15) +
-#   geom_sf(data = greenland, fill = "gray90", linewidth = .15) +
-#   geom_text(data = area_labs, aes(lon, lat, label = label, angle = angle), size = 3, color = "black") +
-#   geom_sf(data = region_extent,
-#           color = "black",
-#           linetype = 2, linewidth = 0.5,
-#           fill = "transparent") +
-#   scale_fill_brewer(palette = "Blues", direction = 1) +
-#   scale_y_continuous(breaks = seq(30, 50, by = 2)) +
-#   coord_sf(xlim = c(-78, -56.5), ylim = c(38.5, 48)) +
-#   map_theme(legend.position = "bottom") +
-#   guides(fill = guide_colorsteps(
-#     title = "Depth", 
-#     title.position = "top", 
-#     title.hjust = 0.5, 
-#     barwidth = unit(4, "in"), 
-#     frame.colour = "black", 
-#     ticks.colour = "black",
-#     show.limits = T)) +
-#   labs(x = "", y = "", title = "Gulf of Maine Study Area")
 
 ```
 
@@ -444,6 +411,32 @@ temp_simplified
 # 
 # # add logo
 # temp_simplified_c
+```
+
+
+```{r}
+#| eval: false
+#| label: svg-output
+
+# # Saving the plot as SVg for Scott
+# temps_svg <- global_rate_comparison(
+#   annual_summary_dat = annual_summary, 
+#   global_summary_dat = global_summary, 
+#   eq_all = str_remove(eq_all_f, "1982-2022"), 
+#   eq_global = str_remove(eq_global_f, "1982-2022"), 
+#   temp_units = "F",
+#   region_label = "Gulf of Maine")  +
+#   coord_cartesian(clip = "off") +
+#   theme(legend.position = c(0.2, -0.175))
+# 
+# # Remove the points from the plot
+# temps_svg$layers[[2]] <- NULL
+# 
+# 
+# ggsave(plot = temps_svg, filename = here::here("local_data/GulfofMaine_warming_rates.svg"), 
+#        height = 4, 
+#        width = 6,
+#        units = "in", scale = 1.5)
 ```
 
 

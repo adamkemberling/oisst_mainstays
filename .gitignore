@@ -41,6 +41,7 @@ notebooks/.jupyter*
 notebooks/.config*
 notebooks/.ipython*
 notebooks/__pycache__
+notebooks/nb_testing_data/
 
 # rmarkdown intermediate files
 R/GOM_Report_files/*

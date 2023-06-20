@@ -21,7 +21,7 @@ execute:
   fig.align: center
 params: 
   year: 2023
-  season: "Winter"
+  season: "Spring"
   save_data: FALSE
   save_figures: TRUE
 editor: source
@@ -72,6 +72,7 @@ region_paths <- get_timeseries_paths(region_group = "gmri_sst_focal_areas",
 poly_path <- region_paths[["apershing_gulf_of_maine"]][["shape_path"]]
 ```
 
+
 ```{r}
 #| label: param-setup
 #| echo: false
@@ -108,6 +109,7 @@ season_range <- season_deets$range_label
 
 ```
 
+
 ```{r}
 #| label: region-ts-prep
 
@@ -116,9 +118,10 @@ timeseries_path <- region_paths[["apershing_gulf_of_maine"]][["timeseries_path"]
 
 
 # Load timeseries of SST for Region
-region_timeseries <- read_csv(timeseries_path, 
-                              col_types = cols(), 
-                              guess_max = 1e5) 
+region_timeseries <- read_csv(
+  timeseries_path, 
+  col_types = cols(), 
+  guess_max = 1e5) 
 
 
 # Format timeseries for group estimates
@@ -159,8 +162,8 @@ region_hw <- region_hw %>%
 # Subset data for the season were looking at
 this_season_data <- region_hw %>% 
   dplyr::filter(season_eng == params$season,
-                season_yr == params$year-1) # Works for winter
-                #season_yr == params$year) # Messed up for winter
+                #season_yr == params$year-1) # Works for winter
+                season_yr == params$year) # Messed up for winter
 
 # Set seasonal end date so weeks don't bleed over
 first_day <- as.Date(min(this_season_data$time))
@@ -174,11 +177,12 @@ this_season_data <-  this_season_data %>%
 
 # Months/Dates covered by each season for use as labels
 month_range <- switch(params$season,
-  "Winter" = "(December 1st - February 28th)",
-  "Spring" = "(March 1st - May 31st)",
-  "Summer" = "(June 1st - August 31st)",
-  "Fall" =   "(September 1st - November 30th)")
+  "Winter" = str_c("(December 1st, ", params$year-1," - February 28th, ", params$year,")"),
+  "Spring" = str_c("(March 1st, ", params$year," - May 31st, ", params$year,")"),
+  "Summer" = str_c("(June 1st, ", params$year," - August 31st, ", params$year,")"),
+  "Fall" =   str_c("(September 1st, ", params$year," - November 30th, ", params$year,")"))
 ```
+
 
 ```{r}
 #| label: seasonal-temp-summary
@@ -239,8 +243,9 @@ seasonal_ranks <- seasonal_avgs %>%
          year_rank = fct_reorder(.f = yr, .x = mean_temp, .fun = median, .desc = TRUE)) %>% 
   arrange(year_rank) %>% 
   mutate(rank = row_number(),
-         #flag_year = ifelse(year_rank == params$year, "flag", "unflag")) 
-         flag_year = ifelse(year_rank == 2022, "flag", "unflag")) 
+         flag_year = ifelse(year_rank == params$year, "flag", "unflag")  
+         #flag_year = ifelse(year_rank == 2022, "flag", "unflag") # WINTER control
+)
 
 ```
 
@@ -248,14 +253,6 @@ seasonal_ranks <- seasonal_avgs %>%
 
 Over the past decade, scientists at [the Gulf of Maine Research Institute](https://www.gmri.org) have led a body of research that highlights the rapid pace of warming in the Gulf of Maine. To keep you informed, we share seasonal updates about conditions in the Gulf of Maine.
 
-## New in 2023: Moving the Climatological Reference Period
-
-In the field of climate science, 30-year time periods are a standard measure for a "climatological reference period". Such a timescale adequately captures the natural inter-annual variability of the Earth system to enable rigorous statistical analysis of trends in environmental conditions. This is particularly relevant when presenting statistics such as temperature "anomalies"---or deviations from these 30-year climatological averages. To date, when we present temperature anomaly data in our seasonal and annual warming updates, we have used a climatological reference period of 1982-2011. In part, this is motivated by the fact that reliable satellite data for sea surface temperatures (SST) in the Gulf of Maine became available in 1982 (and 30 years hence brought us to 2011). Beginning with this winter 2022-23 Gulf of Maine warming report, we are using a new 30-year climatological reference period, 1991-2020, reflecting the fact that an additional decade's worth of data has been collected, enabling us to update our baseline reference period. This change is consistent with best practices used by the international science community. For more information on 30-year climatological (or baseline) reference periods, the motivation for, and implications of updating it to 1991-2020, visit the [U.S. "Climate Normals"](https://www.ncei.noaa.gov/products/land-based-station/us-climate-normals) database or [this explainer](https://www.ncei.noaa.gov/news/noaa-delivers-new-us-climate-normals) from the National Oceanic and Atmospheric Administration (NOAA).
-
-```{ojs, output = FALSE}
-require("https://cdn.jsdelivr.net/npm/juxtaposejs@1.1.6/build/js/juxtapose.min.js")
-  .catch(() => null)
-```
 
 
 ```{r}
@@ -296,224 +293,9 @@ change_df <- tibble(
   "clim_change" = clim_only_new$seas - clim_only_old$seas
 )
 
-
-
-
-
-
-```
-
-```{r}
-#| eval: false
-#| label: monthly shift change
-
-# Take the data that goes into each climatology,
-# Plot the data points and boundaries as horizontal/vertical dashes colored by the climatology
-# x = Month
-# y = sst
-# color = reference period
-# 
-
-clim_in_old <- sst_old %>% 
-  mutate(yr = year(time), 
-         mnth = month(time, label = T),
-         mnth_num = as.numeric(mnth),
-         ref_period = "1982-2011 Temperature") %>% 
-  filter(yr %in% c(1982:2011))
-clim_in_new <- sst_new %>% 
-  mutate(yr = year(time), 
-         mnth = month(time, label = T),
-         mnth_num = as.numeric(mnth),
-         ref_period = "1991-2020 Temperature") %>% 
-  filter(yr %in% c(1991:2020))
-
-
-# Combine
-p_df <- bind_rows(clim_in_old, clim_in_new)
-
-# Make monthly 10th/90th percentile averages
-mnth_thresh <- p_df %>% 
-  group_by(ref_period, mnth, mnth_num) %>% 
-  summarise("Average" = mean(sst),
-            "90th Percentile" = mean(mhw_thresh),
-            "10th Percentile" = mean(mcs_thresh),
-            .groups = "drop") %>% 
-  pivot_longer(cols = c(4:6), names_to = "label", values_to = "val") %>% 
-  mutate(mnth_num = ifelse(ref_period == "1982-2011 Temperature", mnth_num + 0.125, mnth_num-0.125))
-
-# Make monthly Mean quartiles
-
-
-
-# Put that big mess together
-ggplot(p_df, aes(sst, mnth_num)) + 
-  geom_point(
-    data = clim_in_old,
-    aes(sst, mnth_num+0.125 ,  color = ref_period), 
-    shape = "|", alpha = 0.3) +
-  geom_point(
-    data = clim_in_new,
-    aes(sst, mnth_num-0.125 ,  color = ref_period), 
-    shape = "|", alpha = 0.3) +
-  geom_segment(
-    data = mnth_thresh,
-    aes(x = val, xend = val, y = mnth_num+.15, yend = mnth_num-.15, color = label), linewidth = 1) +
-  scale_color_manual(
-    values = c(
-      "10th Percentile" = gmri_cols("blue"),
-      "1982-2011 Temperature" = "skyblue1",
-      "1991-2020 Temperature" = "skyblue3",
-      "90th Percentile" = gmri_cols("orange"),
-      "Average" = "black")) +
-  scale_y_reverse(
-    breaks = c(12:1),
-    labels = rev(month.name)) +
-  labs(x = "SST", y = "Month")
-  
 ```
 
 
-
-```{r}
-#| eval: false
-#| label: monthly-climatology-change-consequences
-
-
-# Get monthly average of these changes - all in F
-month_diff <- change_df %>% 
-  mutate(clim_82 = as_fahrenheit(clim_82),
-         clim_91 = as_fahrenheit(clim_91),
-         clim_change = as_fahrenheit(clim_change, data_type = "anomaly")) %>%
-  group_by(mnth = month(time, label = T, abbr = T)) %>% 
-  summarise(
-    min_82 = min(clim_82), # Monthly lows
-    min_91 = min(clim_91),
-    max_82 = max(clim_82), # Monthly highs
-    max_91 = max(clim_91),
-    mean_82 = mean(clim_82), # monthly means
-    mean_91 = mean(clim_91)) %>% 
-  mutate(
-    min_change = min_91 - min_82, # Change in monthly low
-    max_change = max_91 - max_82, # Change in monthly high
-    mean_change = mean_91 - mean_82) %>% ungroup() # change in monthly mean
-
-
-# the annual monthly min temp (March) increased by XX deg F in shifting the CRP from 1982-2011 to 1991-2020
-month_diff %>% filter(mnth == "Mar") %>% pull(min_change)
-
-# the annual monthly max temp (August) increased by XX deg F in shifting the CRP from 1982-2011 to 1991-2020
-month_diff %>% filter(mnth == "Aug") %>% pull(max_change)
-
-
-# the month with the largest change in updating the CRP is YYY (XX deg F); the season (MAM vs JJA vs SON vs DJF) with the largest change is ZZZ (XX deg F)
-
-# a.
-month_diff %>% arrange(desc(mean_change)) %>% slice(1) 
-
-# b.
-season_label_df <- data.frame(
-      "mnth" = month.abb,
-      "szn" = c("Winter", "Winter", "Spring", "Spring", "Spring", "Summer", "Summer", "Summer", "Fall", "Fall", "Fall", "Winter"))
-month_diff %>% 
-  left_join(season_label_df) %>% 
-  group_by(szn) %>% 
-  summarise(mean_change = mean(mean_change))
-
-# How different is it if I do the mean on daily values...
-change_df %>% 
-  mutate(clim_change = as_fahrenheit(clim_change, data_type = "anomaly"),
-         mnth = month(time, label = T, abbr = T)) %>%
-  left_join(season_label_df) %>% 
-  group_by(szn) %>% 
-  summarise(mean_change = mean(clim_change))
-
-# the month with the smallest change in updating the CRP is YYY (XX deg F); the season with the smallest change is ZZZ (XX deg F)
-
-# a.
-month_diff %>% arrange(mean_change) %>% slice(1) 
-
-#b. 
-month_diff %>% 
-  left_join(season_label_df) %>% 
-  group_by(szn) %>% 
-  summarise(mean_change = mean(mean_change))
-
-```
-
-
-
-For the Gulf of Maine, the update of the seasonal climatology can be seen most clearly in February and March as temperatures no longer reach peak-lows. As well as in August and September where temperatures are setting new records. SST is higher throughout the year with this new climatology, and this will be reflected in all figures and tables as anomalies from this CRP will be lowered. However, underlying trends will remain unchanged, as will warming rates.
-
-
-
-::: {.juxtapose data-startingposition="65%" style="margin-bottom:2em; width = 70%; height =70%"}
-```{r}
-# Old climatological cycle
-
-# Create figures for the old and new reference cycles:
-
-(clim_cycle_old <- clim_only_old %>% 
-  ggplot() +
-    geom_ribbon(aes(x = time, 
-                    ymin = mcs_thresh_f, 
-                    ymax = mhw_thresh_f), 
-                alpha = 0.3, fill = "royalblue", color = "royalblue") +
-    geom_line(aes(time, y = seas_f), linewidth = 1 ) +
-    scale_x_date(date_breaks = "1 month", 
-                 labels = date_format("%b"), 
-                 expand = expansion(add = c(0,0))) +
-    scale_y_continuous(labels = label_number(suffix = deg_f), limits = c(38,67)) +
-    facet_wrap(~ clim_ref) +
-    theme_gmri() +
-    labs(y = "Sea Surface Temperature", x = NULL))
-
-
-ggsave(plot = clim_cycle_old,
-       filename =  here::here("R/markdown_reports/tech_report_imgs", "climatology_old.png"), 
-       height = unit(5, "in"),
-       width = unit(8, "in"),
-       dpi = "retina")
-```
-
-
-```{r}
-# New climatological cycle
-
-(clim_cycle_new <- clim_only_new %>% 
-  ggplot() +
-   geom_ribbon(
-     data = select(clim_only_old, -clim_ref),
-     aes(x = time, 
-         ymin = mcs_thresh_f, 
-         ymax = mhw_thresh_f), 
-     alpha = 0.3, fill = "royalblue",
-     color = "royalblue") +
-   geom_ribbon(aes(x = time, 
-                   ymin = mcs_thresh_f, 
-                   ymax = mhw_thresh_f), 
-                alpha = 0.5, fill = "orange", color = "orange") +
-    geom_line(aes(time, y = seas_f), linewidth = 1 ) +
-    scale_x_date(date_breaks = "1 month", 
-                 labels = date_format("%b"), 
-                 expand = expansion(add = c(0,0))) +
-    scale_y_continuous(labels = label_number(suffix = deg_f), limits = c(38,67)) +
-    facet_wrap(~ clim_ref) +
-    theme_gmri() +
-    labs(y = "Sea Surface Temperature", x = NULL))
-
-
-ggsave(plot = clim_cycle_new, 
-       filename = here::here("R/markdown_reports/tech_report_imgs", "climatology_new.png"), 
-       height = unit(5, "in"),
-       width = unit(8, "in"),
-       dpi = "retina")
-```
-
-:::
-
-
-
-Learn more about how scientists study climate, and the details of this transition, in our marine heatwaves technical report.
 
 > **Note About the Data:** The figures in this report are created using remotely-sensed satellite data as part of publicly funded research efforts. Satellite SST data was obtained from NOAA's National Center for Environmental Information (NCEI), with all maps and figures displaying [NOAA's Optimum Interpolation Sea Surface Temperature Data](https://www.ncei.noaa.gov/products/optimum-interpolation-sst).
 
@@ -587,7 +369,7 @@ max_anom_yr <- seasonal_avgs %>%
   mutate(across(where(is.numeric), \(x) round(x, 3)))
 ```
 
-For this seasonal report we present an analysis of SST for `r tolower(params$season)` 2022-23 `r month_range`. During this season, the average SST for the Gulf of Maine was `r season_avg_temp`°F, making it the `r rank_labs` hottest `r tolower(params$season)` on record for the period of 1982-2023 --- the period over which the satellite data used are available. 
+For this seasonal report we present an analysis of SST for `r tolower(params$season)` `r month_range`. During this season, the average SST for the Gulf of Maine was `r season_avg_temp`°F, making it the `r rank_labs` hottest `r tolower(params$season)` on record for the period of 1982-2023 --- the period over which the satellite data used are available. 
 
 ## Weekly Temperatures
 
@@ -597,7 +379,7 @@ The observed SST, long-term average SST trends, and SST anomalies (i.e., departu
 
 ```{r}
 #| label: tbl-season-temps
-#| tbl-cap: "Observed, climatological average, and deviation from the climatological average (i.e., temperature anomaly) for SST at a weekly resolution in the Gulf of Maine during winter 2022."
+#| tbl-cap: "Observed, climatological average, and deviation from the climatological average (i.e., temperature anomaly) for SST at a weekly resolution in the Gulf of Maine during spring 2023."
 
 # Format the start/end dates for weekly subsets
 week_labels <- this_season_data  %>% 
@@ -656,13 +438,21 @@ week_summ_table <- week_summaries  %>%
    gt(rowname_col = "Week") %>% 
     tab_header(
     title = md(paste0("**Weekly Sea Surface Temperatures - ", params$season, "**")), 
-    #subtitle = paste(month_range)) %>%
-    subtitle = "(December 1, 2022 - February 28th, 2023)") %>%
+    subtitle = paste(month_range)) %>%
     tab_stubhead(label = md("*One-Week Period*")) %>% 
-    tab_spanner(label = md("*Observed Temperature*"), columns = c(`temp_f`, `temp_c`)) %>% 
-    tab_spanner(label = md("*Climatological Average*"), columns = c(`clim_f`, `clim_c`)) %>% 
-    tab_spanner(label = md("*Temperature Anomaly*"), columns = c(`anom_f`, `anom_c`)) %>% 
-    fmt_number(columns = c(temp_c, temp_f, clim_f, clim_c, anom_f, anom_c), decimals = 2) %>% 
+    tab_spanner(
+      label = md("*Observed Temperature*"), 
+      columns = c(`temp_f`, `temp_c`)) %>% 
+    tab_spanner(
+      label = md("*Climatological Average*"), 
+      columns = c(`clim_f`, `clim_c`)) %>% 
+    tab_spanner(
+      label = md("*Temperature Anomaly*"), 
+      columns = c(`anom_f`, `anom_c`)) %>% 
+    fmt_number(
+      columns = c(temp_c, temp_f, clim_f, clim_c, anom_f, anom_c), 
+      decimals = 2) %>% 
+  # Change the column names to the units
     cols_label(
       temp_f = "\u00b0F",
       temp_c = "\u00b0C",
@@ -679,11 +469,21 @@ week_summ_table
 
 ```
 
+
+
+```{r}
+#| eval: false
+#| results: asis
+
+week_summ_table %>% gt::as_raw_html()
+
+```
+
 ## Monthly Statistics
 
 ```{r}
 #| label: monthly-temps
-#| tbl-cap: "Observed, climatological average, and deviation from the climatological average (i.e., temperature anomaly) for SST at a monthly resolution in the Gulf of Maine during winter 2022 (defined as Dember 1st - February 28th)"
+#| tbl-cap: "Observed, climatological average, and deviation from the climatological average (i.e., temperature anomaly) for SST at a monthly resolution in the Gulf of Maine during spring 2023 (defined as March 1st - May 30th)"
 
 # Recreate Table for Monthly Averages
 monthly_avgs <- this_season_data %>% 
@@ -699,7 +499,7 @@ monthly_avgs <- this_season_data %>%
     temp_list = list(sst_f), # list column for sparkline anomalies
     outcomes = list(hw_outcomes),
     .groups = "drop") %>% 
-  mutate(across(c(temp_c:anom_f), signif, digits = 3)) 
+  mutate(across(c(temp_c:anom_f), \(x) signif(x, digits = 3))) 
 
 # Grab info on peak temps
 peak_month <- monthly_avgs %>% slice_max(order_by = anom_f, n = 1)
@@ -722,7 +522,7 @@ monthly_avgs <- monthly_avgs %>% left_join(
   by = join_by(yr, month))
 ```
 
-@tbl-monthly-temps shows monthly average SST for winter 2022-23, where we see each month was nearly `r ceiling(min(monthly_avgs$anom_f))`°F or more above the 1991-2020 CRP. `r peak_month_full` showed the largest deviation from the long-term climatological average, with an average SST anomaly of `r peak_month$anom_f`°F.
+@tbl-monthly-temps shows monthly average SST for `r params$season; params$year`, where we see each month was nearly `r ceiling(min(monthly_avgs$anom_f))`°F or more above the 1991-2020 CRP. `r peak_month_full` showed the largest deviation from the long-term climatological average, with an average SST anomaly of `r peak_month$anom_f`°F.
 
 ```{r}
 #| label: tbl-monthly-temps
@@ -845,12 +645,12 @@ glob_plot_dat <- bind_rows(
 
 The Gulf of Maine is an area of particular interest to the scientific community because of the remarkable rate of warming it has experienced in recent years coupled with its importance as a major driver for the regional economy.
 
-When looking at average `r tolower(params$season)` temperatures from the beginning of the satellite record in 1982 @fig-global-rates, there is a clear long-term increase, with SST's warming at a rate of `r decadal_rate_f`°F per decade. This rate of seasonal wintertime warming is \~4x the rate that global ocean temperatures are warming (`r global_decadal_rate_f`°F per decade).
+When looking at average `r tolower(params$season)` temperatures from the beginning of the satellite record in 1982 @fig-global-rates, there is a clear long-term increase, with SST's warming at a rate of `r decadal_rate_f`°F per decade. This rate of seasonal spring warming is \~4x the rate that global ocean temperatures are warming (`r global_decadal_rate_f`°F per decade).
 
 ```{r}
 #| label: fig-global-rates
 #| eval: true
-#| fig-cap: "Average annual winter SSTs in the Gulf of Maine from 1982 through 2022 (black dots). The orange line indicates the trend for the full time series for the Gulf of Maine. The blue line indicates the trend for the full time series for the global oceans."
+#| fig-cap: "Average annual spring SSTs in the Gulf of Maine from 1982 through 2022 (black dots). The orange line indicates the trend for the full time series for the Gulf of Maine. The blue line indicates the trend for the full time series for the global oceans."
 
 # Compare warming rates
 global_rate_plot <- ggplot(glob_plot_dat) +
@@ -867,7 +667,7 @@ global_rate_plot <- ggplot(glob_plot_dat) +
               method = "lm",
               se = FALSE) +
   # Annotation for Warming Rate
-  geom_mark_ellipse(aes(filter = region == "Global Oceans" & yr == 2014,
+  geom_mark_ellipse(aes(filter = region == "Global Oceans" & yr == 2023,
                         x = yr, 
                         y = anom_f,
                         label = region), 
@@ -877,15 +677,16 @@ global_rate_plot <- ggplot(glob_plot_dat) +
                     color = "transparent",
                     label.fontsize = 10) +
   # Annotation for Warming Rate
-  geom_mark_ellipse(aes(filter = region == "Gulf of Maine" & yr == 2016,
-                        x = yr, 
-                        y = anom_f,
-                        label = region), 
-                    label.colour = gmri_cols("orange"),
-                    con.colour =  gmri_cols("orange"),
-                    label.fill = "transparent", 
-                    color = "transparent",
-                    label.fontsize = 10) +
+  geom_mark_ellipse(
+    aes(filter = region == "Gulf of Maine" & yr == 2023,
+        x = yr, 
+        y = anom_f,
+        label = region), 
+    label.colour = gmri_cols("orange"),
+    con.colour =  gmri_cols("orange"),
+    label.fill = "transparent", 
+    color = "transparent",
+    label.fontsize = 10) +
   scale_color_gmri() +
   # Scales
   scale_y_continuous(
@@ -909,12 +710,12 @@ The unprecedented levels of warmth over the past decade or so are consistent wit
 
 ## How Does this `r params$season` Compare?
 
-`r params$year` 2022-23 is the **`r rank_labs`** warmest `r tolower(params$season)` season observed in the Gulf of Maine during the 41 years we have satellite data to analyze. The top 5 warmest `r tolower(params$season)` seasons have all occurred in the last decade.
+`r params$year` is the **`r rank_labs`** warmest `r tolower(params$season)` season observed in the Gulf of Maine during the 41 years we have satellite data to analyze. The top 5 warmest `r tolower(params$season)` seasons have all occurred in the last decade.
 
 ```{r}
 #| label: fig-season-rank
 #| fig.height: 4
-#| fig-cap: "A ranking of the 5 warmest winter seasons for the Gulf of Maine in the satellite record (1982-2023). 2022-23 was the warmest winter on record; the past three winters were each the warmest until that point; and the five warmest winters have all occurred since 2015."
+#| fig-cap: "A ranking of the 5 warmest spring seasons for the Gulf of Maine in the satellite record (1982-2023). 2023 was the second warmest spring on record; the past three springs were each the warmest until that point; and the five warmest springs have all occurred since 2015."
 
 
 # Plot them
@@ -925,7 +726,11 @@ temp_rankings_p <- seasonal_ranks %>%
   geom_col(aes(x = anom_f, y = year_rank, fill = flag_year)) +
   # Year Labels
   geom_text(
-    mapping = aes(x = 0, y = year_rank, label = str_c(rank, ".  ", year_rank, " - ", as.numeric(as.character(year_rank))+1)),
+    mapping = aes(
+      x = 0, 
+      y = year_rank, 
+      #label = str_c(rank, ".  ", year_rank, " - ", as.numeric(as.character(year_rank))+1)), # WINTER Control
+      label = str_c(rank, ".  ", year_rank)), # WINTER Control
     hjust = -.1,
     color = 'white',
     size = 5) +
@@ -933,7 +738,8 @@ temp_rankings_p <- seasonal_ranks %>%
   geom_text(
     mapping = aes(x = anom_f, y = year_rank, label = anom_label, group = rank),
     hjust = 1.05,
-    color = 'white') +
+    color = 'white',
+    size = 5) +
   scale_x_continuous(
     labels = number_format(suffix = " \u00b0F"), 
     expand = expansion(mult = c(0,0.15))) +
@@ -953,7 +759,7 @@ temp_rankings_p <- seasonal_ranks %>%
         axis.ticks.y = element_blank(),
         plot.margin = margin(t = 20, l = 10, r = 5, b = 5)) +
   coord_cartesian(clip = "off") +
-  geom_logo(x_npc = 0.1, y_npc = -0.14, logo_height = 1, height_units = "cm")
+  geom_logo(x_npc = 0.1, y_npc = -0.18, logo_height = 1, height_units = "cm")
 
 
 temp_rankings_p
@@ -970,7 +776,8 @@ The most commonly used definition of a ["marine heatwave" (MHW)](http://www.mari
 # Pull this full year's data, up until end of the season
 last_yr_heatwaves <- region_hw %>% 
   filter(
-    time >= as.Date(str_c(2022, "-01-01")) + season_start-1)
+    #time >= as.Date(str_c(params$year-1, "-01-01")) + season_start-1) # WINTER control
+    time >= as.Date(str_c(params$year, "-01-01")))
 
 
 # Get number of heatwave events and total heatwave days for this year
@@ -997,8 +804,10 @@ Using this broadly accepted definition, **the Gulf of Maine has experienced MHW 
 
 
 # Show MHW Status Through the Year:
-hw_temp_p <- year_hw_temps_two(year_hw_dat = last_yr_heatwaves, temp_units = "F") + 
-  labs(title = str_c("Winter 2022-23 Gulf of Maine SST"),
+hw_temp_p <- year_hw_temps_two(
+  year_hw_dat = last_yr_heatwaves, 
+  temp_units = "F") + 
+  labs(title = str_c(params$season, params$year, "Gulf of Maine SST", sep = " "),
        subtitle = str_c("Temperatures through the end of ", tolower(params$season)))  +
   coord_cartesian(clip = "off") +
   geom_logo(x_npc = 0.9, y_npc = 1.2, logo_height = 1, height_units = "cm")
@@ -1022,7 +831,7 @@ Presenting SST conditions in terms of anomalies (@fig-season-anoms-rework) as op
 
 # Show MHW Status Through the Year:
 hw_anom_p <- year_hw_anoms_two(year_hw_dat = last_yr_heatwaves, temp_units = "F") + 
-  labs(title = str_c("Winter 2022-23 Gulf of Maine SST Anomalies"),
+  labs(title = str_c(params$season, " ", params$year, " Gulf of Maine SST Anomalies"),
        subtitle = str_c("Temperature anomalies through the end of ", tolower(params$season))) +
   coord_cartesian(clip = "off") +
   geom_logo(x_npc = 0.9, y_npc = 1.2, logo_height = 1, height_units = "cm")
@@ -1036,7 +845,7 @@ Looking at the full record of daily SST anomalies in the Gulf of Maine (@fig-mhw
 ```{r}
 #| fig.height: 8
 #| label: fig-mhw-heatmap
-#| fig-cap: "Heat map of daily SST anomalies from the beginning of 1982 through Winter 2022-23. Not only do more large warm anomalies (darker reds) appear more frequently in recent years, but the frequency, duration, and intensity of marine heatwave events (black lines) in the Gulf of Maine has become more pronounced in the past decade."
+#| fig-cap: "Heat map of daily SST anomalies from the beginning of 1982 through spring 2023. Not only do more large warm anomalies (darker reds) appear more frequently in recent years, but the frequency, duration, and intensity of marine heatwave events (black lines) in the Gulf of Maine has become more pronounced in the past decade."
 
 
 base_date <- as.Date("2000-01-01")
@@ -1074,6 +883,14 @@ heatmap_p + labs(caption = "")
 ## The Visual Impact of a New Climate Reference Period
 
 The identification and communication surrounding marine heatwaves is an area of active scientific discussion. Using our heatmap figure (@fig-mhw-heatmap) as a visual guide, we can compare what the competing MHW methodologies say is the MHW record for the region. The transition to a full climatological reference period that covers all years (1982-2022) and the removal of the long-term trend brings a focus onto only the most "extreme" events. Using the slider below, we can showcase what a transition from the fixed-baseline methodology used in this report (and previous reporting), to an approach that removes long-term trends. 
+
+
+
+```{ojs, output = FALSE}
+require("https://cdn.jsdelivr.net/npm/juxtaposejs@1.1.6/build/js/juxtapose.min.js")
+  .catch(() => null)
+  
+```
 
 ::: {.juxtapose data-startingposition="65%" style="margin-bottom:2em; width = 70%; height =70%"}
 
@@ -1155,6 +972,7 @@ grid_new %>%
     frame.colour = "black", 
     ticks.colour = "black"))
 ```
+
 :::
 
 From this view we can reveal that the transition has removed the majority of marine heatwave events, solving a communication challenge of the "year long heatwave". By adopting this new method scientists have succeeded in identifying the extreme temperature swings, but there is ongoing debate on when to apply this method, and on some of the unintended consequences of doing so. Among the concerns that scientists have voiced is that this new method retroactively changes the history of past events by accommodating all the more recent (often more extreme) conditions. This makes it difficult to preserve the significance that these events had during their own times. 
@@ -1177,17 +995,19 @@ crop_x   <- st_bbox(region_extent)[c(1,3)] + x_buffer
 crop_y   <- st_bbox(region_extent)[c(2,4)] + y_buffer
 
 # Expanded area as bbox
-expanded_area <- structure(c(crop_x, crop_y),  
-                           class = "bbox",
+expanded_area <- structure(
+    c(crop_x, crop_y),  
+    class = "bbox",
   crs = 4326) %>% 
   st_as_sfc() %>% 
   st_as_sf()
 
 
 # Make data window for season
-data_window <- data.frame(lon = crop_x,
-                          lat = crop_y,
-                          time = season_dates)
+data_window <- data.frame(
+  lon = crop_x,
+  lat = crop_y,
+  time = season_dates)
 
 # Load data - Temperatures
 season_anoms_c <- oisst_window_load(
@@ -1295,7 +1115,7 @@ peak_temp_df <- data.frame(
 
 ```
 
-From a spatial perspective, the Gulf of Maine and (most) surrounding areas experienced above average SSTs during `r tolower(params$season)` 2022-23, but the warmest patches were to the south and east of Georges Bank, mostly outside the domain analyzed in preceding sections. The highest seasonally averaged anomaly of any location above was `r max_season`°F - along the southern edge of the domain analyzed.
+From a spatial perspective, the Gulf of Maine and (most) surrounding areas experienced above average SSTs during `r tolower(params$season)` 2023, but the warmest patches were to the south and east of Georges Bank, mostly outside the domain analyzed in preceding sections. The highest seasonally averaged anomaly of any location above was `r max_season`°F - along the southern edge of the domain analyzed.
 
 ```{r}
 #| label: contour-details
@@ -1321,7 +1141,7 @@ elev_terra <- terra::rast(bathy)
 #| label: fig-season-anom-map
 #| fig.width: 8
 #| fig.height: 8
-#| fig-cap: "Map of average SST anomalies for each grid cell in the satellite record for winter 2022-23. The box outlined by the black dashed line denotes the region of study for the analysis (see @fig-map). Darker red regions indicate warmer anomalies."
+#| fig-cap: "Map of average SST anomalies for each grid cell in the satellite record for spring 2023. The box outlined by the black dashed line denotes the region of study for the analysis (see @fig-map). Darker red regions indicate warmer anomalies."
 
 # Make the seasonal average a stars class to plot with ggplot
 anoms_st <- st_as_stars(season_mean)
@@ -1383,7 +1203,7 @@ season_map <- ggplot() +
     barwidth = unit(3, "in"),
     frame.colour = "black",
     ticks.colour = "black")) +
-  labs(title = str_c("Seasonal Temperature Anomaly\n", params$season, ", 2022-", params$year),
+  labs(title = str_c("Seasonal Temperature Anomaly\n", params$season, ", ", params$year),
        caption = "200m contour overlaid to show topographic details.")
 
 # Show figure
@@ -1437,7 +1257,7 @@ month_plots <- imap(months_masked,
 
 # assemble aggregate plot
 monthly_maps <- (
-  month_plots[[1]] + labs(title = "December 2022")| 
+  month_plots[[1]] |#+ labs(title = "December 2022")| # WINTER control
     month_plots[[2]] | 
     month_plots[[3]]) + 
   plot_layout(guides = "collect")  & 
