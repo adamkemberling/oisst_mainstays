@@ -1444,9 +1444,9 @@ year_hw_temps_two <- function(
   hw_p <- ggplot(year_hw_dat) +
     geom_path(aes(x = time, y = {{temp_col}}, color = mhw_event_txt, group = 1)) +
     geom_segment(aes(x = time, xend = time, y = {{clim_col}}, yend = {{temp_col}}, color = mhw_event_txt), alpha = 0.25) +
-    geom_textpath(aes(x = time, y = {{hw_thresh_col}}), color = "gray10", label = "Heatwave Threshold", hjust = .05, lty = 1 ) + 
+    geom_textpath(aes(x = time, y = {{hw_thresh_col}}), color = "gray10", label = "90th Percentile", hjust = .05, lty = 1 ) + 
     geom_textpath(aes(x = time, y = {{clim_col}}), color = "gray10", label = "Climatological Mean", hjust = 0.5, lty = 1) +
-    geom_textpath(aes(x = time, y = {{cs_thresh_col}}), color = "gray10", label = "Cold Spell Threshold", hjust = 0.95, lty = 1) +
+    geom_textpath(aes(x = time, y = {{cs_thresh_col}}), color = "gray10", label = "10th Percentile", hjust = 0.95, lty = 1) +
     scale_color_manual(values = color_vals) +
     scale_x_date(date_labels = "%b %y", 
                  date_breaks = "1 month", 
@@ -1948,7 +1948,7 @@ monthly_sst_map <- function(month_avg_layer, month_id, plot_yr, temp_lim = 8, de
       title = "Sea Surface Temperature Anomaly",
       title.position = "top",
       title.hjust = 0.5,
-      barwidth = unit(3, "in"),
+      barwidth = unit(4.5, "in"),
       frame.colour = "black",
       ticks.colour = "black")) +
     labs(title = str_c(month_label))
