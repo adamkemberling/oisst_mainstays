@@ -1,4 +1,4 @@
-# North Atlantic Ocea Warming.
+# North Atlantic Ocean Warming.
 
 # Documenting code and processing for a data request form Boston Globe
 
