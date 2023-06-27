@@ -1074,7 +1074,7 @@ last_yr_anoms <- stack(last_yr_anom_path)
 anoms_double <- stack(list(last_yr_anoms, anoms_2022))
 
 
-# Drop december 2022 so its not influencing the Winter of 2020-2022
+# Drop december 2022 so its not influencing the Winter of 2021-2022
 dec_2022 <- "X2022.12"
 not_dec21 <- which(str_sub(names(anoms_double), 1, 8) != dec_2022)
 anoms_nodec <- anoms_double[[not_dec21]]
@@ -1147,7 +1147,7 @@ seas_anom_maps <- function(season, lab_years, temp_lim = 5){
 ```
 
 ```{r}
-seas_anom_maps("Winter", "2020-2022", temp_lim = 2)
+seas_anom_maps("Winter", "2021-2022", temp_lim = 2)
 
 ```
 :::
@@ -1293,7 +1293,7 @@ plot_masked_season <- function(season, year_lab, temp_lim = 5){
 ```
 
 ```{r}
-plot_masked_season("Winter", year_lab = "2020-2022", temp_lim = 3.5)
+plot_masked_season("Winter", year_lab = "2021-2022", temp_lim = 3.5)
 ```
 :::
 
