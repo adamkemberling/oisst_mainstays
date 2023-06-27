@@ -12,6 +12,7 @@ format:
     code-fold: true
     code-tools: true
     df-print: kable
+    self-contained: true
 editor: visual
 execute: 
   echo: false
@@ -53,12 +54,12 @@ library(xaringanExtra) # For tabsets
 # Support Functions
 suppressPackageStartupMessages(source(here("R/oisst_support_funs.R")))
 suppressPackageStartupMessages(source(here("R/temp_report_support.R")))
-path_fun <- os_fun_switch(mac_os = "mojave")
+
 
 
 # File Paths
-mills_path <- path_fun("mills")
-oisst_path <- path_fun("res", "OISST/oisst_mainstays")
+mills_path <- cs_path("mills")
+oisst_path <- cs_path("res", "OISST/oisst_mainstays")
 
 
 # Set ggplot theme for figures
@@ -83,7 +84,7 @@ theme_set(theme_bw() +
     strip.background = element_rect(
       color = "white", 
       fill = "#00736D", 
-      size = 1, 
+      linewidth = 1, 
       linetype="solid")
     )
   )
@@ -106,8 +107,7 @@ lab_logo <- magick::image_read(logo_path)
 params <- list(region  = "inuse_strata")
 
 # File paths for various extents based on params$region
-region_paths <- get_timeseries_paths(region_group = "nmfs_trawl_regions", 
-                                     mac_os = "mojave")
+region_paths <- get_timeseries_paths(region_group = "nmfs_trawl_regions", box_location = "cloudstorage")
   
 # clean up the name
 tidy_name <- "Northeastern US Shelf Region"
@@ -139,7 +139,7 @@ Satellite sea surface temperature data used was obtained from the National Cente
 Whenever discussing the `r tidy_name` in this report, we refer to the following spatial extent displayed below. The coordinates of this bounding box are the same coordinates used to clip the sea surface temperature data.
 
 ```{r}
-# Load the bounding box for Andy's GOM to show they align
+# Load the bounding box for Northeast Shelf
 poly_path     <- region_paths[[params$region]][["shape_path"]]
 region_extent <- st_read(poly_path, quiet = TRUE)
 # region_extent <- st_union(region_extent)
@@ -169,9 +169,10 @@ Additionally, we can compare observed temperatures against the expected conditio
 ```{r load data}
 # Load the timeseries
 timeseries_path <- region_paths[[params$region]][["timeseries_path"]]
-region_timeseries <- read_csv(timeseries_path, 
-                              col_types = cols(), 
-                              guess_max = 1e6) %>% 
+region_timeseries <- read_csv(
+  timeseries_path, 
+  col_types = cols(), 
+  guess_max = 1e6) %>% 
   mutate(tod = format(time, format = "%H:%M:%S")) 
 
 
@@ -186,7 +187,7 @@ region_timeseries <- region_timeseries %>%
 
 # Summarize by year to return mean annual anomalies and variance
 annual_summary <- region_timeseries %>% 
-  filter(year %in% c(1982:2021)) %>% 
+  filter(year %in% c(1982:2022)) %>% 
   group_by(year) %>% 
   temperature_summaries() %>% 
   mutate(yr_as_dtime = as.Date(paste0(year, "-07-02")),
@@ -225,7 +226,7 @@ global_anoms <- read_csv(
     guess_max = 1e6,
     col_types = cols()) %>% 
   mutate(year = year(time)) %>% 
-  filter(between(year, 1982, 2021))
+  filter(between(year, 1982, 2022))
 
 # summarize by year again
 global_summary <- global_anoms %>% 
@@ -255,7 +256,7 @@ clim_colors <- c(
 )
 
 # pull one year for the lines, the reference period for points
-one_yr <- grid_data %>% filter(yr == 2021)
+one_yr <- grid_data %>% filter(yr == 2022)
 ref_yrs <- grid_data %>% filter(yr %in% c(1982:2011))
 
 # Make a plot
@@ -368,12 +369,12 @@ ggplot(monthly_temps, aes(x = time, y = 0)) +
         ) +
   labs(title = str_c(tidy_name, "\nMonthly Sea Surface Temperature Anomalies"),
        x = "",
-       caption = "Monthly Averages from 1982-2021  |  Climatology Period 1982-2011")
+       caption = "Monthly Averages from 1982-2022  |  Climatology Period 1982-2011")
 ```
 
 ### Warming Rates
 
-Seeing this change towards a warmer climate, it is then natural to ask how rapidly the change is happening. This is where we turn to warming rates. The warming trends below were calculated using all the available data for complete years beginning with 1982 through the end of 2021.
+Seeing this change towards a warmer climate, it is then natural to ask how rapidly the change is happening. This is where we turn to warming rates. The warming trends below were calculated using all the available data for complete years beginning with 1982 through the end of 2022.
 
 The overlaid trend lines then track how warming has increased with time. A dotted line has been included to show how the global average temperature has changed during the same period.
 
@@ -383,47 +384,40 @@ The overlaid trend lines then track how warming has increased with time. A dotte
 
 ####  Run Warming Rate regressions  ####
 rate_data <- list(
-  "GoM All F" = get_decadal_rates(
+  "shelf F" = get_decadal_rates(
     temp_df = annual_summary, 
     temp_col = "area_wtd_f", 
     year_col = "year", 
-    year_lim = c(1982, 2021), 
-    area_name = "GoM", 
+    year_lim = c(1982, 2022), 
+    area_name = "Northeast US Shelf", 
     degree_c = F),
-  "GoM All C" = get_decadal_rates(
+  "shelf C" = get_decadal_rates(
     temp_df = annual_summary, 
     temp_col = "area_wtd_sst", 
     year_col = "year", 
-    year_lim = c(1982, 2021), 
-    area_name = "GoM", 
+    year_lim = c(1982, 2022), 
+    area_name = "Northeast US Shelf", 
     degree_c = T),
-  "GoM 15" = get_decadal_rates(
-    temp_df = annual_summary, 
-    temp_col = "area_wtd_f", 
-    year_col = "year", 
-    year_lim = c(2007, 2021), 
-    area_name = "GoM", 
-    degree_c = F),
   "Global All" = get_decadal_rates(
     temp_df = global_summary, 
     temp_col = "area_wtd_f", 
     year_col = "year", 
-    year_lim = c(1982, 2021), 
+    year_lim = c(1982, 2022), 
     area_name = "Global", 
     degree_c = F),
   "Global All C" = get_decadal_rates(
     temp_df = global_summary, 
     temp_col = "area_wtd_sst", 
     year_col = "year", 
-    year_lim = c(1982, 2021), 
+    year_lim = c(1982, 2022), 
     area_name = "Global", 
     degree_c = T))
 
 
 # Build Regression Equation Labels
-eq_all_c  <- rate_data[["GoM All C"]][["eq_label"]]
-eq_all    <- rate_data[["GoM All F"]][["eq_label"]]
-eq_15     <- rate_data[["GoM 15"]][["eq_label"]]
+eq_all_c  <- rate_data[["shelf C"]][["eq_label"]]
+eq_all    <- rate_data[["shelf F"]][["eq_label"]]
+eq_15     <- rate_data[["shelf 15"]][["eq_label"]]
 eq_global <- rate_data[["Global All"]][["eq_label"]]
 eq_global_c <- rate_data[["Global All C"]][["eq_label"]]
 
@@ -434,19 +428,18 @@ yearly_temp_smooth <-  as.data.frame(spline(annual_summary$yr_as_dtime, annual_s
 
 ```
 
+
+
 ```{r annual trend plot}
-
-
-
 # Fancy colored markdown titles and subtitles:
-gom_rate <- str_c(rate_data$`GoM All C`$decadal_rate / 10, "\u00b0C / year")
+neshelf_rate <- str_c(rate_data$`shelf C`$decadal_rate / 10, "\u00b0C / year")
 glob_rate <- str_c(rate_data$`Global All C`$decadal_rate / 10, "\u00b0C / year")
 
 
 fancy_title <- str_c("<span style='color:#00608A'>",tidy_name, "</span>", " Warming Faster than <span style='color:#407331'>Global Avg.</span>")
 
 
-fancy_subtitle <- str_c(tidy_name, "'s annual warming rate of <span style='color:#00608A'>",gom_rate, "</span>, is 2.5X the global average of <span style='color:#407331'>", glob_rate,"</span>.")
+fancy_subtitle <- str_c(tidy_name, "'s annual warming rate of <span style='color:#00608A'>",neshelf_rate, "</span>, is 2.5X the global average of <span style='color:#407331'>", glob_rate,"</span>.")
 
 
 ####  Annual Trend Plot  ####
@@ -457,28 +450,28 @@ ggplot(data = annual_summary, aes(yr_as_dtime, area_wtd_anom)) +
             aes(time, area_wtd_anom, color = "Daily Temperatures")) +
   
   # Overlay yearly means
-  geom_line(data = yearly_temp_smooth, aes(x, y, color = "Average Yearly Temperature"), alpha = 0.8, linetype = 2) +
-  # geom_line(color = "gray10", size = 1) +
+  # geom_line(data = yearly_temp_smooth, aes(x, y, color = "Average Yearly Temperature"), alpha = 0.8, linetype = 2) +
+  geom_line(aes(color = "Average Yearly Temperature"), alpha = 0.8, linetype = 1, linewidth = 1) +
   geom_point(color = "gray10", alpha = 0.7, size = 0.75) +
   
   # Add regression lines
-  geom_textsmooth(data = filter(global_summary, year <= 2021),
+  geom_textsmooth(data = filter(global_summary, year <= 2022),
               method = "lm", text_smoothing = 30,
               label = "Global Trend",
               color = gmri_cols("green"),
               linewidth = 1,
               formula = y ~ x, se = F,
-              linetype = 3, hjust = 0.925) +
+              linetype = 1, hjust = 0.925) +
  
-  geom_smooth(data = filter(annual_summary, year <= 2021),
+  geom_smooth(data = filter(annual_summary, year <= 2022),
               method = "lm",
-              aes(color = "1982-2021 Regional Trend"), #label = "40-Year Trend",
+              aes(color = "1982-2022 NE Shelf Trend"), 
               formula = y ~ x, se = F,
               linetype = 1) +
 
   # Colors
   scale_color_manual(values = c(
-    "1982-2021 Regional Trend" = as.character(gmri_cols("gmri blue")),
+    "1982-2022 NE Shelf Trend" = gmri_cols("gmri blue"),
     "Average Yearly Temperature" = "gray10",
     "Daily Temperatures"       = "gray90")) +
     
@@ -511,12 +504,120 @@ ggplot(data = annual_summary, aes(yr_as_dtime, area_wtd_anom)) +
         label.position = "top", 
         override.aes = list(
           point = c(0, 0, 0),
-          linetype = c(1, 2, 1),
+          linetype = c(1, 1, 1),
         byrow = T)))
-  
+```
 
+
+```{r annual trend plot simplified, eval = FALSE}
+# Fahrenheit plot
+temp_simplified <- global_rate_comparison(
+  annual_summary_dat = annual_summary, 
+  global_summary_dat = global_summary, 
+  eq_all = str_remove(eq_all, " 1982-2022"), 
+  eq_global = str_remove(eq_global, " 1982-2022"), 
+  temp_units = "F",
+  region_label = "Northeast US Shelf") +
+  coord_cartesian(clip = "off") +
+  geom_logo(x_npc = 0.115, y_npc = -0.135, logo_height = 1, height_units = "cm")
+
+# add logo
+temp_simplified 
 
 ```
+
+
+```{r}
+#| label: solid-lane-version
+
+
+# Get the global temperature warming rate
+# Decadal Rate
+global_yr_mod         <- lm(anom_f ~ year, global_summary)
+global_annual_rate    <- coef(global_yr_mod)[[2]]
+global_decadal_rate_f <- round((global_annual_rate*10), 2)
+
+
+
+# Join the data we need together,
+# Put the description into the dataframe so we can call it using one geom call
+glob_plot_dat <- bind_rows(
+  list(
+    # 1. Global Ocean Seasonal Data
+    "Global Oceans" = select(global_summary, yr = year, temp_f = sst_f, anom_f) %>% 
+      mutate(
+        rate = eq_global,
+        rate_lab = "Global Ocean Warming"),
+    
+    # 2. Gulf of Maine Seasonal Data
+    "Northeast US Shelf" = select(annual_summary, yr = year, temp_f = area_wtd_f, anom_f = area_wtd_anom_f)  %>% 
+      mutate(
+        rate = eq_all,
+        rate_lab ="Northeast Shelf Warming")), 
+  .id = "region")
+
+
+
+# Compare warming rates
+global_rate_plot <- ggplot(glob_plot_dat) +
+  geom_line(data = filter(glob_plot_dat, 
+                          region == "Northeast US Shelf"), 
+            aes(yr, anom_f), 
+            color = "gray20", linetype = 3, linewidth = 0.5, alpha = 0.5) +
+  geom_point(data = filter(glob_plot_dat, region == "Northeast US Shelf"), 
+            aes(yr, anom_f), 
+            color = "gray20", alpha = 0.8) +
+  # All year warming rate for GOM
+  geom_smooth(aes(yr, anom_f, color = rate), 
+              formula = y~x, 
+              linetype = 1,
+              method = "lm",
+              se = FALSE) +
+  # Annotation for Warming Rate
+  geom_mark_ellipse(aes(filter = region == "Global Oceans" & yr == 2022,
+                        x = yr, 
+                        y = anom_f,
+                        label = region), 
+                    label.colour = gmri_cols("gmri blue"),
+                    con.colour =  gmri_cols("gmri blue"),
+                    label.fill = "transparent", 
+                    color = "transparent",
+                    label.fontsize = 10) +
+  # Annotation for Warming Rate
+  geom_mark_ellipse(
+    aes(filter = region == "Northeast US Shelf" & yr == 1999,
+        x = yr, 
+        y = anom_f,
+        label = region), 
+    label.colour = gmri_cols("orange"),
+    con.colour =  gmri_cols("orange"),
+    label.fill = "transparent", 
+    color = "transparent",
+    label.fontsize = 10) +
+  scale_color_gmri() +
+  # Scales
+  scale_y_continuous(
+    expand = expansion(add = c(1.5, 1.5)),
+    labels = number_format(suffix = " \u00b0F")) +
+  scale_x_continuous(limits = c(1981, 2025)) +
+  labs(title = str_c("Northeast US Shelf & Global Ocean Warming Rates"),
+       x = "Year",
+       y = "Average Annual Temperature Anomalies",
+       color = "1982-2022 Warming Rate")  +
+  theme(
+    # legend.position = c(0.2, 0.85), 
+    legend.position = "bottom", 
+    legend.title = element_text(face = "bold"),
+    legend.background = element_rect(fill = "transparent")) +
+  guides(color = guide_legend(ncol = 2, title.position = "top", title.hjust = 0.5)) +
+  coord_cartesian(clip = "off") +
+  geom_logo(x_npc = 0.9, y_npc = -0.15, logo_height = 1, height_units = "cm")
+
+
+
+ global_rate_plot
+```
+
 
 **Shift in Regional Ocean Circulation**
 
@@ -531,18 +632,18 @@ clim_avg <- annual_summary %>% filter(year %in% c(1982:2011)) %>%
             avg_f = mean(area_wtd_f, na.rm = T),
             avg_anom_c = 0,
             avg_anom_f = 0) %>% 
-  mutate(across(where(is_numeric), round, 2))%>% 
-  mutate(across(where(is_numeric), round, 2))
+  mutate(across(where(is.numeric), round, 2))%>% 
+  mutate(across(where(is.numeric), round, 2))
 
 # average from 2010 onward:
-r2_avg <- annual_summary %>% filter(year %in% c(2010:2021)) %>% 
+r2_avg <- annual_summary %>% filter(year %in% c(2010:2022)) %>% 
   summarise(x = 2010,
-            xend = 2021,
+            xend = 2022,
             avg_c = mean(area_wtd_sst, na.rm = T),
             avg_f = mean(area_wtd_f, na.rm = T),
             avg_anom_c = mean(area_wtd_anom, na.rm = T), 
             avg_anom_f = mean(area_wtd_anom_f, na.rm = T)) %>% 
-  mutate(across(where(is_numeric), round, 2))
+  mutate(across(where(is.numeric), round, 2))
 
 
 ####  Annual Trend Plot - regime shift  ####
@@ -558,7 +659,7 @@ ggplot(data = annual_summary, aes(year, area_wtd_anom)) +
     aes(x = x, xend = xend, y = avg_anom_c, yend = avg_anom_c),
     size = 4, 
     linewidth = 1,
-    label = "1982-2021 Climatological Average",
+    label = "1982-2011 Climatological Average",
     linetype = 1, 
     linewidth = 1, 
     color = gmri_cols("gmri blue"),
@@ -567,7 +668,7 @@ ggplot(data = annual_summary, aes(year, area_wtd_anom)) +
     data = r2_avg,
     aes(x = x, xend = xend, y = avg_anom_c, yend = avg_anom_c),
     size = 4, linewidth = 1,
-    label = "2010-2021 Average",
+    label = "2010-2022 Average",
     linetype = 1, 
     linewidth = 1, 
     color = gmri_cols("orange"),
@@ -643,30 +744,30 @@ quarter_summary %>%
 
 ```{r, fig.height=2.25}
 dat_region <- annual_summary %>% 
-  filter(year %in% c(1982, 2021)) 
+  filter(year %in% c(1982, 2022)) 
 dat_global <- global_summary %>% 
-  filter(year %in% c(1982, 2021)) 
+  filter(year %in% c(1982, 2022)) 
 dat_list <- list(dat_region, dat_global) %>% setNames(c(tidy_name, "Global Oceans"))
 dat_combined <- bind_rows(dat_list, .id = "Area") %>% 
   select(Area, area_wtd_sst, year) %>% 
   pivot_wider(names_from = year, values_from = area_wtd_sst)
 
-ggplot(dat_combined, aes(x = `1982`, xend = `2021`, y = fct_rev(Area))) +
+ggplot(dat_combined, aes(x = `1982`, xend = `2022`, y = fct_rev(Area))) +
   geom_dumbbell(colour = "lightblue", 
                 colour_xend = gmri_cols("gmri blue"), 
                 size = 3, 
                 dot_guide = TRUE, 
                 dot_guide_size = 0.5) +
   geom_text_repel(
-    aes(x = `2021`, y = fct_rev(Area), 
-        label = str_c("+", round(`2021`- `1982`, 2), " C")),
+    aes(x = `2022`, y = fct_rev(Area), 
+        label = str_c("+", round(`2022`- `1982`, 2), " C")),
                 color = gmri_cols("gmri blue"),
                 vjust = 4,
                 hjust = 0,
                 segment.size = 0.5,
                 seed = 123) +
   labs(x = "Sea Surface Temperature", 
-       title = "Change in Sea Surface Temeprature - 1982-2021", 
+       title = "Change in Sea Surface Temeprature - 1982-2022", 
        y = "") +
    scale_x_continuous(sec.axis = sec_axis(trans = ~as_fahrenheit(., data_type = "temperature"),
                                          labels =  number_format(suffix = " \u00b0F")),
@@ -782,7 +883,7 @@ Daily temperatures for the last 365 days are displayed below with reference to h
 
 ```{r}
 # Option 3: Last complete year
-last_year <- 2021
+last_year <- 2022
 last_yr_heatwaves <-  region_hw %>% filter(year(time) == last_year)
 ```
 
@@ -794,7 +895,8 @@ last_yr_heatwaves <-  region_hw %>% filter(year(time) == last_year)
 num_events   <- max(last_yr_heatwaves$mhw_event_no, na.rm = T) - min(last_yr_heatwaves$mhw_event_no, na.rm = T) + 1
 
 # Data for only the current year
-this_yr_hw <- region_hw %>% filter(year(time) == year(Sys.Date()))
+this_yr_hw <- region_hw %>% filter(year(time) == 2022)
+#this_yr_hw <- region_hw %>% filter(year(time) == year(Sys.Date()))
 
 # Number of heatwave events
 num_hw_days <- sum(this_yr_hw$mhw_event, na.rm = T)
@@ -817,7 +919,7 @@ Temperatures for the current year can be seen against the same thresholds with t
 ```{r mhw ggplot}
 
 # Make Plot
-hw_temp_p <- year_hw_temps(year_hw_dat = this_yr_hw, temp_units = "C")
+hw_temp_p <- year_hw_temps_two(year_hw_dat = this_yr_hw, temp_units = "C")
 
 # Show Figure
 hw_temp_p
@@ -832,7 +934,7 @@ Changing from absolute temperatures to anomalies reveals the degree to which thi
 ```{r heatwave anomaly timeline}
 
 # Show figure
-hw_anom_p <- year_hw_anoms(year_hw_dat = this_yr_hw, temp_units = "C")
+hw_anom_p <- year_hw_anoms_two(year_hw_dat = this_yr_hw, temp_units = "C")
 hw_anom_p
 
 ```
@@ -862,12 +964,12 @@ ggplot(data = one_yr, aes(x = flat_date)) +
       values = c(
         "Daily Temperature" = "gray80",
         "Climatological Average" = "gray10",
-        "2022 Temperatures"= as.character(gmri_cols("orange"))
+        "2022 Temperatures"= gmri_cols("orange")
       )
     ) +
     scale_y_continuous(labels = number_format(suffix = " \u00b0C")) +
     labs(x = "Day of the Year", y = "Sea Surface Temperature",
-         title = str_c(current_yr, " Temperatures in Context of the Last 40-Years"),
+         title = str_c("2022 Temperatures in Context of the Last 40-Years"),
          subtitle = "Current year conditions suggest a persistance of warmer regime") +
     #theme_gmri() +
     theme(
@@ -894,18 +996,18 @@ ggplot(data = one_yr, aes(x = flat_date)) +
 
 # 3: Global Temperature Maps
 
-The 2021 global sea surface temperature anomalies have been loaded and displayed below to visualize how different areas of the ocean experience swings in temperature.
+The 2022 global sea surface temperature anomalies have been loaded and displayed below to visualize how different areas of the ocean experience swings in temperature.
 
 For perspective on where excess heat is distributed around the world, here first are maps of anomalies at a global perspective:
 
 ```{r}
 
 # Access information to netcdf on box
-nc_year <- "2021"
+nc_year <- "2022"
 anom_path <- str_c(oisst_path, "annual_anomalies/1982to2011_climatology/daily_anoms_", nc_year, ".nc")
 
-# Load 2021 as stack
-anoms_2021 <- stack(anom_path)
+# Load 2022 as stack
+anoms_2022 <- stack(anom_path)
 
 ```
 
@@ -916,7 +1018,7 @@ anoms_2021 <- stack(anom_path)
 ```{r}
 
 # Make Annual Average
-ann_anom_ras <- calc(anoms_2021, fun = mean, na.rm = T)
+ann_anom_ras <- calc(anoms_2022, fun = mean, na.rm = T)
 
 # Color scale title
 sst_lab <- "Sea Surface Temperature Anomaly"
@@ -968,13 +1070,13 @@ last_yr_anom_path <- str_c(oisst_path, "annual_anomalies/1982to2011_climatology/
 # Load 2020 as stack to get the full winter
 last_yr_anoms <- stack(last_yr_anom_path)
 
-# Join to 2021
-anoms_double <- stack(list(last_yr_anoms, anoms_2021))
+# Join to 2022
+anoms_double <- stack(list(last_yr_anoms, anoms_2022))
 
 
-# Drop december 2021 so its not influencing the Winter of 2020-2021
-dec_2021 <- "X2021.12"
-not_dec21 <- which(str_sub(names(anoms_double), 1, 8) != dec_2021)
+# Drop december 2022 so its not influencing the Winter of 2020-2022
+dec_2022 <- "X2022.12"
+not_dec21 <- which(str_sub(names(anoms_double), 1, 8) != dec_2022)
 anoms_nodec <- anoms_double[[not_dec21]]
 
 
@@ -1045,7 +1147,7 @@ seas_anom_maps <- function(season, lab_years, temp_lim = 5){
 ```
 
 ```{r}
-seas_anom_maps("Winter", "2020-2021", temp_lim = 2)
+seas_anom_maps("Winter", "2020-2022", temp_lim = 2)
 
 ```
 :::
@@ -1054,7 +1156,7 @@ seas_anom_maps("Winter", "2020-2021", temp_lim = 2)
 ## Spring {.panel-name}
 
 ```{r}
-seas_anom_maps("Spring", "2021", temp_lim = 2)
+seas_anom_maps("Spring", "2022", temp_lim = 2)
 ```
 :::
 
@@ -1062,7 +1164,7 @@ seas_anom_maps("Spring", "2021", temp_lim = 2)
 ## Summer {.panel-name}
 
 ```{r}
-seas_anom_maps("Summer", "2021", temp_lim = 2)
+seas_anom_maps("Summer", "2022", temp_lim = 2)
 ```
 :::
 
@@ -1070,14 +1172,14 @@ seas_anom_maps("Summer", "2021", temp_lim = 2)
 ## Fall {.panel-name}
 
 ```{r}
-seas_anom_maps("Fall", "2021", temp_lim = 2)
+seas_anom_maps("Fall", "2022", temp_lim = 2)
 ```
 :::
 :::
 
 # 4: Regional Temperature Maps
 
-The regional views of 2021's sea surface temperature anomalies have been loaded and displayed below to visualize how localized differences changed throughout the year.
+The regional views of 2022's sea surface temperature anomalies have been loaded and displayed below to visualize how localized differences changed throughout the year.
 
 ```{r}
 
@@ -1191,7 +1293,7 @@ plot_masked_season <- function(season, year_lab, temp_lim = 5){
 ```
 
 ```{r}
-plot_masked_season("Winter", year_lab = "2020-2021", temp_lim = 3.5)
+plot_masked_season("Winter", year_lab = "2020-2022", temp_lim = 3.5)
 ```
 :::
 
@@ -1199,7 +1301,7 @@ plot_masked_season("Winter", year_lab = "2020-2021", temp_lim = 3.5)
 ## Spring {.panel-name}
 
 ```{r}
-plot_masked_season("Spring", year_lab = "2021", temp_lim = 3.5)
+plot_masked_season("Spring", year_lab = "2022", temp_lim = 3.5)
 ```
 :::
 
@@ -1207,7 +1309,7 @@ plot_masked_season("Spring", year_lab = "2021", temp_lim = 3.5)
 ## Summer {.panel-name}
 
 ```{r}
-plot_masked_season("Summer", year_lab = "2021", temp_lim = 3.5)
+plot_masked_season("Summer", year_lab = "2022", temp_lim = 3.5)
 ```
 :::
 
@@ -1215,7 +1317,7 @@ plot_masked_season("Summer", year_lab = "2021", temp_lim = 3.5)
 ## Fall {.panel-name}
 
 ```{r}
-plot_masked_season("Fall", year_lab = "2021", temp_lim = 3.5)
+plot_masked_season("Fall", year_lab = "2022", temp_lim = 3.5)
 ```
 :::
 
@@ -1380,16 +1482,16 @@ walk(day_plots, print)
 
 # 5: Ranking Warming Rates
 
-If we look at the rates of change from 1982-2021 for each grid cell, rather than the observed temperature, it is possible to rank how hot each location on earth is warming relative to all the others.
+If we look at the rates of change from 1982-2022 for each grid cell, rather than the observed temperature, it is possible to rank how hot each location on earth is warming relative to all the others.
 
 Once we have the rankings, we can then take the average ranking within the Gulf of Maine we can obtain the average warming rank for the area compared to the rest of the globe.
 
 ```{r load warming rates}
 # 1. Warming Rates and Rankings
 rates_path <- paste0(oisst_path, "warming_rates/annual_warming_rates")
-rates_stack_all <- stack(str_c(rates_path, "1982to2021.nc"), 
+rates_stack_all <- stack(str_c(rates_path, "1982to2022.nc"), 
                          varname = "annual_warming_rate")
-ranks_stack_all <- stack(str_c(rates_path, "1982to2021.nc"), 
+ranks_stack_all <- stack(str_c(rates_path, "1982to2022.nc"), 
                          varname = "rate_percentile")
 
 
@@ -1414,7 +1516,7 @@ top_rate <- region_ranks$`Max Rate`
 
 ```
 
-Based on data from 1982-2021, the warming rates of `r tidy_name` have been some of the highest in the world. The area as a whole has been increasing at a rate of `r avg_rate`$^{\circ}C/year$ which is faster than `r avg_rank`% of the world's oceans.
+Based on data from 1982-2022, the warming rates of `r tidy_name` have been some of the highest in the world. The area as a whole has been increasing at a rate of `r avg_rate`$^{\circ}C/year$ which is faster than `r avg_rank`% of the world's oceans.
 
 Over that same period locations within the `r tidy_name` have been warming at rates as low as `r low_rate`$^{\circ}C/year$ and as rapidly as `r top_rate`$^{\circ}C/year$, corresponding to ranks as low as `r low_rank`% and as high as `r top_rank`%.
 
@@ -1612,7 +1714,7 @@ grid::grid.raster(lab_logo, x = 0.05, y = 0.03, just = c('left', 'bottom'), widt
 
 # 6: Shifting Baselines
 
-In 2021 NOAA is transitioning standard climatologies from the 30-year period of 1982-2011 to a new period spanning 1992-2020. Changes in climate regimes often does not result in a uniform upward or downward change that is consistent throughout the year.
+In 2022 NOAA is transitioning standard climatologies from the 30-year period of 1982-2011 to a new period spanning 1992-2020. Changes in climate regimes often does not result in a uniform upward or downward change that is consistent throughout the year.
 
 The plot below shows just how both the average temperature, as well as the annual highs and lows have shifted. When looking specifically at `r tidy_name` here is how the expected temperature for each day of the year has shifted.
 
