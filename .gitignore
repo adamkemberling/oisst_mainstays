@@ -20,6 +20,7 @@ docker-compose.override.yaml
 
 
 # Data folders
+NCA_Fig21.4_Metadata/*
 annual_anomalies/*
 annual_observations/*
 daily_climatologies/*

@@ -761,7 +761,7 @@ def calc_ts_mask(grid_obj, shp_obj, shp_name, var_name = "sst", climatology = Fa
     shp_obj        : shapefile polygon to use as a mask
     shp_name (str) : String to use as name when making mask
     var_name (str) : Optional string identifying the variable to use
-    climatology (bool): Whether you are masking a cliimatology, informs naming conventions and
+    climatology (bool): Whether you are masking a climatology, informs naming conventions and
     whether to process standard deviation
   """
 

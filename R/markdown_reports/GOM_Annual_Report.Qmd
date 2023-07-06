@@ -255,6 +255,21 @@ global_summary <- global_anoms %>%
          anom_direction = ifelse(area_wtd_anom > 0, "Hot", "Cold"))
 ```
 
+```{r, eval = F}
+# Climatology figure for something random
+report_yr_only %>% 
+  mutate(time = as.Date(time),
+         mcs_thresh_f = as_fahrenheit(mcs_thresh, data_type = "temperature")) %>% 
+ggplot(aes(time)) +
+  geom_ribbon(aes(ymin = as_fahrenheit(mcs_thresh), ymax = mhw_thresh_f), fill = "lightblue") +
+  geom_line(aes(y = seas_f), color = gmri_cols("blue"), linetype = 1, linewidth = 2) +
+  scale_x_date(date_breaks = "1 month", labels = date_format("%b"),
+               expand = expansion(add = c(0,0))) +
+  scale_y_continuous(labels = label_number(suffix = deg_f)) +
+  labs(x = "Day of the Year", y = "Sea Surface Temperature",
+       title = "Gulf of Maine's Seasonal Climate ")
+
+```
 
 
 
