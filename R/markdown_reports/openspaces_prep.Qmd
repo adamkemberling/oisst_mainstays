@@ -58,6 +58,17 @@ region_name <- "apershing_gulf_of_maine"
 
 # Temp palette:
 temp_pal <- rev(RColorBrewer::brewer.pal(n = 10, name = "RdBu"))
+
+
+# Polygons for mapping
+new_england <- ne_states("united states of america", returnclass = "sf")
+canada      <- ne_states("canada", returnclass = "sf")
+world_sf    <- ne_countries(returnclass = "sf")
+greenland   <- ne_states(country = "greenland", returnclass = "sf")
+
+crop_x <- c(-79, -56)
+crop_y <- c(32, 51)
+
 ```
 
 ```{r}
@@ -211,7 +222,7 @@ canada_sf <- ne_states("canada", returnclass = "sf")
 us_sf <- gb_adm1(country = "usa", type = "sscgs")
 
 # Filter to our area
-new_england <- us_sf %>% filter(shapeISO %in% str_c("US-", c("ME", "NH", "MA", "CT", "MD", "PA", "NY", "VT", "NC", "SC", "VA", "WV", "DE", "SC")))
+new_england <- us_sf %>% filter(shapeISO %in% str_c("US-", c("ME", "NH", "MA", "CT", "MD", "PA", "NY", "VT", "NC", "SC", "VA", "WV", "DE", "SC", "NJ", "RI")))
 
 # Join them
 north_america <- bind_rows(list(mutate(canada_sf, country = "Canada"),
@@ -253,6 +264,7 @@ The decadal average temperatures for the region are as follows:
 
 ```{r}
 plot(temp_coasts$X1990s, main = "Average SST 1990's", col = temp_pal)
+
 ```
 
 ### 2000's
@@ -347,6 +359,36 @@ plot(bsb_prefs$X1990s,
      col = terrain.colors(14, rev = T), 
      xlim = c(-78, -63), 
      ylim = c(35.5,46))
+
+
+ggplot() +
+  geom_stars(data = st_as_stars(bsb_prefs$X1990s)) +
+  geom_sf(data = new_england, fill = "gray90", linewidth = .25) +
+    geom_sf(data = canada, fill = "gray90", linewidth = .25) +
+    geom_sf(data = greenland, fill = "gray90", linewidth = .25) +
+  scale_fill_distiller(
+    palette = "YlGnBu", 
+    na.value = "transparent", 
+    limit = c(0, 1), 
+    direction = 1,
+    oob = scales::oob_censor,
+    breaks = c(0.15, 0.85), 
+    labels = c("Not Suitable", "Preferred")) +
+    map_theme(
+      title = element_text(hjust = 0.5, size = 8),
+      axis.text = element_text(size = 6),
+      legend.position = "bottom") +
+    coord_sf(xlim = c(-75.5, -64), 
+             ylim = c(38, 45), 
+             expand = F) +
+    guides("fill" = guide_colorbar(
+      title = "Temperature Preference",
+      title.position = "top",
+      title.hjust = 0.5,
+      barwidth = unit(3.5, "in"),
+      frame.colour = "black",
+      ticks.colour = "black")) +
+    labs(title = "Black Sea Bass Habitat\n1990's")
 ```
 
 ### Sea Bass 2000's
@@ -369,6 +411,36 @@ plot(bsb_prefs$X2010s,
      col = terrain.colors(14, rev = T), 
      xlim = c(-78, -63), 
      ylim = c(35.5,46))
+
+
+ggplot() +
+  geom_stars(data = st_as_stars(bsb_prefs$X2010s)) +
+  geom_sf(data = new_england, fill = "gray90", linewidth = .25) +
+    geom_sf(data = canada, fill = "gray90", linewidth = .25) +
+    geom_sf(data = greenland, fill = "gray90", linewidth = .25) +
+  scale_fill_distiller(
+    palette = "YlGnBu", 
+    na.value = "transparent", 
+    limit = c(0, 1), 
+    direction = 1,
+    oob = scales::oob_censor,
+    breaks = c(0.15, 0.85), 
+    labels = c("Not Suitable", "Preferred")) +
+    map_theme(
+      title = element_text(hjust = 0.5, size = 8),
+      axis.text = element_text(size = 6),
+      legend.position = "bottom") +
+    coord_sf(xlim = c(-75.5, -64), 
+             ylim = c(38, 45), 
+             expand = F) +
+    guides("fill" = guide_colorbar(
+      title = "Temperature Preference",
+      title.position = "top",
+      title.hjust = 0.5,
+      barwidth = unit(3.5, "in"),
+      frame.colour = "black",
+      ticks.colour = "black")) +
+    labs(title = "Black Sea Bass Habitat\n2010's")
 ```
 
 

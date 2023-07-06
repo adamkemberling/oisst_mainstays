@@ -531,6 +531,7 @@ monthly_avgs <- monthly_avgs %>% left_join(
 # Create the Monthly Summary Table
 month_summ_table <- monthly_avgs %>% 
   select(-c(yr, outcomes)) %>% 
+  select(-c(temp_list)) %>% 
   relocate(rank, .before = temp_c) %>% 
   #rename(`Month Ranking` = rank) %>% 
   mutate(month = factor(month, levels = c("Dec", month.abb[1:11]))) %>% 
@@ -546,16 +547,16 @@ month_summ_table <- monthly_avgs %>%
                 columns = c(`clim_f`, `clim_c`)) %>% 
     tab_spanner(label = md("*Temperature Anomaly*"), 
                 columns = c(`anom_f`, `anom_c`)) %>% 
-  tab_spanner(label = md("*Temperature Progression*"), columns = c(`temp_list`)) %>%
+  #tab_spanner(label = md("*Temperature Progression*"), columns = c(`temp_list`)) %>%
   fmt_number(columns = c(temp_c, temp_f, clim_f, clim_c, anom_f, anom_c), decimals = 2) %>% 
-  gt_plt_sparkline(
-    temp_list, same_limit = T,fig_dim = c(8,30), 
-    palette = c(
-      "gray50",  # sparkline
-      "black",  # final value
-      gmri_cols("gmri blue"), # range color low
-      gmri_cols("orange"), # range color high
-      "black")) %>%
+  # gt_plt_sparkline(
+  #   temp_list, same_limit = T,fig_dim = c(8,30), 
+  #   palette = c(
+  #     "gray50",  # sparkline
+  #     "black",  # final value
+  #     gmri_cols("gmri blue"), # range color low
+  #     gmri_cols("orange"), # range color high
+  #     "black")) %>%
   cols_label(
       rank = "(1982-2023)",
       temp_f = "\u00b0F",
@@ -563,8 +564,9 @@ month_summ_table <- monthly_avgs %>%
       clim_f = "\u00b0F",
       clim_c = "\u00b0C",
       anom_f = "\u00b0F",
-      anom_c = "\u00b0C",
-      temp_list = "High/Low \u00b0F") %>% 
+      anom_c = "\u00b0C"#,
+      #temp_list = "High/Low \u00b0F"
+      ) %>% 
    tab_source_note(source_note = md("*Data Source: NOAA OISSTv2 Daily Sea Surface Temperature Data.*") ) %>% 
    tab_source_note(source_note = md("*Climatological Reference Period: 1991-2020.*"))
    
@@ -657,39 +659,43 @@ When looking at average `r tolower(params$season)` temperatures from the beginni
 
 # Compare warming rates
 global_rate_plot <- ggplot(glob_plot_dat) +
-  geom_line(data = filter(glob_plot_dat, region == "Gulf of Maine"), 
-            aes(yr, anom_f), 
-            color = "gray20", linetype = 3, linewidth = 0.5, alpha = 0.5) +
-  geom_point(data = filter(glob_plot_dat, region == "Gulf of Maine"), 
-            aes(yr, anom_f), 
-            color = "gray20", alpha = 0.8) +
+  geom_line(
+    data = filter(glob_plot_dat, region == "Gulf of Maine"), 
+    aes(yr, anom_f), 
+    color = "gray20", linetype = 3, linewidth = 0.5, alpha = 0.5) +
+  geom_point(
+    data = filter(glob_plot_dat, region == "Gulf of Maine"), 
+    aes(yr, anom_f), 
+    color = "gray20", alpha = 0.8) +
   # All year warming rate for GOM
-  geom_smooth(aes(yr, anom_f, color = rate), 
-              formula = y~x, 
-              linetype = 1,
-              method = "lm",
-              se = FALSE) +
-  # Annotation for Warming Rate
-  geom_mark_ellipse(aes(filter = region == "Global Oceans" & yr == 2023,
-                        x = yr, 
-                        y = anom_f,
-                        label = region), 
-                    label.colour = gmri_cols("gmri blue"),
-                    con.colour =  gmri_cols("gmri blue"),
-                    label.fill = "transparent", 
-                    color = "transparent",
-                    label.fontsize = 10) +
-  # Annotation for Warming Rate
-  geom_mark_ellipse(
-    aes(filter = region == "Gulf of Maine" & yr == 1999,
-        x = yr, 
-        y = anom_f,
-        label = region), 
-    label.colour = gmri_cols("orange"),
-    con.colour =  gmri_cols("orange"),
-    label.fill = "transparent", 
-    color = "transparent",
-    label.fontsize = 10) +
+  geom_smooth(
+    aes(yr, anom_f, color = str_c(region, " Trend\n", rate)), 
+    formula = y~x, 
+    linetype = 1,
+    method = "lm",
+    se = FALSE) +
+  # # Annotation for Warming Rate
+  # geom_mark_ellipse(
+  #   aes(filter = region == "Global Oceans" & yr == 2023,
+  #       x = yr, 
+  #       y = anom_f,
+  #       label = "Global Oceans Trend"), 
+  #   label.colour = gmri_cols("gmri blue"),
+  #   con.colour =  gmri_cols("gmri blue"),
+  #   label.fill = "transparent", 
+  #   color = "transparent",
+  #   label.fontsize = 10) +
+  # # Annotation for Warming Rate
+  # geom_mark_ellipse(
+  #   aes(filter = region == "Gulf of Maine" & yr == 2014,
+  #       x = yr, 
+  #       label = "Gulf of Maine Trend",
+  #       y = anom_f), 
+  #   label.colour = gmri_cols("orange"),
+  #   con.colour =  gmri_cols("orange"),
+  #   label.fill = "transparent", 
+  #   color = "transparent",
+  #   label.fontsize = 10) +
   scale_color_gmri() +
   # Scales
   scale_y_continuous(
@@ -699,8 +705,11 @@ global_rate_plot <- ggplot(glob_plot_dat) +
   labs(title = str_c("Gulf of Maine & Global ", params$season, " Warming Rates"),
        x = "Year",
        y = str_c("Average Temperature Anomalies\n(", season_range, ")"),
-       color = "1982-2023 Warming Rate")  +
-  theme(legend.position = c(0.2, 0.85), legend.title = element_text(face = "bold")) +
+       color = "1982-2023 Warming Rates")  +
+  guides(color = guide_legend(title.position = "top", title.hjust = 0.5, nrow = 1)) +
+  theme(
+    legend.position = c(0.35, 0.9), 
+    legend.title = element_text(face = "bold")) +
   coord_cartesian(clip = "off") +
   geom_logo(x_npc = 0.9, y_npc = -0.15, logo_height = 1, height_units = "cm")
 
@@ -810,10 +819,10 @@ Using this broadly accepted definition, **the Gulf of Maine has experienced MHW 
 hw_temp_p <- year_hw_temps_two(
   year_hw_dat = last_yr_heatwaves, 
   temp_units = "F") + 
-  labs(title = str_c(params$season, params$year, "Gulf of Maine SST", sep = " "),
-       subtitle = str_c("Temperatures through the end of ", tolower(params$season)))  +
+  labs(
+    title = str_c(params$season, params$year, "Gulf of Maine SST", sep = " "))  +
   coord_cartesian(clip = "off") +
-  geom_logo(x_npc = 0.9, y_npc = 1.2, logo_height = 1, height_units = "cm")
+  geom_logo(x_npc = 0.9, y_npc = 1.12, logo_height = 1, height_units = "cm")
 hw_temp_p
 
 
@@ -826,7 +835,7 @@ max_int <- max(floor(this_season_data$anom_f))
 Presenting SST conditions in terms of anomalies (@fig-season-anoms-rework) as opposed to absolute values (@fig-season-mhw-timeline) illustrates in greater detail the magnitude of MHW conditions throughout the `r tolower(params$season)`. The most extreme daily SST anomalies occurred in March, with temperatures exceeding `r max_int`°F above the climatological average.
 
 ```{r}
-#| label: fig-season-anoms-rework
+#| label: fig-season-anoms
 #| fig-height: 4
 #| eval: true
 #| fig-cap: "A timeseries of daily average SST anomalies in the Gulf of Maine (solid red line) compared to marine heatwave (MHW) conditions (dashed black line) in the Gulf of Maine for the period January 1, 2023 through May 31, 2023."
@@ -834,10 +843,9 @@ Presenting SST conditions in terms of anomalies (@fig-season-anoms-rework) as op
 
 # Show MHW Status Through the Year:
 hw_anom_p <- year_hw_anoms_two(year_hw_dat = last_yr_heatwaves, temp_units = "F") + 
-  labs(title = str_c(params$season, " ", params$year, " Gulf of Maine SST Anomalies"),
-       subtitle = str_c("Temperature anomalies through the end of ", tolower(params$season))) +
+  labs(title = str_c(params$season, " ", params$year, " Gulf of Maine SST Anomalies")) +
   coord_cartesian(clip = "off") +
-  geom_logo(x_npc = 0.9, y_npc = 1.2, logo_height = 1, height_units = "cm")
+  geom_logo(x_npc = 0.9, y_npc = 1.12, logo_height = 1, height_units = "cm")
 hw_anom_p
 ```
 
@@ -980,7 +988,7 @@ grid_new %>%
 
 From this view we can reveal that the transition has removed the majority of marine heatwave events, solving a communication challenge of the "year long heatwave". By adopting this new method scientists have succeeded in identifying the extreme temperature swings, but there is ongoing debate on when to apply this method, and on some of the unintended consequences of doing so. Among the concerns that scientists have voiced is that this new method retroactively changes the history of past events by accommodating all the more recent (often more extreme) conditions. This makes it difficult to preserve the significance that these events had during their own times. 
 
-A second major concern surrounds removing the "trend", and methodological choices scientists must make to achieve this. This new MHW methodology portrays this step in its simplest form, a linear trend. This structure may not be appropriate across all areas and at varying lengths of temporal coverage. The selection choices of the years to include or exclude and how best to model the observed trends create more "knobs" for practitioners to tune and with them more challenges for clarity of communication. To learn more about these tradeoffs and the discussion around Marine Heatwaves, please check out our technical report on the subject.
+A second major concern surrounds removing the "trend", and methodological choices scientists must make to achieve this. This new MHW methodology portrays this step in its simplest form, a linear trend. This structure may not be appropriate across all areas and at varying lengths of temporal coverage. The selection choices of the years to include or exclude and how best to model the observed trends create more "knobs" for practitioners to tune and with them more challenges for clarity of communication. To learn more about these trade-offs and the discussion around Marine Heatwaves, please check out our technical report on the subject.
 
 
 ## Spatial Distribution of Seasonal Anomalies
@@ -1166,10 +1174,6 @@ season_map <- ggplot() +
     alpha = 0.75,
     linewidth = 0.25,
     color = "gray20") +
-  # geom_contour(data = bathy_df, aes(x, y, z = depth),
-  #                    breaks = contours_make,
-  #                    color = "gray20", 
-  #              linewidth = 0.25) +
   geom_sf(data = new_england, fill = "gray90", linewidth = .25) +
   geom_sf(data = canada, fill = "gray90", linewidth = .25) +
   geom_sf(data = greenland, fill = "gray90", linewidth = .25) +
@@ -1206,7 +1210,7 @@ season_map <- ggplot() +
     barwidth = unit(4.5, "in"),
     frame.colour = "black",
     ticks.colour = "black")) +
-  labs(title = str_c("Seasonal Temperature Anomaly\n", params$season, ", ", params$year),
+  labs(title = str_c("Seasonal Temperature Anomaly\n", params$season, " ", params$year),
        caption = "100m & 200m contours overlaid to show topographic details.")
 
 # Show figure
