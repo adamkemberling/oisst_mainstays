@@ -82,8 +82,8 @@ poly_path <- region_paths[["apershing_gulf_of_maine"]][["shape_path"]]
 use_gmri_style_rmd()
 
 # # Fonts for plots if they worked
-# sysfonts::font_add_google("lato")
-# showtext::showtext_auto()
+sysfonts::font_add_google("Raleway")
+showtext::showtext_auto()
 # showtext::showtext_opts(dpi = 300)
 
 
@@ -320,7 +320,8 @@ gom_extent_p <- map_study_area_color(
   new_england_sf = new_england,
   canada_sf = canada,
   greenland_sf = greenland) +
-  labs(title = "Gulf of Maine Study Area")
+  labs(title = "Gulf of Maine Study Area") +
+  theme(text = element_text(family = "Raleway"))
 
 
 # Show figure
@@ -437,7 +438,7 @@ week_summ_table <- week_summaries  %>%
   select(Week, temp_f, temp_c, clim_f, clim_c, anom_f, anom_c) %>%
    gt(rowname_col = "Week") %>% 
     tab_header(
-    title = md(paste0("**Weekly Sea Surface Temperatures - ", params$season, "**")), 
+    title = md(paste0("**Weekly Averaged Sea Surface Temperatures - ", params$season, "**")), 
     subtitle = paste(month_range)) %>%
     tab_stubhead(label = md("*One-Week Period*")) %>% 
     tab_spanner(
@@ -461,7 +462,10 @@ week_summ_table <- week_summaries  %>%
       anom_f = "\u00b0F",
       anom_c = "\u00b0C") %>% 
     tab_source_note(source_note = md("*Data Source: NOAA OISSTv2 Daily Sea Surface Temperature Data.*") ) %>% 
-    tab_source_note(md("*Climatological Reference Period: 1991-2020.*"))
+    tab_source_note(md("*Climatological Reference Period: 1991-2020.*")) %>% 
+   opt_table_font(
+    font = list(google_font(name = "Raleway"))
+    )
 
 
 # # Display Table
@@ -533,11 +537,10 @@ month_summ_table <- monthly_avgs %>%
   select(-c(yr, outcomes)) %>% 
   select(-c(temp_list)) %>% 
   relocate(rank, .before = temp_c) %>% 
-  #rename(`Month Ranking` = rank) %>% 
   mutate(month = factor(month, levels = c("Dec", month.abb[1:11]))) %>% 
   gt(rowname_col = 'month') %>% 
   tab_header(
-    title = md(paste0("**Monthly Sea Surface Temperatures - ", params$season, "**")), 
+    title = md(paste0("**Monthly-Averaged Sea Surface Temperatures - ", params$season, "**")), 
     subtitle = paste(month_range)) %>%
   tab_stubhead(label = md(""))  %>% 
   tab_spanner(label = md("*All-Year Rank*"), columns = c(rank)) %>% 
@@ -547,16 +550,7 @@ month_summ_table <- monthly_avgs %>%
                 columns = c(`clim_f`, `clim_c`)) %>% 
     tab_spanner(label = md("*Temperature Anomaly*"), 
                 columns = c(`anom_f`, `anom_c`)) %>% 
-  #tab_spanner(label = md("*Temperature Progression*"), columns = c(`temp_list`)) %>%
   fmt_number(columns = c(temp_c, temp_f, clim_f, clim_c, anom_f, anom_c), decimals = 2) %>% 
-  # gt_plt_sparkline(
-  #   temp_list, same_limit = T,fig_dim = c(8,30), 
-  #   palette = c(
-  #     "gray50",  # sparkline
-  #     "black",  # final value
-  #     gmri_cols("gmri blue"), # range color low
-  #     gmri_cols("orange"), # range color high
-  #     "black")) %>%
   cols_label(
       rank = "(1982-2023)",
       temp_f = "\u00b0F",
@@ -568,12 +562,16 @@ month_summ_table <- monthly_avgs %>%
       #temp_list = "High/Low \u00b0F"
       ) %>% 
    tab_source_note(source_note = md("*Data Source: NOAA OISSTv2 Daily Sea Surface Temperature Data.*") ) %>% 
-   tab_source_note(source_note = md("*Climatological Reference Period: 1991-2020.*"))
+   tab_source_note(source_note = md("*Climatological Reference Period: 1991-2020.*")) %>% 
+  opt_table_font(
+    font = list(google_font(name = "Raleway"))
+    )
    
 
 
 # # Display Table
 month_summ_table
+
 
 ```
 
@@ -708,6 +706,7 @@ global_rate_plot <- ggplot(glob_plot_dat) +
        color = "1982-2023 Warming Rates")  +
   guides(color = guide_legend(title.position = "top", title.hjust = 0.5, nrow = 1)) +
   theme(
+    text = element_text(family = "Raleway"),
     legend.position = c(0.35, 0.9), 
     legend.title = element_text(face = "bold")) +
   coord_cartesian(clip = "off") +
@@ -761,15 +760,17 @@ temp_rankings_p <- seasonal_ranks %>%
        y = "",
        caption = "",
        title = str_c("Warmest ", params$season, " Temperature Anomalies in the Gulf of Maine")) +
-  theme(plot.title = element_text(face = "bold", size = 14, hjust = 0),
-        legend.position = "none", 
-        panel.grid.major.y = element_blank(),
-        panel.grid.minor.y = element_blank(),
-        panel.grid.minor.x = element_blank(),
-        axis.text.y = element_blank(),
-        axis.title.x = element_text(hjust = 1, face = "bold"),
-        axis.ticks.y = element_blank(),
-        plot.margin = margin(t = 20, l = 10, r = 5, b = 5)) +
+  theme(
+    text = element_text(family = "Raleway"),
+    plot.title = element_text(face = "bold", size = 14, hjust = 0),
+    legend.position = "none", 
+    panel.grid.major.y = element_blank(),
+    panel.grid.minor.y = element_blank(),
+    panel.grid.minor.x = element_blank(),
+    axis.text.y = element_blank(),
+    axis.title.x = element_text(hjust = 1, face = "bold"),
+    axis.ticks.y = element_blank(),
+    plot.margin = margin(t = 20, l = 10, r = 5, b = 5)) +
   coord_cartesian(clip = "off") +
   geom_logo(x_npc = 0.1, y_npc = -0.18, logo_height = 1, height_units = "cm")
 
@@ -832,7 +833,7 @@ max_int <- max(floor(this_season_data$anom_f))
 
 ```
 
-Presenting SST conditions in terms of anomalies (@fig-season-anoms-rework) as opposed to absolute values (@fig-season-mhw-timeline) illustrates in greater detail the magnitude of MHW conditions throughout the `r tolower(params$season)`. The most extreme daily SST anomalies occurred in March, with temperatures exceeding `r max_int`°F above the climatological average.
+Presenting SST conditions in terms of anomalies (@fig-season-anoms) as opposed to absolute values (@fig-season-mhw-timeline) illustrates in greater detail the magnitude of MHW conditions throughout the `r tolower(params$season)`. The most extreme daily SST anomalies occurred in March, with temperatures exceeding `r max_int`°F above the climatological average.
 
 ```{r}
 #| label: fig-season-anoms
@@ -875,9 +876,11 @@ heatmap_p <- grid_dat %>%
   labs(title = "Gulf of Maine Heatwave Record",
        y = "Year",
        x = "Month") +
-  theme(legend.position = "bottom",
-        legend.title = element_text(angle = 0),
-        plot.margin = margin(b = 0, t = 20)) +
+  theme(
+    text = element_text(family = "Raleway"),
+    legend.position = "bottom",
+    legend.title = element_text(angle = 0),
+    plot.margin = margin(b = 0, t = 20)) +
   guides(fill = guide_colorbar(
     title = "Sea Surface Temperature Anomaly",
     title.position = "top", 
@@ -926,9 +929,11 @@ grid_old %>%
        x = "Month",
        title = NULL,
        caption = "") +
-  theme(legend.position = "bottom",
-        legend.title = element_text(angle = 0),
-        plot.margin = margin(b = 0, t = 20)) +
+  theme(
+    text = element_text(family = "Raleway"),
+    legend.position = "bottom",
+    legend.title = element_text(angle = 0),
+    plot.margin = margin(b = 0, t = 20)) +
   facet_wrap(~clim_ref) + 
   guides(fill = guide_colorbar(
     title = "Sea Surface Temperature Anomaly",
@@ -971,9 +976,11 @@ grid_new %>%
        x = "Month",
        title = NULL,
        caption = "") +
-  theme(legend.position = "bottom",
-        legend.title = element_text(angle = 0),
-        plot.margin = margin(b = 0, t = 20)) +
+  theme(
+    text = element_text(family = "Raleway"),
+    legend.position = "bottom",
+    legend.title = element_text(angle = 0),
+    plot.margin = margin(b = 0, t = 20)) +
   facet_wrap(~clim_ref) + 
   guides(fill = guide_colorbar(
     title = "Sea Surface Temperature Anomaly",
@@ -1199,7 +1206,9 @@ season_map <- ggplot() +
                        breaks = temp_breaks,
                        labels = temp_labels,
                        oob = scales::oob_squish) +
-  map_theme(legend.position = "bottom") +
+  map_theme(
+    text = element_text(family = "Raleway"),
+    legend.position = "bottom") +
   coord_sf(xlim = crop_x, 
            ylim = crop_y, 
            expand = F) +
@@ -1269,6 +1278,7 @@ monthly_maps <- (
     month_plots[[3]]) + 
   plot_layout(guides = "collect")  & 
   theme(
+    text = element_text(family = "Raleway"),
     legend.position = 'bottom', 
     plot.margin = margin(t = 0, b = 0, r = 0.5, l = 0.5)) 
 
@@ -1315,11 +1325,17 @@ if(params$save_figures){
   # Weekly Report Table
   gtsave(data = week_summ_table, 
          filename = str_c(update_folder, "weekly_summary_table.png"))
+  # Monthly Report Table html
+  gtsave(data = month_summ_table, 
+         filename = str_c(update_folder, "monthly_summary_table.html"))
   
   
   # Monthly Report Table
   gtsave(data = month_summ_table, 
          filename = str_c(update_folder, "monthly_summary_table.png"))
+  # Monthly Report Table html
+  gtsave(data = month_summ_table, 
+         filename = str_c(update_folder, "monthly_summary_table.html"))
   
   
   # # Seasonal Temperature Plot
