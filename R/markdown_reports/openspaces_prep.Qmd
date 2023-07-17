@@ -17,18 +17,19 @@ format:
     toc-depth: 2
     df-print: kable
     self-contained: true
+execute: 
+  echo: true
+  warning: false
+  message: false
+  comment: ""
+  fig.align: center
+  fig.height: 6
+  fig.width: 8
 editor: source
 ---
 
 ```{r setup, include=FALSE}
 # knitr options
-knitr::opts_chunk$set(echo = TRUE, 
-                      message = F, 
-                      warning = F, 
-                      comment = "", 
-                      fig.align = "center", 
-                      fig.height = 6, 
-                      fig.width = 8)
 
 ####  Packages  ####
 library(lubridate)
@@ -406,11 +407,11 @@ plot(bsb_prefs$X2000s,
 ### Sea Bass 2010's
 
 ```{r}
-plot(bsb_prefs$X2010s, 
-     main = "2010's Black Sea Bass Thermal Preference", 
-     col = terrain.colors(14, rev = T), 
-     xlim = c(-78, -63), 
-     ylim = c(35.5,46))
+# plot(bsb_prefs$X2010s, 
+#      main = "2010's Black Sea Bass Thermal Preference", 
+#      col = terrain.colors(14, rev = T), 
+#      xlim = c(-78, -63), 
+#      ylim = c(35.5,46))
 
 
 ggplot() +
@@ -442,6 +443,9 @@ ggplot() +
       ticks.colour = "black")) +
     labs(title = "Black Sea Bass Habitat\n2010's")
 ```
+
+
+
 
 
  
@@ -493,11 +497,175 @@ plot(lob_prefs$X2000s,
 ### Lobster 2010's
 
 ```{r}
-plot(lob_prefs$X2010s, 
-     main = "2010's Lobster Thermal Preference", 
-     col = terrain.colors(14, rev = T), 
-     xlim = c(-75.25, -60), 
-     ylim = c(37.5,48))
+# plot(lob_prefs$X2010s, 
+#      main = "2010's Lobster Thermal Preference", 
+#      col = terrain.colors(14, rev = T), 
+#      xlim = c(-75.25, -60), 
+#      ylim = c(37.5,48))
+
+
+ggplot() +
+  geom_stars(data = st_as_stars(lob_prefs$X2010s)) +
+  geom_sf(data = new_england, fill = "gray90", linewidth = .25) +
+    geom_sf(data = canada, fill = "gray90", linewidth = .25) +
+    geom_sf(data = greenland, fill = "gray90", linewidth = .25) +
+  scale_fill_distiller(
+    palette = "YlGnBu", 
+    na.value = "transparent", 
+    limit = c(0, 1), 
+    direction = 1,
+    oob = scales::oob_censor,
+    breaks = c(0.15, 0.85), 
+    labels = c("Not Suitable", "Preferred")) +
+    map_theme(
+      title = element_text(hjust = 0.5, size = 8),
+      axis.text = element_text(size = 6),
+      legend.position = "bottom") +
+    coord_sf(xlim = c(-75.5, -64), 
+             ylim = c(38, 45), 
+             expand = F) +
+    guides("fill" = guide_colorbar(
+      title = "Temperature Preference",
+      title.position = "top",
+      title.hjust = 0.5,
+      barwidth = unit(3.5, "in"),
+      frame.colour = "black",
+      ticks.colour = "black")) +
+    labs(title = "Lobster Thermal Habitat\n2010's")
+```
+
+## Both Species {.tabset .tabset-pills}
+
+### 1990's Both
+
+```{r}
+# Leaflet Versions
+library(leaflet)
+library(leaflet.extras)
+library(htmltools)
+
+
+# Lobster Preference
+r <- lob_prefs$X1990s
+# BSB Preference
+r2 <- bsb_prefs$X1990s
+
+
+r[r<0.1] <- NA
+pal <- colorNumeric(
+  #rev(c("#0C2C84", "#41B6C4", "#FFFFCC")),
+  #palette = "PuRd",
+  palette = "Reds",
+  values(r),
+  na.color = "transparent")
+
+
+r2[r2<0.1] <- NA
+pal2 <- colorNumeric(
+  palette = "Greens",
+  #c("#0C2C84", "#41B6C4", "#FFFFCC"), 
+  values(r2),
+  na.color = "transparent")
+
+
+# Make a map
+leaflet(options = leafletOptions(zoomControl = FALSE)) %>% 
+  addProviderTiles('Esri.WorldImagery') %>% 
+  setView(-68.4, 42, zoom = 6) %>% 
+  addRasterImage(
+    r, 
+    colors = pal, 
+    opacity = 0.7) %>%
+  addRasterImage(
+    r2,
+    colors = pal2,
+    opacity = 0.7) %>% 
+  addLabelOnlyMarkers(
+    lng = -68.8, 
+    lat = 43.1, 
+    label = "Lobster Thermal Habitat", 
+    labelOptions = labelOptions(
+      noHide = T, 
+      style = list(
+        "color" = "gray50",
+        "font-family" = "serif",
+        "font-style" = "bold",
+        "font-size" = "12px"))) %>% 
+  addLabelOnlyMarkers(
+    lng = -72.5, 
+    lat = 39.6, 
+    label = "Black Sea Bass Thermal Habitat", 
+    labelOptions = labelOptions(
+      noHide = T, 
+      style = list(
+        "color" = "gray50",
+        "font-family" = "serif",
+        "font-style" = "bold",
+        "font-size" = "12px"))) 
+```
+
+
+### 2010's Both
+
+```{r}
+
+# Lobster Preference
+r <- lob_prefs$X2010s
+# BSB Preference
+r2 <- bsb_prefs$X2010s
+
+
+r[r<0.1] <- NA
+pal <- colorNumeric(
+  #rev(c("#0C2C84", "#41B6C4", "#FFFFCC")),
+  #palette = "PuRd",
+  palette = "Reds",
+  values(r),
+  na.color = "transparent")
+
+
+r2[r2<0.1] <- NA
+pal2 <- colorNumeric(
+  palette = "Greens",
+  #c("#0C2C84", "#41B6C4", "#FFFFCC"), 
+  values(r2),
+  na.color = "transparent")
+
+
+# Make a map
+leaflet(options = leafletOptions(zoomControl = FALSE)) %>% 
+  addProviderTiles('Esri.WorldImagery') %>% 
+  setView(-68.4, 42, zoom = 6) %>% 
+  addRasterImage(
+    r, 
+    colors = pal, 
+    opacity = 0.7) %>%
+  addRasterImage(
+    r2,
+    colors = pal2,
+    opacity = 0.7) %>% 
+  addLabelOnlyMarkers(
+    lng = -68.8, 
+    lat = 43.1, 
+    label = "Lobster Thermal Habitat", 
+    labelOptions = labelOptions(
+      noHide = T, 
+      style = list(
+        "color" = "gray50",
+        "font-family" = "serif",
+        "font-style" = "bold",
+        "font-size" = "12px"))) %>% 
+  addLabelOnlyMarkers(
+    lng = -72.5, 
+    lat = 39.6, 
+    label = "Black Sea Bass Thermal Habitat", 
+    labelOptions = labelOptions(
+      noHide = T, 
+      style = list(
+        "color" = "gray50",
+        "font-family" = "serif",
+        "font-style" = "bold",
+        "font-size" = "12px"))) 
 ```
 
  
@@ -621,11 +789,11 @@ As a starting point for testing, each file was exported as a geotiff file using 
 
 
 ```{r}
-# Save a geotiff
-iwalk(tiff_list, function(x, y){
-  writeRaster(x, filename = str_c(out_location, "/", y, ".tif"), options=c('TFW=YES'), overwrite = TRUE)
-  message(str_c("Saving geoTiff: ", y))
-})
+# # Save a geotiff
+# iwalk(tiff_list, function(x, y){
+#   writeRaster(x, filename = str_c(out_location, "/", y, ".tif"), options=c('TFW=YES'), overwrite = TRUE)
+#   message(str_c("Saving geoTiff: ", y))
+# })
 
 ```
 
@@ -637,30 +805,30 @@ For the openspaces images we want the rasters to be multi-band color tiffs, not 
 
 
 
+```{r, eval = FALSE}
+#```{python}
 
-```{python, eval = FALSE}
-
-# Load rasterio
-import rasterio as rio
-import os
-
-
-# Check directory:
-os. getcwd()
-
-# Load one of the fiff files
-input_Dir = 'R/markdown_reports/generated_46.tif'
-src = rasterio.open(input_Dir)
-show(src,cmap="magma")
-
-
-# Set Color Levels
-levels = [0, 0.01, 0.02, 0.04, 0.8, 1, 2, 4, 7, 17, 70, 500]
-    clrs = ['#E3E8E81A','#3DFDFF8C', '#3CFAFF', '#6A95FF', '#E61AFE8C', '#FF04FF', '#f4ded9', '#f4dbaa', '#eda14f', '#e87511', '#b55400', '#633b11']
-    
-cmap, norm = colors.from_levels_and_colors(levels, clrs,extend='max')
-
-show(src,cmap=cmap,norm=norm,interpolation='bilinear')
+# # Load rasterio
+# import rasterio as rio
+# import os
+# 
+# 
+# # Check directory:
+# os. getcwd()
+# 
+# # Load one of the fiff files
+# input_Dir = 'R/markdown_reports/generated_46.tif'
+# src = rasterio.open(input_Dir)
+# show(src,cmap="magma")
+# 
+# 
+# # Set Color Levels
+# levels = [0, 0.01, 0.02, 0.04, 0.8, 1, 2, 4, 7, 17, 70, 500]
+#     clrs = ['#E3E8E81A','#3DFDFF8C', '#3CFAFF', '#6A95FF', '#E61AFE8C', '#FF04FF', '#f4ded9', '#f4dbaa', '#eda14f', '#e87511', '#b55400', '#633b11']
+#     
+# cmap, norm = colors.from_levels_and_colors(levels, clrs,extend='max')
+# 
+# show(src,cmap=cmap,norm=norm,interpolation='bilinear')
 
 
 ```

@@ -1,0 +1,704 @@
+---
+title: "GRC Poster Image Preparation"
+author: "Adam Kemberling"
+url: "https://github.com/adamkemberling"
+affiliation: "Gulf of Maine Research Institute"
+affiliation_url: "https://www.gmri.org"
+description: | 
+  Figure Preparation for Gordon Research Conference 2023
+date: "Updated on: `r Sys.Date()`"
+format: 
+  html:
+    toc: true
+    self-contained: true
+execute: 
+  echo: false
+  warning: false
+  message: false
+  comment: ""
+  fig.align: center
+  fig.width: 6
+  fig.height: 5
+---
+
+```{r}
+#| label: packages
+#| include: false
+#| echo: false
+#| warning: false
+
+####  Packages  ####
+library(lubridate)
+library(raster)
+library(here)
+library(rnaturalearth)
+library(scales)
+library(sf)
+library(stars)
+library(gmRi)
+library(heatwaveR)
+library(gt)
+library(gtExtras)
+library(patchwork)
+library(tidyverse)
+library(ggforce)
+library(geomtextpath)
+
+# Support Functions
+source(here("R/oisst_support_funs.R"), verbose = FALSE)
+source(here("R/temp_report_support.R"), verbose = FALSE)
+
+# # Fonts for plots if they worked
+sysfonts::font_add_google("Raleway")
+showtext::showtext_auto()
+
+# Box paths
+oisst_path <- cs_path("res", "OISST/oisst_mainstays")
+
+# Polygons for mapping
+new_england <- ne_states("united states of america", returnclass = "sf")
+canada      <- ne_states("canada", returnclass = "sf")
+world_sf    <- ne_countries(returnclass = "sf")
+greenland   <- ne_states(country = "greenland", returnclass = "sf")
+
+
+# File paths for various extents based on "apershing_gulf_of_maine"
+region_paths <- get_timeseries_paths(region_group = "gmri_sst_focal_areas", 
+                                     box_location = "cloudstorage")
+
+# Polygon Path
+poly_path <- region_paths[["apershing_gulf_of_maine"]][["shape_path"]]
+
+
+```
+
+```{r}
+# Set ggplot theme for figures
+theme_set(
+  theme_bw() + 
+    theme(
+      # Titles
+      plot.title = element_text(hjust = 0, face = "bold", size = 14),
+      plot.subtitle = element_text(size = 9),
+      plot.caption = element_text(size = 8, margin = margin(t = 20), color = "gray40"),
+      plot.margin = unit(c(1, 1, 1, 1), "cm"),
+      legend.title = element_text(size = 9),
+      legend.text = element_text(size = 9),
+      # Axes
+      axis.line.y = element_line(color = "black"),
+      axis.ticks.y = element_line(), 
+      axis.line.x = element_line(color = "black"),
+      axis.ticks.x = element_line(), 
+      axis.text = element_text(size = 11),
+      axis.title = element_text(size = 12),
+      rect = element_rect(fill = "transparent", color = "black"),
+      # Facets
+      strip.text = element_text(
+        color = "white", 
+        face = "bold",
+        size = 14),
+      strip.background = element_rect(
+        color = "#00736D", 
+        fill = "#00736D", 
+        linewidth = 1.1, 
+        linetype="solid")
+      )
+  )
+```
+
+
+# Figure 1: Anomaly Map
+
+This can be taken from the seasonal report, not critical to re-do one.
+
+# Figure 2: Seasonal Climatology
+
+This would be good to re-do with a legend and a little more pop.
+
+```{r}
+#| label: gom-sst-load
+
+# Timeseries Path +
+timeseries_path <- region_paths[["apershing_gulf_of_maine"]][["timeseries_path"]]
+
+# Read timeseries of SST for Region
+region_timeseries <- read_csv(
+  timeseries_path, 
+  col_types = cols(), 
+  guess_max = 1e5) 
+
+
+# Format timeseries for group estimates
+region_timeseries <- region_timeseries %>% 
+  mutate(
+    time = as.Date(time),
+    area_wtd_f = as_fahrenheit(area_wtd_sst),
+    anom_f     = as_fahrenheit(area_wtd_anom, "anomalies")) %>% 
+  distinct(time, .keep_all = T) %>% 
+  supplement_season_info() %>% 
+  filter(year %in% c(1982:2022))
+
+
+
+####  Get heatwave statuses for each day:
+
+# Uses area weighted sst by default
+region_hw <- pull_heatwave_events(
+  temperature_timeseries = region_timeseries,
+  threshold = 90, 
+  clim_ref_period = c("1991-01-01", "2020-12-31")) %>% 
+  supplement_hw_data() %>% 
+  filter(doy != 366) # remove dates past the seasonal update
+
+```
+
+
+```{r}
+# Separate the Climatology (1991-2020 climate)
+just_climate <- region_hw %>% 
+  distinct(doy, .keep_all = T) %>% 
+  select(doy, time, seas,mhw_thresh, mcs_thresh) %>% 
+  pivot_longer(cols = c(seas, mhw_thresh, mcs_thresh), names_to = "line", values_to = "temp") %>% 
+  mutate(
+    labs = case_when(
+      line == "mcs_thresh" ~ "10th Percentile", 
+      line == "mhw_thresh" ~ "90th Percentile", 
+      line == "seas" ~ "30-Year Average" 
+    ),
+    lab_hjust = case_when(
+      line == "mcs_thresh" ~ 0.15, 
+      line == "mhw_thresh" ~ 0.85, 
+      line == "seas" ~ 0.5
+    )
+  )
+
+
+# Text DF
+text_df <-
+  data.frame(
+    "time" = as.Date(c("1983-03-15", "1982-08-25")),
+    "temp" = c(15, 5),
+    "txt" = c(
+      "Extreme Heat\nConditions",
+      "Extreme Cool\nConditions"
+    )
+  )
+
+
+
+# Make the Figure, title/label correctly
+just_climate %>% 
+  ggplot(aes(time, temp)) +
+  geom_ribbon(
+    data = filter(just_climate, line == "mhw_thresh"),
+    aes(ymin = temp, ymax = Inf),
+    fill = "#ef8a62", alpha = 0.7
+  ) +
+  geom_ribbon(
+    data = filter(just_climate, line == "mcs_thresh"),
+    aes(ymax = temp, ymin = -Inf),
+    fill = "#67a9cf", alpha = 0.7) +
+  geom_labelline(aes(group = line, label = labs, hjust = I(lab_hjust)), 
+                 size = 5, fontface = "bold", 
+                 linecolor = "transparent", color = "transparent") +
+  geom_textline(aes(group = line, label = labs, hjust = I(lab_hjust)), size = 5, fontface = "bold", linewidth = 1) +
+  geom_text(data = text_df, aes(time, temp, label = txt), size = 9, fontface = "bold", color = "white") +
+  scale_x_date(
+    date_labels = "%b", 
+    date_breaks = "1 month", 
+    expand = expansion(add = c(0,0)),
+    limits = as.Date(c("1982-01-01", "1982-12-31"))) +
+  scale_y_continuous(labels = number_format(suffix = deg_c)) +
+  labs(x = "Day of Year",
+       y = "Sea Surface Temperature",
+       title = "1991-2020 Climatological Reference")
+
+```
+
+
+
+
+# Figures 3-5 
+
+For these I think we could better emphasize the thresholds by making values within them pop more, and make the daily temps more faded. The legend could be done well once for all of them. Ribbon text should be more clear
+
+
+
+```{r}
+# Fixed Baselines
+fixed_82 <- pull_heatwave_events(region_timeseries) %>% 
+  supplement_hw_data() %>% 
+  filter(doy != 366)  %>% 
+  mutate(year = year(time),
+         yday = yday(time),
+         yr_rev = factor(year),
+         yr_rev = fct_rev(yr_rev),
+         flat_date = as.Date("2000-01-01") + yday - 1)
+
+# 91-2020
+fixed_91 <- pull_heatwave_events(region_timeseries, clim_ref_period = c("1991-01-01", "2020-12-31")) %>% 
+  supplement_hw_data() %>% 
+  filter(doy != 366)  %>% 
+  mutate(year = year(time),
+         yday = yday(time),
+         yr_rev = factor(year),
+         yr_rev = fct_rev(yr_rev),
+         flat_date = as.Date("2000-01-01") + yday - 1)
+
+#  Detrended 92-2020
+detrended_full <- pull_heatwave_events(region_timeseries, 
+                                     clim_ref_period = c("1982-01-01", "2022-12-31"), 
+                                     detrend = TRUE) %>% 
+  supplement_hw_data() %>% 
+  filter(doy != 366)  %>% 
+  mutate(year = year(time),
+         yday = yday(time),
+         yr_rev = factor(year),
+         yr_rev = fct_rev(yr_rev),
+         flat_date = as.Date("2000-01-01") + yday - 1)
+```
+
+
+```{r}
+# How many days for each in 2021
+fixed_82 %>% filter(yr == 2021) %>% 
+  pull(mhw_event) %>% sum()
+
+fixed_91 %>% filter(yr == 2021) %>% 
+  pull(mhw_event) %>% sum()
+
+detrended_full %>% filter(yr == 2021) %>% 
+  pull(mhw_event) %>% sum()
+
+
+# Most of any year?
+fixed_82 %>% 
+  group_by(yr) %>% 
+  summarise(tot_hw = sum(mhw_event)) %>% 
+  arrange(desc(tot_hw))
+
+fixed_91 %>% 
+  group_by(yr) %>% 
+  summarise(tot_hw = sum(mhw_event)) %>% 
+  arrange(desc(tot_hw))
+
+detrended_full %>% 
+  group_by(yr) %>% 
+  summarise(tot_hw = sum(mhw_event)) %>% 
+  arrange(desc(tot_hw))
+```
+
+
+
+::: {.panel-tabset}
+
+
+### Fig 3
+```{r}
+
+# Text DF
+anom_text_df <-
+  data.frame(
+    "time" = as.Date(c("1991-01-1", "2014-01-01")),
+    "temp" = c(2.5, -2.5),
+    "txt" = c(
+      "Extreme Heat",
+      "Extreme Cool"
+    )
+  )
+
+```
+
+
+
+```{r}
+
+(f3 <- fixed_82  %>% 
+  ggplot(aes(time, sst_anom)) +
+  geom_ribbon(
+    aes(x = time, ymax = mhw_thresh-seas, ymin = Inf),
+    fill = "#ef8a62", alpha = 0.7) +
+  geom_ribbon(
+    aes(x = time, ymax = mcs_thresh-seas, ymin = -Inf),
+    fill = "#67a9cf", alpha = 0.7) +
+  geom_path(aes(color = status, alpha = status), linewidth = 0.5, group = 1, key_glyph = "timeseries") +
+  scale_color_manual(values = c( gmri_cols("gmri blue")[[1]], gmri_cols("orange")[[1]],  "gray70")) +
+  scale_alpha_manual(values = c(1, 1, 0.2)) +
+  geom_text(data = anom_text_df, aes(time, temp, label = txt), size = 9, fontface = "bold", color = "white") +
+  scale_x_date(
+    date_labels = "%Y", 
+    date_breaks = "5 year", 
+    expand = expansion(add = c(0,0))) +
+  scale_y_continuous(labels = number_format(suffix = deg_c),
+                     limits = c(-3, 3)) +
+  theme(legend.position = "none") +
+  # guides(color = guide_legend(nrow = 1)) +
+  # guides(alpha = "none") +
+  labs(
+    x = NULL, 
+    y = "Difference From Baseline", 
+    color = NULL,
+    title = "Fixed Reference Point - 1982-2011")
+ )
+
+# ggsave(
+#   f3, 
+#   filename = here::here("local_data/GRC_images/historic_baseline.png"),
+#   dpi = 300,
+#   height = unit(4, "in"),
+#   width = unit(6, "in"))
+
+```
+
+
+
+### Fig 4
+
+```{r}
+fixed_91  %>% 
+  ggplot(aes(time, sst_anom)) +
+  geom_ribbon(
+    aes(x = time, ymax = mhw_thresh-seas, ymin = Inf),
+    fill = "#ef8a62", alpha = 0.7) +
+  geom_ribbon(
+    aes(x = time, ymax = mcs_thresh-seas, ymin = -Inf),
+    fill = "#67a9cf", alpha = 0.7) +
+  geom_path(aes(color = status, alpha = status), linewidth = 0.5, group = 1) +
+  scale_color_manual(values = c( gmri_cols("gmri blue")[[1]], gmri_cols("orange")[[1]],  "gray70")) +
+  scale_alpha_manual(values = c(1, 1, 0.2)) +
+  geom_text(data = anom_text_df, aes(time, temp, label = txt), size = 9, fontface = "bold", color = "white") +
+  scale_x_date(
+    date_labels = "%Y", 
+    date_breaks = "5 year", 
+    expand = expansion(add = c(0,0))) +
+  scale_y_continuous(labels = number_format(suffix = deg_c),
+                     limits = c(-3, 3)) +
+  theme(legend.position = "none") +
+  guides(color = guide_legend(nrow = 1)) +
+  guides(alpha = "none") +
+  labs(
+    title ="Fixed Reference Point - 1991-2020",
+    x = NULL, 
+    y = "Difference From Baseline", 
+    color = NULL)
+```
+
+
+
+### Fig 5
+
+```{r}
+
+detrended_full %>% 
+  ggplot(aes(time, sst_anom)) +
+  geom_ribbon(
+    aes(x = time, ymax = mhw_thresh-seas+trend_pred, ymin = Inf),
+    fill = "#ef8a62", alpha = 0.7) +
+  geom_ribbon(
+    aes(x = time, ymax = mcs_thresh-seas+trend_pred, ymin = -Inf),
+    fill = "#67a9cf", alpha = 0.7) +
+  geom_path(aes(color = status, alpha = status), linewidth = 0.5, group = 1) +
+  scale_color_manual(values = c( gmri_cols("gmri blue")[[1]], gmri_cols("orange")[[1]],  "gray70")) +
+  scale_alpha_manual(values = c(1, 1, 0.2)) +
+  geom_text(data = anom_text_df, aes(time, temp, label = txt), size = 9, fontface = "bold", color = "white") +
+  scale_x_date(
+    date_labels = "%Y", 
+    date_breaks = "5 year", 
+    expand = expansion(add = c(0,0))) +
+  scale_y_continuous(labels = number_format(suffix = deg_c),
+                     limits = c(-3, 3)) +
+  theme(legend.position = "none") +
+  guides(color = guide_legend(nrow = 1)) +
+  guides(alpha = "none") +
+  labs(
+    title = "Adaptive Reference Point - Adjust for Long-Term Trend",
+    x = NULL, 
+    y = "Difference From Baseline", 
+    color = NULL)
+```
+
+
+:::
+# Figure 6
+
+Map of two different heatwave results, from the different methods
+
+```{r}
+#Raster Pieces
+
+
+ 
+
+
+# Actual SST for the GOM
+
+# Use 2021 Data
+event_sst <- stack(
+  str_c(oisst_path, "mhw_thresholds/1991to2020_mhw_events.nc"), 
+  varname = "sst")
+
+# Pick a Day
+event_i <- event_sst$X2021.08.12.00.00.00
+rm(event_sst)
+
+# Here are events from 91-2020 climatology
+static_events <- stack(
+  str_c(oisst_path, "mhw_thresholds/1991to2020_mhw_events.nc"), 
+  varname = "is_hw")
+
+# Pick a day
+static_i <- static_events$X2021.08.12.00.00.00
+rm(static_events)
+
+# the detrended binary results from 1982-2020
+jacox_events <- stack(
+  str_c(oisst_path, "jacox_events/nw_atlantic_82to22.nc"), 
+  varname = "is_hw")
+
+# Pick the same day
+jacox_i <- jacox_events$X2021.08.12.00.00.00
+rm(jacox_events)
+
+
+
+####  Workflow
+
+# Identifying what raster cells are T for both methods
+both_events <- static_i | jacox_i
+
+
+# Use stars package to process things
+
+# Rotate
+event_i <- rotate(event_i)
+static_i <- rotate(static_i)
+jacox_i <- rotate(jacox_i)
+
+# Do an NA mask option, 
+# Make events NA so we can use it as a windowwhere there is missing 
+static_mask <- setNames(static_i, "static_mask")
+static_mask[static_mask == 0] <- NA
+static_mask <- st_as_stars(static_mask)
+jacox_mask <- setNames(jacox_i, "jacox_mask")
+jacox_mask[jacox_i == 0] <- NA
+jacox_mask <- st_as_stars(jacox_mask)
+
+# Make the seasonal average a stars class to plot with ggplot
+sst_stars <- st_as_stars(setNames(event_i, "sst"))
+static_stars <- st_as_stars(setNames(static_i, "static"))
+jacox_stars <- st_as_stars(setNames(jacox_i, "jacox"))
+
+
+# Put them together
+stars_set <- c(sst_stars, static_stars, static_mask, jacox_stars, jacox_mask)
+#stars_set
+
+# How the F do we want to display these?
+library(rcartocolor)
+
+#### 1. Map the Anomalies in Space
+#event_map <- 
+ggplot() +
+  geom_stars(data = stars_set["sst"]) +
+  geom_sf(data = new_england, fill = "gray90", linewidth = .25) +
+  geom_sf(data = canada, fill = "gray90", linewidth = .25) +
+  geom_sf(data = greenland, fill = "gray90", linewidth = .25) +
+  scale_fill_carto_c(
+    palette = "BluYl",
+    direction = -1,
+    na.value = "transparent") +
+  coord_sf(
+    xlim = c(-74, -61), 
+    ylim = c(41, 45.25), 
+    expand = F) +
+  map_theme(legend.position = "none")
+
+# Palette colors from Sunset Dark
+#"#FCDE9C" "#F89872" "#EC666D" "#DF4273" "#C5287B" "#7C1D6F"
+
+# Just Static Style
+modern_map <- ggplot() +
+  geom_stars(
+    data = stars_set["static_mask"], #alpha = 0.5, 
+    color = "transparent") +
+  geom_sf(data = new_england, fill = "gray90", linewidth = .25) +
+  geom_sf(data = canada, fill = "gray90", linewidth = .25) +
+  geom_sf(data = greenland, fill = "gray90", linewidth = .25) +
+  scale_fill_carto_c(
+    palette = "BurgYl",
+    na.value = "transparent") +
+  coord_sf(
+    xlim = c(-74.8, -61), 
+    ylim = c(40.8, 44.6), 
+    expand = F) +
+  scale_y_continuous(breaks = seq(-90, 90, 2)) +
+  map_theme(legend.position = "none") +
+  labs(title = "Modern Baseline MHW")  +
+  theme(plot.margin = margin(t = 0, b = 1, l = 0, r = 0),
+        axis.text.x = element_blank(),
+        axis.ticks.x = element_blank())
+
+# Just Jacox Style
+jacox_map <- ggplot() +
+  geom_stars(
+    data = stars_set["jacox_mask"], #alpha = 0.5, 
+    color = "transparent") +
+  geom_sf(data = new_england, fill = "gray90", linewidth = .25) +
+  geom_sf(data = canada, fill = "gray90", linewidth = .25) +
+  geom_sf(data = greenland, fill = "gray90", linewidth = .25) +
+  scale_fill_carto_c(
+    name = "Adaptive Events",
+    palette = "SunsetDark",
+    na.value = "transparent") +
+  coord_sf(
+    xlim = c(-74.8, -61), 
+    ylim = c(40.8, 44.6), 
+    expand = F) +
+  scale_y_continuous(breaks = seq(-90, 90, 2)) +
+  map_theme(legend.position = "none") +
+  labs(title = "Adaptive Baseline MHW", subtitle = NULL) +
+  theme(plot.margin = margin(t = 1, b = 0, l = 0, r = 0))
+
+
+
+both_maps <- modern_map / jacox_map
+both_maps
+ggsave(
+  both_maps,
+  filename = here::here("local_data/GRC_images/MHW_map.png"), 
+  dpi = 300, 
+  width = unit(3.25, "in"),
+  height = unit(4, "in")
+)
+
+
+library(ragg)
+ragg::agg_png(
+  filename = here::here("local_data/GRC_images/MHW_map_ragg.png"),
+  res = 300, 
+  height = 4,
+  width = 6.5,
+  units = "in")
+both_maps
+dev.off()
+
+both_maps
+```
+
+
+```{r}
+
+# Just Static Style
+modern_map_2 <- ggplot() +
+  geom_stars(
+    data = stars_set["static_mask"], #alpha = 0.5, 
+    color = "transparent") +
+  geom_sf(data = new_england, fill = "gray90", linewidth = .25) +
+  geom_sf(data = canada, fill = "gray90", linewidth = .25) +
+  geom_sf(data = greenland, fill = "gray90", linewidth = .25) +
+  scale_fill_carto_c(
+    palette = "BurgYl",
+    na.value = "transparent") +
+  coord_sf(
+    xlim = c(-74.8, -61), 
+    ylim = c(40.8, 44.6), 
+    expand = F) +
+  scale_y_continuous(breaks = seq(-90, 90, 2)) +
+  map_theme(legend.position = "none") +
+  labs(title = NULL)  +
+  theme(plot.margin = margin(t = 0, b = 1, l = 0, r = 0),
+        axis.text.x = element_blank(),
+        axis.ticks.x = element_blank())
+
+# Just Jacox Style
+jacox_map_2 <- ggplot() +
+  geom_stars(
+    data = stars_set["jacox_mask"], #alpha = 0.5, 
+    color = "transparent") +
+  geom_sf(data = new_england, fill = "gray90", linewidth = .25) +
+  geom_sf(data = canada, fill = "gray90", linewidth = .25) +
+  geom_sf(data = greenland, fill = "gray90", linewidth = .25) +
+  scale_fill_carto_c(
+    name = "Adaptive Events",
+    palette = "SunsetDark",
+    na.value = "transparent") +
+  coord_sf(
+    xlim = c(-74.8, -61), 
+    ylim = c(40.8, 44.6), 
+    expand = F) +
+  scale_y_continuous(breaks = seq(-90, 90, 2)) +
+  map_theme(legend.position = "none") +
+  labs(title = NULL, subtitle = NULL) +
+  theme(plot.margin = margin(t = 1, b = 0, l = 0, r = 0))
+
+
+# 
+both_maps_2 <- modern_map_2 / jacox_map_2
+both_maps_2
+
+
+
+# ggsave(
+#   both_maps,
+#   filename = here::here("local_data/GRC_images/MHW_map.png"), 
+#   dpi = 300, 
+#   width = unit(3.25, "in"),
+#   height = unit(4, "in")
+# )
+
+
+
+```
+
+```{r}
+# How different are they
+
+map_1 <- ggplot() +
+  geom_stars(
+    data = stars_set["static_mask"], #alpha = 0.5, 
+    color = "transparent") +
+  geom_sf(data = new_england, fill = "gray90", linewidth = .25) +
+  geom_sf(data = canada, fill = "gray90", linewidth = .25) +
+  geom_sf(data = greenland, fill = "gray90", linewidth = .25) +
+  scale_fill_carto_c(
+    palette = "BurgYl",
+    na.value = "transparent") +
+  coord_sf(
+    xlim = c(-74.5, -61), 
+    ylim = c(39, 45.5), 
+    expand = F) +
+  scale_y_continuous(breaks = seq(-90, 90, 2)) +
+  map_theme(legend.position = "none") +
+  labs(title = NULL)  +
+  theme(plot.margin = margin(t = 0, b = 1, l = 0, r = 0),
+        axis.text.x = element_blank(),
+        axis.ticks.x = element_blank())
+
+# Just Jacox Style
+map_2 <- ggplot() +
+  geom_stars(
+    data = stars_set["jacox_mask"], #alpha = 0.5, 
+    color = "transparent") +
+  geom_sf(data = new_england, fill = "gray90", linewidth = .25) +
+  geom_sf(data = canada, fill = "gray90", linewidth = .25) +
+  geom_sf(data = greenland, fill = "gray90", linewidth = .25) +
+  scale_fill_carto_c(
+    name = "Adaptive Events",
+    palette = "SunsetDark",
+    na.value = "transparent") +
+  coord_sf(
+    xlim = c(-74.5, -61), 
+    ylim = c(39, 45.5), 
+    expand = F) +
+  scale_y_continuous(breaks = seq(-90, 90, 2)) +
+  map_theme(legend.position = "none") +
+  labs(title = NULL, subtitle = NULL) +
+  theme(plot.margin = margin(t = 1, b = 0, l = 0, r = 0))
+
+
+# 
+both_maps_3 <- map_1 / map_2
+both_maps_3
+
+```
+

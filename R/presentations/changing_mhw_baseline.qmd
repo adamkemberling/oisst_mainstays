@@ -758,7 +758,7 @@ detrended_91 %>%
 ## How Our Heatmap Would Change
 
 ```{r}
-#  Detrended 92-2020
+#  Detrended 82-2020
 detrended_full <- pull_heatwave_events(gom_sst, 
                                      clim_ref_period = c("1982-01-01", "2022-12-31"), 
                                      detrend = TRUE) %>% 
