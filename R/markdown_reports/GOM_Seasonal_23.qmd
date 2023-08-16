@@ -21,9 +21,9 @@ execute:
   fig.align: center
 params: 
   year: 2023
-  season: "Spring"
+  season: "Summer"
   save_data: FALSE
-  save_figures: TRUE
+  save_figures: FALSE
 editor: source
 ---
 

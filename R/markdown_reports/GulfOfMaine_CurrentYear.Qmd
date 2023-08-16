@@ -65,12 +65,11 @@ library(xaringanExtra) # For tabsets
 # Support Functions
 suppressPackageStartupMessages(source(here("R/oisst_support_funs.R")))
 suppressPackageStartupMessages(source(here("R/temp_report_support.R")))
-path_fun <- boxpath_switch(box_location = "cloudstorage")
 
 
 # File Paths
-mills_path <- path_fun("mills")
-oisst_path <- path_fun("res", "OISST/oisst_mainstays")
+mills_path <- cs_path("mills")
+oisst_path <- cs_path("res", "OISST/oisst_mainstays")
 
 
 # Set ggplot theme for figures
@@ -208,13 +207,13 @@ region_timeseries <- region_timeseries %>%
   mutate(time = as.Date(time)) %>% 
   distinct(time, .keep_all = T) %>% 
   supplement_season_info() %>% 
-  filter(year %in% c(1982:2022))
+  filter(year %in% c(1982:current_yr))
 
 
 
 # Summarize by year to return mean annual anomalies and variance
 annual_summary <- region_timeseries %>% 
-  filter(year %in% c(1982:2021)) %>% 
+  filter(year %in% c(1982:current_yr)) %>% 
   group_by(year) %>% 
   temperature_summaries() %>% 
   mutate(yr_as_dtime = as.Date(paste0(year, "-07-02")),
@@ -242,7 +241,7 @@ region_hw <- pull_heatwave_events(
 
  # Current Calendar Year
 this_yr_hw <- region_hw %>% 
-  filter(year(time) == 2022)
+  filter(year(time) == current_yr)
 
 # Hottest year data
 hottest_yr <- filter(region_hw, year(time) == 2021)
@@ -254,7 +253,7 @@ global_anoms <- read_csv(
     guess_max = 1e6,
     col_types = cols()) %>% 
   mutate(year = year(time)) %>% 
-  filter(between(year, 1982, 2021))
+  filter(between(year, 1982, current_yr))
 
 # summarize by year again
 global_summary <- global_anoms %>% 
@@ -278,10 +277,10 @@ Common benchmarks for extreme events are the 10th and 90th percentile. Temperatu
 
 # Set plot colors:
 clim_colors <- c(
-  "Daily Temperature"      = "gray80",
+  "Daily Temperature"      = "gray90",
   "Climatological Average" = "gray10",
-  "90th Percentile"        = "coral3",
-  "10th Percentile"        = "royalblue")
+  "90th Percentile"        = "#ef8a62",
+  "10th Percentile"        = "#67a9cf")
 
 # pull one year for the lines, the reference period for points
 one_yr <- region_hw %>% filter(yr == 2021)
@@ -317,7 +316,7 @@ ggplot(data = one_yr, aes(x = flat_date)) +
         title.position = "left",
         label.position = "top", 
         override.aes = list(
-          color = c( "royalblue","coral3",  "gray10", "gray50"),
+          color = c( "#67a9cf","#ef8a62",  "gray10", "gray50"),
           shape = c(NA, NA, NA, 16),  
           linetype = c(1, 1, 1, NA),
           alpha = c(1,1,1,1), 
@@ -577,7 +576,7 @@ clim_avg <- annual_summary %>%
             avg_f = mean(area_wtd_f, na.rm = T),
             avg_anom_c = 0,
             avg_anom_f = 0) %>% 
-  mutate(across(where(is_numeric), round, 2))
+  mutate(across(where(is.numeric), round, 2))
 
 # average from 2010 onward:
 r2_avg <- annual_summary %>% 
@@ -588,7 +587,7 @@ r2_avg <- annual_summary %>%
             avg_f = mean(area_wtd_f, na.rm = T),
             avg_anom_c = mean(area_wtd_anom, na.rm = T), 
             avg_anom_f = mean(area_wtd_anom_f, na.rm = T)) %>% 
-  mutate(across(where(is_numeric), round, 2))
+  mutate(across(where(is.numeric), round, 2))
 
 
 ####  Annual Trend Plot - regime shift  ####
@@ -692,9 +691,9 @@ quarter_summary %>%
 
 ```{r, fig.height=2.25}
 dat_region <- annual_summary %>% 
-  filter(year %in% c(1982, 2021)) 
+  filter(year %in% c(1982, current_yr-1)) 
 dat_global <- global_summary %>% 
-  filter(year %in% c(1982, 2021)) 
+  filter(year %in% c(1982, current_yr-1)) 
 dat_list <- list(dat_region, dat_global) %>% setNames(c(tidy_name, "Global Oceans"))
 dat_combined <- bind_rows(dat_list, .id = "Area") %>% 
   select(Area, area_wtd_sst, year) %>% 
@@ -702,15 +701,15 @@ dat_combined <- bind_rows(dat_list, .id = "Area") %>%
 
 
 # 
-ggplot(dat_combined, aes(x = `1982`, xend = `2021`, y = fct_rev(Area))) +
+ggplot(dat_combined, aes(x = `1982`, xend = `2022`, y = fct_rev(Area))) +
   geom_dumbbell(colour = "lightblue", 
                 colour_xend = gmri_cols("gmri blue"), 
                 size = 3, 
                 dot_guide = TRUE, 
                 dot_guide_size = 0.5) +
   geom_text_repel(
-    aes(x = `2021`, y = fct_rev(Area), 
-        label = str_c("+", round(`2021`- `1982`, 2), " C")),
+    aes(x = `2022`, y = fct_rev(Area), 
+        label = str_c("+", round(`2022`- `1982`, 2), " C")),
                 color = gmri_cols("gmri blue"),
                 vjust = 4,
                 hjust = 0,
@@ -744,7 +743,7 @@ A marine heatwave is defined as a situation when seawater temperatures exceeds a
 ```{r}
 #| fig.height: 8
 # Plot heatmap
-heatwave_heatmap <- heatwave_heatmap_plot(hw_dat = region_hw, temp_units = "C", end_yr = 2022) +
+heatwave_heatmap <- heatwave_heatmap_plot(hw_dat = region_hw, temp_units = "C", end_yr = current_yr) +
   labs(title = "Gulf of Maine Heatwave Record") +
   theme(legend.position = "bottom",
         legend.title = element_text(angle = 0),
@@ -854,24 +853,24 @@ num_hw_days <- sum(this_yr_hw$mhw_event, na.rm = T)
 # Make a plot
 ggplot(data = one_yr, aes(x = flat_date)) +
     geom_point(data = region_hw, aes(y = sst, color = "Daily Temperature"), alpha = 0.6) +
-    geom_textline(
+    # Current Year
+    geom_line(data = this_yr_hw,  
+              aes(x = flat_date, sst, color = "2023"), size = 1) +
+    # Hottest Year on Record 
+    geom_line(data = hottest_yr,  
+              aes(flat_date, sst, color = "2021"), size = 1) +
+  geom_textline(
       aes(y = seas, 
           label = "Climatological Average", 
           color = "Climatological Average"),
       linetype = 1, size = 4, hjust = 0.5) +
-    # Current Year
-    geom_line(data = this_yr_hw,  
-              aes(x = flat_date, sst, color = "2022"), size = 1) +
-    # Hottest Year on Record 
-    geom_line(data = hottest_yr,  
-              aes(flat_date, sst, color = "2021"), size = 1) +
     scale_x_date(date_labels = "%b", date_breaks = "1 month", expand = expansion(add = c(0,0))) +
     scale_color_manual(
       values = c(
         "Daily Temperature" = "gray80",
         "Climatological Average" = "gray10",
         "2021" = "darkred",
-        "2022"= as.character(gmri_cols("orange"))
+        "2023"= as.character(gmri_cols("orange"))
       )
     ) +
     scale_y_continuous(labels = number_format(suffix = " \u00b0C")) +
@@ -908,7 +907,7 @@ ggplot(data = one_yr, aes(x = flat_date)) +
 ```{r}
 # Seasonal Comparisons:
 
-# Compared to 2022:
+# Compared to current_yr:
 year_comp <- region_hw %>% 
   split(.$season_yr) %>% 
   map_dfr(function(x){
@@ -946,7 +945,7 @@ year_comp %>%
   ungroup() %>% 
   mutate(Season = factor(Season, levels = c(
     "Winter", "Spring", "Summer", "Fall"))) %>% 
-  filter(Year == 2022 | Rank <= 5,
+  filter(Year == current_yr | Rank <= 5,
          Season != "Winter") %>% 
   arrange(Season) %>% 
   select(Year, Season, Rank, everything()) %>% 
@@ -954,7 +953,7 @@ year_comp %>%
     tab_header(
     title = md(paste0("**Warmest Seasons on Record**")), 
     subtitle = paste("Temperature Unit: Celsius")) %>%
-  gt_highlight_rows(rows = Year == 2022, font_weight = "bold") %>% 
+  gt_highlight_rows(rows = Year == current_yr, font_weight = "bold") %>% 
   tab_source_note(
     source_note = md("*Data Source: NOAA OISSTv2 Daily Sea Surface Temperature Data.*") ) %>% 
   tab_source_note(md("*Data for the current season is controlled across years to only use the days reached in the current year.*"))
@@ -1016,51 +1015,6 @@ hw_anom_p +
 
 :::
 
-
-::: {.panel}
-## Record Heatwave (Interactive) {.panel-name}
-
-The longest heatwave on record in the Gulf of Maine began on Jan 1st of 2021 and extended forward into 2022. The following interactive plot shows how temperatures changed during this period, and when it finally fell below the threshold in 2022 during June 20th-24th.
-
-
-```{r}
-#| label: mhw plotly
-
-
-
-# # Option 1: Grab last 365 days
-# 
-# # Grab data from the most recent year through present day to plot
-# last_year <- Sys.Date() - 365 #1 year from current date
-# last_yr_heatwaves <- region_hw %>% filter(time >= last_year)
-# last_yr <- year(last_yr)
-
-
-# # Option 2: Grab last Full Year:
-# last_year <- Sys.Date() - 365 #1 year from current date
-# 
-# # wind it back to first day of the year
-# last_year <- last_year - yday(last_year) + 1 
-# 
-# # Filter out:
-# last_yr_heatwaves <- region_hw %>% filter(year(time) == year(last_year))
-# last_yr <- year(last_yr)
-
-
-# Option 3: Last complete year through now
-last_year <- 2022
-last_yr_heatwaves <-  region_hw %>% 
-  filter(year(time) >= last_year,
-         time <= as.Date("2022-06-26"))
-
-
-# Plot the interactive timeseries
-last_yr_heatwaves %>% 
-  plotly_mhw_plots()
-
-```
-
-:::
 :::
 
 
@@ -1107,7 +1061,7 @@ arrows <-
 
 # Plot the differences
 heatwaves_91 %>% 
-  filter(time >= last_year) %>% 
+  filter(time >= current_yr-1) %>% 
   mutate(year = year(time),
          yday = yday(time)) %>% 
   distinct(flat_date, .keep_all = T) %>%        
