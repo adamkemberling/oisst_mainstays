@@ -107,6 +107,11 @@ theme_set(
 ```
 
 
+```{r, results='asis'}
+use_gmri_style_rmd()
+```
+
+
 # Figure 1: Anomaly Map
 
 This can be taken from the seasonal report, not critical to re-do one.
@@ -176,7 +181,7 @@ just_climate <- region_hw %>%
 # Text DF
 text_df <-
   data.frame(
-    "time" = as.Date(c("1983-03-15", "1982-08-25")),
+    "time" = as.Date(c("1982-04-01", "1982-08-25")),
     "temp" = c(15, 5),
     "txt" = c(
       "Extreme Heat\nConditions",
@@ -260,32 +265,32 @@ detrended_full <- pull_heatwave_events(region_timeseries,
 
 
 ```{r}
-# How many days for each in 2021
-fixed_82 %>% filter(yr == 2021) %>% 
-  pull(mhw_event) %>% sum()
-
-fixed_91 %>% filter(yr == 2021) %>% 
-  pull(mhw_event) %>% sum()
-
-detrended_full %>% filter(yr == 2021) %>% 
-  pull(mhw_event) %>% sum()
-
-
-# Most of any year?
-fixed_82 %>% 
-  group_by(yr) %>% 
-  summarise(tot_hw = sum(mhw_event)) %>% 
-  arrange(desc(tot_hw))
-
-fixed_91 %>% 
-  group_by(yr) %>% 
-  summarise(tot_hw = sum(mhw_event)) %>% 
-  arrange(desc(tot_hw))
-
-detrended_full %>% 
-  group_by(yr) %>% 
-  summarise(tot_hw = sum(mhw_event)) %>% 
-  arrange(desc(tot_hw))
+# # How many days for each in 2021
+# fixed_82 %>% filter(yr == 2021) %>% 
+#   pull(mhw_event) %>% sum()
+# 
+# fixed_91 %>% filter(yr == 2021) %>% 
+#   pull(mhw_event) %>% sum()
+# 
+# detrended_full %>% filter(yr == 2021) %>% 
+#   pull(mhw_event) %>% sum()
+# 
+# 
+# # Most of any year?
+# fixed_82 %>% 
+#   group_by(yr) %>% 
+#   summarise(tot_hw = sum(mhw_event)) %>% 
+#   arrange(desc(tot_hw))
+# 
+# fixed_91 %>% 
+#   group_by(yr) %>% 
+#   summarise(tot_hw = sum(mhw_event)) %>% 
+#   arrange(desc(tot_hw))
+# 
+# detrended_full %>% 
+#   group_by(yr) %>% 
+#   summarise(tot_hw = sum(mhw_event)) %>% 
+#   arrange(desc(tot_hw))
 ```
 
 
@@ -336,7 +341,7 @@ anom_text_df <-
   # guides(alpha = "none") +
   labs(
     x = NULL, 
-    y = "Difference From Baseline", 
+    y = "Observed Temperature - Baseline Average", 
     color = NULL,
     title = "Fixed Reference Point - 1982-2011")
  )
@@ -379,7 +384,7 @@ fixed_91  %>%
   labs(
     title ="Fixed Reference Point - 1991-2020",
     x = NULL, 
-    y = "Difference From Baseline", 
+    y = "Observed Temperature - Baseline Average", 
     color = NULL)
 ```
 
@@ -413,7 +418,7 @@ detrended_full %>%
   labs(
     title = "Adaptive Reference Point - Adjust for Long-Term Trend",
     x = NULL, 
-    y = "Difference From Baseline", 
+    y = "Observed Temperature - Baseline Average", 
     color = NULL)
 ```
 
@@ -563,26 +568,28 @@ jacox_map <- ggplot() +
 
 both_maps <- modern_map / jacox_map
 both_maps
-ggsave(
-  both_maps,
-  filename = here::here("local_data/GRC_images/MHW_map.png"), 
-  dpi = 300, 
-  width = unit(3.25, "in"),
-  height = unit(4, "in")
-)
 
 
-library(ragg)
-ragg::agg_png(
-  filename = here::here("local_data/GRC_images/MHW_map_ragg.png"),
-  res = 300, 
-  height = 4,
-  width = 6.5,
-  units = "in")
-both_maps
-dev.off()
-
-both_maps
+# ggsave(
+#   both_maps,
+#   filename = here::here("local_data/GRC_images/MHW_map.png"), 
+#   dpi = 300, 
+#   width = unit(3.25, "in"),
+#   height = unit(4, "in")
+# )
+# 
+# 
+# library(ragg)
+# ragg::agg_png(
+#   filename = here::here("local_data/GRC_images/MHW_map_ragg.png"),
+#   res = 300, 
+#   height = 4,
+#   width = 6.5,
+#   units = "in")
+# both_maps
+# dev.off()
+# 
+# both_maps
 ```
 
 
