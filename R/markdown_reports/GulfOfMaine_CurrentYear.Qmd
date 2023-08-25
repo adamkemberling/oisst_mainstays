@@ -228,7 +228,7 @@ base_date <- as.Date("2000-01-01")
 region_hw <- pull_heatwave_events(
   temperature_timeseries = region_timeseries, 
   threshold = 90, 
-  clim_ref_period = c("1982-01-01", "2011-12-31")) %>% 
+  clim_ref_period = c("1991-01-01", "2020-12-31")) %>% 
   supplement_hw_data() %>% 
   filter(doy != 366) %>% 
   mutate(year = year(time),
@@ -762,7 +762,7 @@ heatwave_heatmap <- heatwave_heatmap_plot(hw_dat = region_hw, temp_units = "C", 
 heatwave_heatmap  +
   coord_cartesian(clip = "off") +
   geom_logo(x_npc = 0.9, y_npc = 1.05, logo_height = 1, height_units = "cm") + 
-  labs(caption = "", title = "Gulf of Maine Heatwave Record")
+  labs(caption = "Reference Climatology: 1991-2020", title = "Gulf of Maine Heatwave Record")
 
 ```
 
