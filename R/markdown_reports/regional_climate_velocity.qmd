@@ -80,7 +80,9 @@ This Report will focus on **6. Climate Change Velocity (ve; dVelocity; gVelocity
 ```{r}
 
 # Load annual Data
-annual_sst <- stack(str_c(oisst_path, "yearly_averages/annual_sst_1982to2022.nc"), .varName = "sst")
+annual_sst <- raster::stack(
+  str_c(oisst_path, "yearly_averages/annual_sst_1982to2021.nc"), 
+  .varName = "sst")
 
 
 # Crop it to a manageable area
@@ -188,6 +190,18 @@ da <- daClimate(
 cl <- colorRampPalette(c("MidnightBlue","blue","Turquoise","lightblue","gray","yellow","red"))
 
 plot(da,col=cl(100),main='Changes in Distance to Analogous Climate')
+
+```
+
+# Compare to Warming Rates
+
+```{r}
+# # 1. Warming Rates and Rankings
+rates_path <- str_c(oisst_path, "warming_rates/annual_warming_rates1982to2022.nc")
+rates_nc <- stack(rates_path, varname = "annual_warming_rate")
+
+
+
 
 ```
 
