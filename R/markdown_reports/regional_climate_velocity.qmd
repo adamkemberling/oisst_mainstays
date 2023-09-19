@@ -78,7 +78,6 @@ Climetrics is an extensible and reproducible R package to spatially quantify and
 This Report will focus on **6. Climate Change Velocity (ve; dVelocity; gVelocity).**
 
 ```{r}
-
 # Load annual Data
 annual_sst <- raster::stack(
   str_c(oisst_path, "yearly_averages/annual_sst_1982to2021.nc"), 
@@ -88,7 +87,10 @@ annual_sst <- raster::stack(
 # Crop it to a manageable area
 crop_x <- c(-76, -62)
 crop_y <- c(37, 46)
+```
 
+
+```{r}
 # Expanded area as bbox
 crop_area <- structure(
     c(crop_x[[1]], crop_y[[1]], crop_x[[2]], crop_y[[2]]),  
