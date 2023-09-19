@@ -725,13 +725,15 @@ The unprecedented levels of warmth over the past decade or so are consistent wit
 
 ```{r}
 #| label: fig-season-rank
-#| fig.height: 4
+#| fig.height: 6
 #| fig-cap: "A ranking of the 5 warmest spring seasons for the Gulf of Maine in the satellite record (1982-2023). 2023 was the second warmest spring on record; the past three springs were each the warmest until that point; and the five warmest springs have all occurred since 2015."
 
+# usually this height
+# fig.height: 6
 
 # Plot them
 temp_rankings_p <- seasonal_ranks %>% 
-  filter(rank <= 5) %>% 
+  filter(rank <= 10) %>% 
   mutate(year_rank = fct_reorder(year_rank, rank, .desc = T)) %>% 
   ggplot() +
   geom_col(aes(x = anom_f, y = year_rank, fill = flag_year)) +
@@ -741,7 +743,9 @@ temp_rankings_p <- seasonal_ranks %>%
       x = 0, 
       y = year_rank, 
       #label = str_c(rank, ".  ", year_rank, " - ", as.numeric(as.character(year_rank))+1)), # WINTER Control
-      label = str_c(rank, ".  ", year_rank)), # WINTER Control
+      label = str_c( year_rank)), # No numbering WINTER Control
+      #label = str_c(rank, ".  ", year_rank)), # WINTER Control
+    fontface = "bold",
     hjust = -.1,
     color = 'white',
     size = 5) +
@@ -750,12 +754,14 @@ temp_rankings_p <- seasonal_ranks %>%
     mapping = aes(x = anom_f, y = year_rank, label = anom_label, group = rank),
     hjust = 1.05,
     color = 'white',
-    size = 5) +
+    size = 4) +
   scale_x_continuous(
     labels = number_format(suffix = " \u00b0F"), 
     expand = expansion(mult = c(0,0.15))) +
-  scale_fill_manual(values = c("flag" = as.character(gmri_cols("orange")), 
-                                "unflag" = as.character(gmri_cols("gmri blue")))) +
+  scale_fill_manual(
+    values = c(
+      "flag" = as.character(gmri_cols("orange")), 
+      "unflag" = as.character(gmri_cols("gmri blue")))) +
   labs(x = "Seasonal Temperature Anomaly",
        y = "",
        caption = "",
@@ -772,7 +778,7 @@ temp_rankings_p <- seasonal_ranks %>%
     axis.ticks.y = element_blank(),
     plot.margin = margin(t = 20, l = 10, r = 5, b = 5)) +
   coord_cartesian(clip = "off") +
-  geom_logo(x_npc = 0.1, y_npc = -0.18, logo_height = 1, height_units = "cm")
+  geom_logo(x_npc = 0.1, y_npc = -0.08, logo_height = 1, height_units = "cm")
 
 
 temp_rankings_p
@@ -805,7 +811,7 @@ hw_frac <- round(sum(this_season_data$mhw_event)/nrow(this_season_data) * 100, 2
 ```
 
 
-Using this broadly accepted definition, **the Gulf of Maine has experienced MHW conditions for `r round(hw_frac)`% of this `r tolower(params$season)`**. May was the only month this Spring where where SST was below the threshold of a MHW (90th Percentile). 
+Using this broadly accepted definition, **the Gulf of Maine has experienced MHW conditions for `r round(hw_frac)`% of this `r tolower(params$season)`**. May was the only month this Spring where SST was below the threshold of a MHW (90th Percentile). 
 
 
 ```{r}
