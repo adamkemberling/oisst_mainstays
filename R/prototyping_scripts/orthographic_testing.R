@@ -3,6 +3,8 @@
 # Can't reproject the polygons correctly
 
 
+# If revisiting, try this: https://gist.github.com/rafapereirabr/26965dd851debad32ad2e659024ba451
+
 
 
 
@@ -237,3 +239,8 @@ ggplot() +
   coord_sf(crs = ortho)
 
 
+
+
+
+
+####  

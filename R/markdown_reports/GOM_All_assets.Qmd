@@ -745,6 +745,112 @@ heatwave_heatmap  +
 ```
 
 
+
+## Impact of a New Climate Reference Period
+
+The identification and communication surrounding marine heatwaves is an area of active scientific discussion. Using our heatmap figure (@fig-mhw-heatmap) as a visual guide, we can compare what the competing MHW methodologies say is the MHW record for the region. The transition to a full climatological reference period that covers all years (1982-2022) and the removal of the long-term trend brings a focus onto only the most "extreme" events. Using the slider below, we can showcase what a transition from the fixed-baseline methodology used in this report (and previous reporting), to an approach that removes long-term trends. 
+
+
+
+```{ojs, output = FALSE}
+require("https://cdn.jsdelivr.net/npm/juxtaposejs@1.1.6/build/js/juxtapose.min.js")
+  .catch(() => null)
+  
+```
+
+::: {.juxtapose data-startingposition="65%" style="margin-bottom:2em; width = 70%; height =70%"}
+
+```{r}
+#| fig.height: 8
+#| label: fig-heatmap-comparison-old
+
+base_date <- as.Date("2000-01-01")
+grid_old <- sst_new %>% 
+  mutate(year = year(time),
+         yday = yday(time),
+         flat_date = as.Date(yday-1, origin = base_date),
+         yr_rev = factor(year),
+         yr_rev = fct_rev(yr_rev),
+         clim_ref = "MHW Method: 1991-2020 Fixed Basline MHW") 
+
+
+# All years:
+grid_old %>% 
+  heatwave_heatmap_plot(temp_units = "F", start_yr = 1981, end_yr = 2023) +
+  labs(y = "Year",
+       x = "Month",
+       title = NULL,
+       caption = "") +
+  theme(
+    text = element_text(family = "Raleway"),
+    legend.position = "bottom",
+    legend.title = element_text(angle = 0),
+    plot.margin = margin(b = 0, t = 20)) +
+  facet_wrap(~clim_ref) + 
+  guides(fill = guide_colorbar(
+    title = "Sea Surface Temperature Anomaly",
+    title.position = "top", 
+    title.hjust = 0.5, barwidth = unit(3.5, "in"), 
+    barheight = unit(0.5, "cm"), 
+    frame.colour = "black", 
+    ticks.colour = "black"))
+```
+
+
+
+```{r}
+#| fig.height: 8
+#| label: fig-heatmap-comparison-new
+
+# Run climatology for new reference period
+sst_detrend <- pull_heatwave_events(
+  temperature_timeseries = region_timeseries,
+  threshold = 90, 
+  clim_ref_period = c("1982-01-01", "2022-12-31"), detrend = T) %>% 
+  supplement_hw_data() %>% 
+  filter(doy != 366)
+
+# Same thing but with the different heatwave method:
+base_date <- as.Date("2000-01-01")
+grid_new <- sst_detrend %>% 
+  mutate(year = year(time),
+         yday = yday(time),
+         flat_date = as.Date(yday-1, origin = base_date),
+         yr_rev = factor(year),
+         yr_rev = fct_rev(yr_rev),
+         clim_ref = "MHW Method: 1982-2022 De-Trended MHW") 
+
+
+# All years:
+grid_new %>% 
+  heatwave_heatmap_plot(temp_units = "F", start_yr = 1981, end_yr = 2023) +
+  labs(y = "Year",
+       x = "Month",
+       title = NULL,
+       caption = "") +
+  theme(
+    text = element_text(family = "Raleway"),
+    legend.position = "bottom",
+    legend.title = element_text(angle = 0),
+    plot.margin = margin(b = 0, t = 20)) +
+  facet_wrap(~clim_ref) + 
+  guides(fill = guide_colorbar(
+    title = "Sea Surface Temperature Anomaly",
+    title.position = "top", 
+    title.hjust = 0.5, barwidth = unit(3.5, "in"), 
+    barheight = unit(0.5, "cm"), 
+    frame.colour = "black", 
+    ticks.colour = "black"))
+```
+
+:::
+
+From this view we can reveal that the transition has removed the majority of marine heatwave events, solving a communication challenge of the "year long heatwave". By adopting this new method scientists have succeeded in identifying the extreme temperature swings, but there is ongoing debate on when to apply this method, and on some of the unintended consequences of doing so. Among the concerns that scientists have voiced is that this new method retroactively changes the history of past events by accommodating all the more recent (often more extreme) conditions. This makes it difficult to preserve the significance that these events had during their own times. 
+
+A second major concern surrounds removing the "trend", and methodological choices scientists must make to achieve this. This new MHW methodology portrays this step in its simplest form, a linear trend. This structure may not be appropriate across all areas and at varying lengths of temporal coverage. The selection choices of the years to include or exclude and how best to model the observed trends create more "knobs" for practitioners to tune and with them more challenges for clarity of communication. To learn more about these trade-offs and the discussion around Marine Heatwaves, please check out our technical report on the subject.
+
+
+
 ### Monthly Heatmap
 
 ```{r}
@@ -1240,6 +1346,60 @@ However there can be significant spatial variability in this “ranked warming r
 This variability reflects the various physical oceanographic drivers influencing SST in the region, and in particular the [significant interannual variability in the Gulf Stream’s influence on Georges Bank](https://eos.org/features/why-is-the-gulf-of-maine-warming-faster-than-99-of-the-ocean).
 
 
+## Warming Rates Map
+
+```{r}
+#| eval: false
+
+
+# # 1. Warming Rates and Rankings
+rates_path <- str_c(oisst_path, "warming_rates/annual_warming_rates1982to2022.nc")
+rates_nc <- stack(rates_path, varname = "annual_warming_rate")
+
+
+# tlab_breaks <- seq(-.1, .1, 0.05)
+# tlabs <- tlab_breaks
+# tlabs[[1]] <- str_c("< ", tlabs[[1]])
+# tlabs[[length(tlabs)]] <-  str_c(tlabs[[length(tlabs)]], " <")
+# tlabs <- str_c(tlabs, deg_c)
+
+
+# Use terra for discrete breaks
+rates_terra <- terra::rast(rotate(rates_nc))
+
+# Spatial Extent Info
+x_buffer <- c(-10, 30)
+y_buffer <- c(-12, 10)
+crop_x   <- st_bbox(region_extent)[c(1,3)] + x_buffer
+crop_y   <- st_bbox(region_extent)[c(2,4)] + y_buffer
+
+# Plot
+ggplot() +
+  tidyterra::geom_spatraster_contour_filled(
+    data = rates_terra,
+    #breaks = seq(-.1, .2, 0.05), 
+    breaks = c(-0.2, -.5, -0.01, -0.005, 0.005, .01, .5, .2),
+    maxcell = 10e6,
+    alpha = 0.75,
+    linewidth = 0.25,
+    color = "gray20") +
+  geom_sf(data = world_sf, fill = "gray90", linewidth = .25) +
+  # scale_fill_carto_d(
+  #   palette = "Temps") +
+  scale_fill_brewer(
+    palette = "RdBu", direction = -1) +
+  theme_bw() +
+  map_theme(legend.position = "bottom") +
+  # coord_sf(xlim = crop_x, ylim = crop_y) +
+  guides(fill = guide_colorsteps(
+    title.position = "top", title.hjust = 0.5,
+    barwidth = unit(12, "cm"), show.limits = T)) +
+  labs(x = "", y = "", 
+       fill = str_c("1982-2022 Warming Rate (", deg_c, "/year)"))
+
+```
+
+
 ```{r load warming rates, eval = T}
 
 # # 1. Warming Rates and Rankings
@@ -1676,6 +1836,59 @@ ggplot() +
 
 ```
  
+ 
+### Locating Highest daily anomaly
+ 
+```{r}
+#| label: fig-warmest-anom-map
+#| eval: false
+#| echo: false
+
+# #### Where did the Most Extreme Heat Occur:
+# 
+# # Where did the max daily temp happen?
+# f <- function(x) which(x == max_daily_actual)[1] 
+# x <- calc(season_anoms_f, f)
+# #plot(x)
+# 
+# # When did that happen?
+# peak_date_lyr <- as.data.frame(x) %>% 
+#   filter(!is.na(layer)) %>% 
+#   as.numeric()
+# 
+# # Get the date back
+# peak_date <- names(season_anoms_f)[peak_date_lyr] %>% 
+#   str_replace("X", "") %>% str_replace_all("[.]", "-")
+# 
+# # Plot the map to confirm
+# #plot(season_anoms_f[[peak_date_lyr]], main = peak_date)
+# 
+# # Flag the exact location
+# max_val <- round(cellStats(x = season_anoms_f[[peak_date_lyr]], stat = max), 2)
+# idx <- which.max(season_anoms_f[[peak_date_lyr]])
+# pos <- as.data.frame(xyFromCell(season_anoms_f[[peak_date_lyr]], idx))
+# 
+# # Make some table with context
+# set.seed(123)
+# peak_temp_df <- data.frame(
+#   "date" = peak_date,
+#   max_val = max_val,
+#   lon = pos$x,
+#   lat = pos$y,
+#   do_circle = T) %>% 
+#   mutate(descr = str_c("Highest single day SST anomaly: ", round(max_val, 2), deg_f)) %>% 
+#   bind_rows(
+#     data.frame(
+#       "date" = rep(NA, 25),
+#       max_val = rep(NA, 25),
+#       lon = rnorm(25,mean = -68.25, sd = 2),
+#       lat = rnorm(25,mean = 43, sd = 2),
+#       do_circle = rep(F, 25),
+#       descr = rep("", 25)
+#     )
+#   )
+
+```
 
 
 
