@@ -1277,12 +1277,16 @@ if(params$save_figures){
   
   
   # Weekly Report Table
-  gtsave(data = week_summ_table, 
-         filename = str_c(update_folder, "weekly_summary_table.png"))
+  gtsave(data = week_summ_table %>% 
+    opt_table_font(
+      font = list(google_font(name = "Avenir"))), 
+    filename = str_c(update_folder, "weekly_summary_table.png"))
   
   # Monthly Report Table
-  gtsave(data = month_summ_table, 
-         filename = str_c(update_folder, "monthly_summary_table.png"))
+  gtsave(
+    data = month_summ_table %>% 
+      opt_table_font(font = list(google_font(name = "Avenir"))), 
+    filename = str_c(update_folder, "monthly_summary_table.png"))
   
   
   # Seasonal Rates Plot
