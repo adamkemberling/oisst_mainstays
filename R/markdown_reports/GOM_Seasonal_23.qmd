@@ -22,8 +22,8 @@ execute:
 params: 
   year: 2023
   season: "Summer"
-  save_data: FALSE
-  save_figures: TRUE
+  save_data: TRUE
+  save_figures: FALSE
 ---
 
 ```{r}
@@ -500,7 +500,6 @@ week_summaries <- week_summaries %>%
 
 ```{r}
 #| label: tbl-season-temps
-#| tbl-cap: "Observed, climatological average, and deviation from the climatological average (i.e., temperature anomaly) for SST at a weekly resolution in the Gulf of Maine during spring 2023."
 week_summ_table <- week_summaries %>% 
   mutate(
     temp = md(str_c(temp_f, deg_f, " *(", temp_c, deg_c, ")*")),
@@ -524,7 +523,6 @@ week_summ_table <- week_summaries %>%
       anom = md("Temperature Anomaly")) %>% 
     tab_source_note(md("*Data Source: NOAA OISSTv2 Daily Sea Surface Temperature Data.*") ) %>% 
     tab_source_note(md("*Climatological Reference Period: 1991-2020.*")) %>%    
-    #opt_table_font(font = list(google_font(name = "Avenir"))) 
     opt_table_font(font = list(google_font(name = "Raleway"))) 
 
 # Show Table
@@ -546,7 +544,6 @@ week_summ_table
 
 ```{r}
 #| label: monthly-temps
-#| tbl-cap: "Observed, climatological average, and deviation from the climatological average (i.e., temperature anomaly) for SST at a monthly resolution in the Gulf of Maine during spring 2023 (defined as March 1st - May 30th)"
 
 # Recreate Table for Monthly Averages
 monthly_avgs <- this_season_data %>% 
@@ -588,7 +585,6 @@ monthly_avgs <- monthly_avgs %>% left_join(
 
 ```{r}
 #| label: tbl-monthly-temps
-#| tbl-cap: "Observed, climatological average, and deviation from the climatological average (i.e., temperature anomaly) for SST at a monthly resolution in the Gulf of Maine during spring 2022 (defined as March 1 through May 31)."
 
 # Create the Monthly Summary Table
 month_summ_table <- monthly_avgs %>% 
@@ -615,7 +611,6 @@ month_summ_table <- monthly_avgs %>%
       anom = md("Temperature Anomaly")) %>% 
   tab_source_note(md("*Data Source: NOAA OISSTv2 Daily Sea Surface Temperature Data.*") ) %>% 
   tab_source_note(md("*Climatological Reference Period: 1991-2020.*")) %>% 
-  #opt_table_font(font = list(google_font(name = "Avenir")))
   opt_table_font(font = list(google_font(name = "Raleway")))
 
 # # Display Table
@@ -642,7 +637,8 @@ global_rate_plot <- ggplot(glob_plot_dat) +
   geom_point(
     data = filter(glob_plot_dat, region == "Gulf of Maine"), 
     aes(yr, anom_f), 
-    color = "gray20", alpha = 0.8) +
+    color = "gray20", 
+    alpha = 0.8) +
   # All year warming rate for GOM
   geom_smooth(
     aes(yr, anom_f, color = str_c(region, " Trend\n", rate)), 

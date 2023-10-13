@@ -29,6 +29,12 @@ theme_set(
       plot.margin = unit(c(1, 1, 1, 1), "cm"),
       legend.title = element_text(size = 9),
       legend.text = element_text(size = 9),
+      #panel lines
+      #panel.grid = element_blank(),
+      # panel.grid.major.x = element_blank(),
+      # panel.grid.major.y = element_blank(),
+      # panel.grid.minor.x = element_blank(),
+      # panel.grid.minor.y = element_blank(),
       # Axes
       axis.line.y = element_line(color = "black"),
       axis.ticks.y = element_line(), 
