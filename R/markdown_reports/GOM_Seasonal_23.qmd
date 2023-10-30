@@ -21,8 +21,8 @@ execute:
   fig.align: center
 params: 
   year: 2023
-  season: "Summer"
-  save_data: TRUE
+  season: "Fall"
+  save_data: FALSE
   save_figures: FALSE
 ---
 
@@ -254,10 +254,11 @@ seasonal_avgs <- region_hw %>%
      anom_label    = str_c(round(anom_f, 2), " \u00b0F  |  ", round(mean_anom, 2), " \u00b0C")
   )
   
-# Ranking the hottest years
+# Ranking the hottest years - on seasonal temperature
 seasonal_ranks <- seasonal_avgs %>% 
-  mutate(yr = factor(yr),
-         year_rank = fct_reorder(.f = yr, .x = mean_temp, .fun = median, .desc = TRUE)) %>% 
+  mutate(
+    yr = factor(yr),
+    year_rank = fct_reorder(.f = yr, .x = mean_temp, .fun = median, .desc = TRUE)) %>% 
   arrange(year_rank) %>% 
   mutate(rank = row_number(),
          flag_year = ifelse(year_rank == params$year, "flag", "unflag")  
@@ -716,7 +717,7 @@ temp_rankings_p <- seasonal_ranks %>%
       "flag" = as.character(gmri_cols("orange")), 
       "unflag" = as.character(gmri_cols("gmri blue")))) +
   labs(x = "Seasonal SST Anomaly",
-       y = "",
+       y = "Rank",
        caption = "",
        title = str_c("Gulf of Maine's Warmest ", params$season, " SST Anomalies")) +
   theme(
@@ -726,9 +727,9 @@ temp_rankings_p <- seasonal_ranks %>%
     panel.grid.major.y = element_blank(),
     panel.grid.minor.y = element_blank(),
     panel.grid.minor.x = element_blank(),
-    axis.text.y = element_blank(),
+    #axis.text.y = element_blank(),
     #axis.title.x = element_text(hjust = 1, face = "bold"),
-    axis.ticks.y = element_blank(),
+    #axis.ticks.y = element_blank(),
     plot.margin = margin(t = 20, l = 10, r = 5, b = 5)) +
   coord_cartesian(clip = "off") +
   geom_logo(x_npc = 0.85, y_npc = 1.075, logo_height = 1, height_units = "cm")
@@ -867,6 +868,8 @@ heatmap_p <- grid_dat %>%
 #Remove caption
 heatmap_p
 ```
+
+
 
 ## Spatial Distribution of Seasonal Anomalies
 
