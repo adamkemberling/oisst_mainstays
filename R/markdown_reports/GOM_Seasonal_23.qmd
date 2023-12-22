@@ -670,6 +670,7 @@ temp_rankings_p <- rank_plot_data %>%
       label = str_c( year_rank)), # No numbering WINTER Control
       #label = str_c(rank, ".  ", year_rank)), # WINTER Control
     fontface = "bold",
+    family = "Avenir",
     hjust = -.05,
     color = 'white',
     size = 5) +
@@ -684,6 +685,7 @@ temp_rankings_p <- rank_plot_data %>%
     mapping = aes(
       x = anom_f, y = rank, 
       label = anom_label, group = rank, color = I(flag_col)),
+    family = "Avenir",
     hjust = -.05, size = 4, show.legend = F) +
   scale_x_continuous(
     labels = number_format(suffix = " \u00b0F"), 
