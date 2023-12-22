@@ -1,0 +1,386 @@
+---
+title: "Gulf of Maine Changing Thermal Seascapes"
+author: "Adam Kemberling"
+url: "https://github.com/adamkemberling"
+affiliation: "Gulf of Maine Research Institute"
+affiliation_url: "https://www.gmri.org"
+description: | 
+  Exploring how the Temperatures of the Gulf of Maine Interact with Biological Limits
+date: "Updated on: `r Sys.Date()`"
+format: 
+  html:
+    toc: true
+    self-contained: true
+execute: 
+  echo: false
+  warning: false
+  message: false
+  comment: ""
+  fig.align: center
+---
+
+# What is going on here?
+
+Read that proposal you printed out the other day.
+
+This markdown should try and dig into different ways to look at and display different aspects of the changing temperature situation for lobster. This could be one or all of:
+  - traditional heatwaves
+  - dynamic heatwaves
+  - temperature stress days
+  - days over some critical temperature
+  
+  
+  
+## Load Packages
+
+
+```{r}
+#| label: packages
+#| include: false
+#| echo: false
+#| warning: false
+
+####  Packages  ####
+library(lubridate)
+library(raster)
+library(here)
+library(rnaturalearth)
+library(scales)
+library(sf)
+library(heatwaveR)
+library(gt)
+library(gtExtras)
+library(patchwork)
+library(showtext)
+library(gmRi)
+library(rcartocolor)
+
+library(tidyverse)
+
+# Support Functions
+source(here("R/oisst_support_funs.R"), verbose = FALSE)
+source(here("R/temp_report_support.R"), verbose = FALSE)
+
+# Box paths
+oisst_path <- cs_path("res", "OISST/oisst_mainstays")
+
+# Polygons for mapping
+new_england <- ne_states("united states of america", returnclass = "sf")
+canada      <- ne_states("canada", returnclass = "sf")
+world_sf    <- ne_countries(returnclass = "sf")
+greenland   <- ne_states(country = "greenland", returnclass = "sf")
+```
+
+
+
+```{r}
+#| label: style-sheet
+#| results: asis
+
+# Use GMRI style
+use_gmri_style_rmd()
+
+```
+
+
+
+
+```{r}
+#| label: fonts-config
+#| echo: false
+
+# # Using Raleway Font because it works
+# sysfonts::font_add_google("Raleway")
+
+# Path to the directory containing the font file (replace with your actual path)
+font_dir <- paste0(system.file("stylesheets", package = "gmRi"), "/GMRI_fonts/Avenir/")
+
+# Register the font
+font_add(
+  family = "Avenir",
+  file.path(font_dir, "LTe50342.ttf"),
+  bold = file.path(font_dir, "LTe50340.ttf"),
+  italic = file.path(font_dir, "LTe50343.ttf"),
+  bolditalic = file.path(font_dir, "LTe50347.ttf"))
+
+# Load the font
+showtext::showtext_auto()
+
+# Prevents tiny fonts when saving
+showtext::showtext_opts(dpi=300) 
+```
+  
+## Read in the data
+
+
+```{r}
+# # regional coordinates:
+# # File paths for various extents based on "apershing_gulf_of_maine"
+# region_paths <- get_timeseries_paths(
+#   region_group = "gmri_sst_focal_areas", 
+#   box_location = "cloudstorage")
+# 
+# # Polygon Path
+# poly_path <- region_paths[["apershing_gulf_of_maine"]][["shape_path"]]
+# 
+# # Load the bounding box for Andy's GOM to show they align
+# region_extent <- st_read(poly_path, quiet = TRUE)
+```
+
+
+```{r}
+# # Want the data in grid form
+# 
+# # Set time limits
+# sst_dates <- as.Date(c("2000-01-01", "2020-12-31"))
+# 
+# # Spatial Extent Info - Mirroring warming report for now
+# crop_x <- c("xmin" = -73.625, "xmax" = -61.875)
+# crop_y <- c("ymin" = 38.375, "ymax" = 46.125 )
+# 
+# 
+# # Expanded area as bbox
+# expanded_area <- structure(
+#     c(crop_x, crop_y),  
+#     class = "bbox",
+#   crs = 4326) %>% 
+#   st_as_sfc() %>% 
+#   st_as_sf()
+# 
+# 
+# # Make data window for season
+# data_window <- data.frame(
+#   lon = crop_x,
+#   lat = crop_y,
+#   time = sst_dates)
+# 
+# # Load data - Temperatures
+# sst_nc <- oisst_window_load(
+#   data_window = data_window, 
+#   anomalies = F, 
+#   climate_ref = "1991-2020",
+#   box_location = "cloudstorage")
+```
+
+
+## Reshape to tabular and Augment
+
+
+We can always go back to a pseudo-grid using code from the COCA work...
+
+
+
+```{r}
+# # Take one year, sort out the bs
+# # Then make a function we can iterate with
+# # This does what we want here:
+# make_sst_tabular <- function(year_stack){
+#   sst_names <- str_remove(names(year_stack), "X") %>% 
+#     str_replace_all("[.]", "-")
+#   year_stack %>% 
+#     unstack() %>% 
+#     setNames(sst_names) %>% 
+#     imap_dfr(
+#       function(.x, .y){
+#         as.data.frame(.x, xy = T) %>%
+#           setNames(c("lon", "lat", "sst")) %>%
+#           mutate(ras_date = .y)})
+#   
+# }
+# 
+# # Run the codes
+# sst_dat <- map_dfr(sst_nc, make_sst_tabular, .id = "year")
+# 
+# # Do some cleanup 
+# sst_dat <- sst_dat %>% mutate(ras_date = as.Date(ras_date))
+# 
+# # Drop NA's we don't care about them:
+# sst_dat <- sst_dat %>% filter(!is.na(sst))
+# 
+# Make it smaller...
+# glimpse(sst_dat)
+# sst_dat <- sst_dat %>% 
+#   select(-year) %>% 
+#   rename(date = ras_date) %>% 
+#   filter(lubridate::year(date) > 2010)
+
+# # Make it smaller...
+# glimpse(sst_dat)
+# sst_dat <- sst_dat %>% 
+#   filter(lubridate::year(date) > 2010)
+
+# # Save it so we don't have to bother with the netcdfs as we prototype:
+# write_csv(sst_dat, here::here("local_data/gom_sst_tabular.csv"))
+```
+
+####  Working Straight from Tabular
+
+```{r}
+# Start from the prepped file here:
+sst_dat <- read_csv(here::here("local_data/gom_sst_tabular.csv"))
+
+# Make it smaller...
+glimpse(sst_dat)
+sst_dat <- sst_dat %>% 
+  dplyr::filter(lubridate::year(date) > 2010)
+```
+
+
+
+### Static Plot - Days over Threshold
+
+20C has been identified as a thermal threshold for American Lobster (ASMFC 2020). These hard-limit temperature stresses can be viewed as an image of spatial variation, or as a timeseries for each location and/or an average over some area.
+
+#### Map Display
+
+```{r}
+# Hypothetical scenario:
+
+# How many days in each year were over 15C:
+sst_small <- dplyr::filter(sst_dat, year(date) >= 2018)
+
+
+# Do a groupby summarise
+thresh <- 20
+sst_filtered <- sst_small %>% 
+  group_by(year = year(date), lon, lat) %>% 
+  mutate(over_thresh = ifelse(sst > thresh, T, F)) %>% 
+  summarise(days_over = sum(over_thresh),
+            perc_over = days_over/365,
+            .groups = "drop")
+
+
+# Visualize it
+ggplot(sst_filtered, aes(lon, lat, fill = perc_over)) +
+  geom_point(pch = 22, color = "transparent", size = 2) +
+  facet_wrap(~year) +
+  scale_fill_carto_c(palette = "RedOr", labels = label_percent()) +
+  labs(x = NULL, y = NULL, title = str_c("Days Over ", thresh, deg_c), fill = "Percent of Year")
+```
+
+
+#### Timeseries of Threshold Breaks
+
+
+```{r}
+base_date <- as.Date("2000-01-01")
+sst_small %>% 
+  group_by(date) %>% 
+  summarise(sst = mean(sst),
+            .groups = "drop") %>% 
+  mutate(over_thresh = ifelse(sst>thresh, "black", "transparent"),
+         flat_date = base_date+(lubridate::yday(date)-1),
+         yr = year(date)) %>% 
+  ggplot() +
+  geom_point(aes(flat_date, yr, color = I(over_thresh)), size = 2, shape = "l") +
+  scale_x_date(date_breaks = "1 month", labels = date_format("%b")) +
+  scale_y_continuous(breaks = 1980:2030) +
+  labs(y = "Year", x = "Date")
+
+
+```
+
+
+### Static Plot - Days within Range
+
+Ideal temperature range for lobsters is 12-18C (ASMFC 2020)
+
+These are not relevant for surface temperature maps...
+
+```{r}
+# Do a groupby summarise
+sst_filtered <- sst_small %>% 
+  group_by(year = year(date), lon, lat) %>% 
+  mutate(over_thresh = ifelse(between(sst, 18, 20), T, F)) %>% 
+  summarise(days_over = sum(over_thresh),
+            perc_over = days_over/365,
+            .groups = "drop")
+
+
+# Visualize it
+ggplot(sst_filtered, aes(lon, lat, fill = perc_over)) +
+  geom_point(pch = 22, color = "transparent", size = 2) +
+  facet_wrap(~year) +
+  scale_fill_carto_c(palette = "RedOr", labels = label_percent(), limits = c(0,1)) +
+  labs(x = NULL, y = NULL, title = str_c("Days Between 18-20", deg_c), fill = "Percent of Year")
+```
+
+
+
+###
+
+
+
+
+### Extreme Events
+
+
+```{r}
+# Do heatwave protocol for each one
+
+
+# Do some threshold evaluation
+
+```
+
+
+## Work as STARS object and keep rectangular
+
+```{r}
+#| eval: false
+
+
+# # the stars package should be able to deal with the array shape better than if I wast time converting it to a dataframe...
+# 
+# library(stars)
+# 
+# # What if we read it in with stars to begin with
+# oisst_path <- cs_path("res", "OISST/oisst_mainstays/annual_observations")
+# yr <- "2000"
+# (st_1 <- stars::read_ncdf(str_c(oisst_path, "sst.day.mean.", yr, ".v2.nc"), var = "sst"))
+# names(st_dimensions(st_1))[[3]] <- "time"
+# 
+# # Need a true datetime dimension... then we could join them
+# year_base <- as.Date(str_c(yr, "-01-01"))
+# dt_vals <- year_base + (st_get_dimension_values(st_1, "time")-1)
+# 
+# # Make the dimension datetime...
+# st_1 <- st_set_dimensions(st_1, which = "time", values = dt_vals, point = FALSE)
+# 
+# # Set the attribute name
+# names(st_1) <- "sst"
+# 
+# 
+# #------
+# 
+# # Repeat for next year
+# yr <- "2001"
+# st_2 <- stars::read_stars(str_c(oisst_path, "sst.day.mean.", yr, ".v2.nc"))
+# names(st_dimensions(st_2))[[3]] <- "time"
+# 
+# # Need a true datetime dimension... then we could join them
+# year_base <- as.Date(str_c(yr, "-01-01"))
+# dt_vals <- year_base + (st_get_dimension_values(st_2, "time")-1)
+# 
+# # Make the dimension datetime...
+# st_2 <- st_set_dimensions(st_2, which = "time", values = dt_vals, point = FALSE)
+# 
+# # Set the attribute name
+# names(st_2) <- "sst"
+# 
+# 
+# #---------
+# # Can we put them back together now?
+# 
+# # Yes
+# st_x <- c(st_1, st_2)
+# st_x
+# 
+# 
+# # # What is that like to work with? similar to xarray
+# # # except it doesn't open
+# # st_x %>% 
+# #   filter(time %in% seq.Date(as.Date("2001-10-01"), as.Date("2001-10-05"), 1)) %>% 
+# #   plot()
+```
+

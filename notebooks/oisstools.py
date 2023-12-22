@@ -467,7 +467,7 @@ def export_annual_update(cache_root, update_yr, oisst_update):
 # Load OISST from Box
 #
 #-----------------------------------------------------
-def load_box_oisst(box_root, start_yr, end_yr, anomalies = False, do_parallel = False):
+def load_box_oisst(box_root, start_yr, end_yr, anomalies = False, do_parallel = False, reference_period = "1982-2011"):
   """
   Load OISST Resources from box using xr.open_mfdataset()
   
@@ -482,7 +482,13 @@ def load_box_oisst(box_root, start_yr, end_yr, anomalies = False, do_parallel = 
     file_ending     = ".v2.nc"
   
   elif anomalies == True:
-    oisst_location = f"{box_root}RES_Data/OISST/oisst_mainstays/annual_anomalies/1982to2011_climatology/"
+    if reference_period == "1982-2011":
+       climatology_option = "1982to2011"
+    else:
+       climatology_option = "1991to2020"
+
+    #oisst_location = f"{box_root}RES_Data/OISST/oisst_mainstays/annual_anomalies/1982to2011_climatology/"
+    oisst_location = f"{box_root}RES_Data/OISST/oisst_mainstays/annual_anomalies/{climatology_option}_climatology/"
     base_fname     = "daily_anoms_"
     file_ending    = ".nc"
   
@@ -1243,7 +1249,7 @@ def update_global_timeseries(yr_min, yr_max, box_root, var_name = "sst", referen
         end_yr   : String indicating the last year to include in the update
         box_root : Root to oisst_mainstays
         var_name : String indicating the variable being processed
-        reference_period : String composed of two years connected with a dash indicating start and end period for reference climatology
+        reference_period : String composed of two years connected with a dash indicating start and end period for reference climatology NOT USED TO UPDATE ANOMALIES
   
   """
 
