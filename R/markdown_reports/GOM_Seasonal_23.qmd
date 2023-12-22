@@ -23,7 +23,7 @@ params:
   year: 2023
   season: "Fall"
   save_data: FALSE
-  save_figures: TRUE
+  save_figures: FALSE
 ---
 
 ```{r}
@@ -1175,7 +1175,7 @@ peak_temp_df <- data.frame(
   lon = pos$x,
   lat = pos$y,
   do_circle = T) %>% 
-  mutate(descr = "Largest Seasonally-Averaged SST Anomaly") %>% 
+  mutate(descr = "Highest Seasonally-Averaged SST Anomaly") %>% 
   bind_rows(
     data.frame(
       max_val = rep(NA, 25),
@@ -1238,7 +1238,8 @@ season_map <- ggplot() +
         label = max_val, description = descr), 
     label.family = "Avenir",
     color = "black", 
-    label.fill = "#FAFAFA90") +
+    #label.fill = "#FAFAFA90") +
+    label.fill = "#E9E9E990") +
   scale_y_continuous(breaks = seq(30, 50, by = 2)) +
   scale_fill_distiller(palette = "RdBu", 
                        na.value = "transparent", 
@@ -1389,12 +1390,13 @@ natl_tl <- natl_ts %>%
   ggplot(aes(flat_date, anom_f)) +
   geom_line(aes(group = yr, linewidth = I(yr_lw), alpha = I(yr_alpha), color = I(yr_col))) +
   geom_texthline(yintercept = 0, label = "1991-2020 Average", linewidth = 1, size = 5) +
-  geom_textline(data = filter(natl_ts, yr == 2022), aes(x = flat_date, y = hw_thresh_f), label = "90th Percentile", linewidth = 1, size = 5, linetype = 3) +
-  geom_textline(data = filter(natl_ts, yr == 2022), aes(x = flat_date, y = cs_thresh_f), label = "10th Percentile", linewidth = 1, size = 5, linetype = 3) +
+  geom_textline(data = filter(natl_ts, yr == 2022), aes(x = flat_date, y = hw_thresh_f), label = "90th Percentile", linewidth = 1, size = 5, linetype = 3, family = "Avenir") +
+  geom_textline(data = filter(natl_ts, yr == 2022), aes(x = flat_date, y = cs_thresh_f), label = "10th Percentile", linewidth = 1, size = 5, linetype = 3, family = "Avenir") +
   geom_text(
     data = filter(natl_ts, yr == 2023) %>% slice(yday(max(this_season_data$time))-1),
     label = "2023", hjust = 0, vjust = -0.4,
-    size = 5, fontface = "bold", color = gmri_cols("orange")) +
+    size = 5, fontface = "bold", color = gmri_cols("orange"), 
+    family = "Avenir") +
   scale_x_date(date_breaks = "1 month", labels = date_format("%b"), 
                expand = expansion(add = c(0,0))) +
   scale_y_continuous(labels = number_format(suffix = deg_f)) +
@@ -1479,12 +1481,13 @@ natl_map <- ggplot() +
     oob = scales::oob_squish) +
   map_theme(
     text = element_text(family = "Avenir"),
+    legend.title = element_text(family = "Avenir", size = 11, face = "bold"),
     legend.position = "bottom") +
   coord_sf(xlim = c(-80, 0), 
            ylim = c(0, 60), 
            expand = F) +
   guides("fill" = guide_colorbar(
-    title = expression("Surface Temperature Anomaly"),
+    title = "Surface Temperature Anomaly",
     title.position = "top",
     title.hjust = 0.5,
     barwidth = unit(5, "in"), show.limits = T,
