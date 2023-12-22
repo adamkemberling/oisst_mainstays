@@ -1,5 +1,5 @@
 ---
-title: "Gulf of Maine Warming Update: 2022 the Regions Second Warmest Year"
+title: "Gulf of Maine Warming Update: 2023"
 author: "Adam Kemberling"
 url: "https://github.com/adamkemberling"
 affiliation: "Gulf of Maine Research Institute"
@@ -18,11 +18,11 @@ execute:
   comment: ""
   fig.align: center
 params: 
-  report_year: 2022
+  report_year: 2023
   in_celsius: FALSE
   save_figures: 
     label: "Save Figures?" 
-    value: TRUE
+    value: FALSE
 ---
 
 ```{r}
@@ -50,6 +50,7 @@ library(ggstream)
 library(ggforce)
 library(geomtextpath)
 library(ggHoriPlot)
+  library(sysfonts)
 }
 
 #---------- Support Functions
@@ -105,7 +106,8 @@ master_crs <- st_crs("EPSG:4326")
 
 # Coastline Shapes
 canada      <- ne_states("canada", returnclass = "sf") %>% st_transform(master_crs)
-new_england <- gb_adm1(country = "usa", type = "sscgs")  %>% st_transform(master_crs)
+# new_england <- gb_adm1(country = "usa", type = "sscgs")  %>% st_transform(master_crs)
+new_england <- ne_states("united states of america", returnclass = "sf")
 world_sf    <- ne_countries(returnclass = "sf")  %>% st_transform(master_crs)
 greenland   <- ne_states(country = "greenland", returnclass = "sf") %>% st_transform(master_crs)
 
@@ -114,15 +116,36 @@ logo_path <- paste0(system.file("stylesheets", package = "gmRi"), "/gmri_logo.pn
 lab_logo <- magick::image_read(logo_path)
 
 
+# Path to the directory containing the font file (replace with your actual path)
+font_dir <- paste0(system.file("stylesheets", package = "gmRi"), "/GMRI_fonts/Avenir/")
+
+# Register the font
+font_add(
+  family = "Avenir",
+  file.path(font_dir, "LTe50342.ttf"),
+  bold = file.path(font_dir, "LTe50340.ttf"),
+  italic = file.path(font_dir, "LTe50343.ttf"),
+  bolditalic = file.path(font_dir, "LTe50347.ttf"))
+
+
+# Why is the gt package able to add it wtf!!
+# google_font(name = "Avenir")
+
+# Load the font
+showtext::showtext_auto()
+
+# Prevents tiny fonts when saving
+showtext::showtext_opts(dpi=300) 
+
 ```
 
 
 ```{r}
-#| label: code-add-css
-#| results: asis
-#| echo: false
-
-gmRi::use_gmri_style_rmd(css = "gmri_rmarkdown.css")
+# #| label: code-add-css
+# #| results: asis
+# #| echo: false
+# 
+# gmRi::use_gmri_style_rmd(css = "gmri_rmarkdown.css")
 ```
 
 
@@ -327,11 +350,11 @@ hw_criteria <- report_yr_only %>% pull(mhw_event) %>% sum()
 
  * In nine of the twelve months this year, average monthly SST was within the top 3 warmest among all years on record. 
  
- * The most extreme temperatures in 2022 occurred in November and December, each setting new records for highest monthly average SST in the Gulf of Maine.
+ * The most extreme temperatures in 2023 occurred in November and December, each setting new records for highest monthly average SST in the Gulf of Maine.
 
- * The “coolest” monthly average temperature anomalies for 2022 occurred during July and September, but were still within the top ten for each of those months when compared to the full 40-year dataset (ranked 8th and 6th, respectively). 
+ * The “coolest” monthly average temperature anomalies for 2023 occurred during July and September, but were still within the top ten for each of those months when compared to the full 40-year dataset (ranked 8th and 6th, respectively). 
  
- * SSTs in 2022 were consistent with the long-term trend of increasingly warm conditions driven primarily by anthropogenic climate change. 
+ * SSTs in 2023 were consistent with the long-term trend of increasingly warm conditions driven primarily by anthropogenic climate change. 
 
 
 
@@ -389,15 +412,15 @@ Since the early 1980s, the rate of warming in the Gulf of Maine `r str_c(rate_da
 
 ```{r}
 #| label: fig-global-comparison
-#| fig-cap: "A timeseries of annual average sea surface temperature anomalies for the Gulf of Maine (solid black line) from 1982 through 2022, illustrating that 2022 was the 2nd warmest year on record. Long-term trendlines for the Gulf of Maine (blue) and the entire globe (green) show how much more quickly the Gulf of Maine is warming compared to the rest of the world."
+#| fig-cap: "A timeseries of annual average sea surface temperature anomalies for the Gulf of Maine (solid black line) from 1982 through 2023, illustrating that 2023 was the 2nd warmest year on record. Long-term trendlines for the Gulf of Maine (blue) and the entire globe (green) show how much more quickly the Gulf of Maine is warming compared to the rest of the world."
 
 
 # Fahrenheit plot
 temp_simplified <- global_rate_comparison(
   annual_summary_dat = annual_summary, 
   global_summary_dat = global_summary, 
-  eq_all = str_remove(eq_all_f, "1982-2022"), 
-  eq_global = str_remove(eq_global_f, "1982-2022"), 
+  eq_all = str_remove(eq_all_f, "1982-2023"), 
+  eq_global = str_remove(eq_global_f, "1982-2023"), 
   temp_units = "F",
   region_label = "Gulf of Maine") +
   coord_cartesian(clip = "off") +
@@ -417,8 +440,8 @@ temp_simplified
 # temp_simplified_c <- global_rate_comparison(
 #   annual_summary_dat = annual_summary, 
 #   global_summary_dat = global_summary, 
-#   eq_all = str_remove(eq_all_c, "1982-2022"), 
-#   eq_global = str_remove(eq_global_c, "1982-2022"), 
+#   eq_all = str_remove(eq_all_c, "1982-2023"), 
+#   eq_global = str_remove(eq_global_c, "1982-2023"), 
 #   temp_units = "C",
 #   region_label = "Gulf of Maine") +
 #   coord_cartesian(clip = "off") +
@@ -437,8 +460,8 @@ temp_simplified
 # temps_svg <- global_rate_comparison(
 #   annual_summary_dat = annual_summary, 
 #   global_summary_dat = global_summary, 
-#   eq_all = str_remove(eq_all_f, "1982-2022"), 
-#   eq_global = str_remove(eq_global_f, "1982-2022"), 
+#   eq_all = str_remove(eq_all_f, "1982-2023"), 
+#   eq_global = str_remove(eq_global_f, "1982-2023"), 
 #   temp_units = "F",
 #   region_label = "Gulf of Maine")  +
 #   coord_cartesian(clip = "off") +
@@ -544,11 +567,11 @@ season_panels <- season_avgs %>%
       labs(
         x = "Year", 
         y = "SST Anomaly",
-        color = str_c(y, " Trend (1982-2022)"))
+        color = str_c(y, " Trend (1982-2023)"))
     
     if(y == "Winter"){
       season_p <- season_p +
-        geom_point(data = filter(x, yr == 2022, Region == "Gulf of Maine"), aes(yr, anom_f),
+        geom_point(data = filter(x, yr == 2023, Region == "Gulf of Maine"), aes(yr, anom_f),
                    shape = 21, color = "black", fill = "white", size = 1.5)}
     
     # Return the plot
@@ -588,7 +611,7 @@ data_window <- data.frame(lon = c(-81, -54.5),
 ne_anoms <- oisst_window_load(
     data_window = data_window,
     anomalies = T,
-    box_location = "cloudstorage") %>%  
+    box_location = "cloudstorage", climate_ref = "1991-2020") %>%  
   stack()
 
 # Convert to F
@@ -657,7 +680,7 @@ Looking at these spatial patterns across the annual quarters of `r report_yr` (@
 
 ```{r}
 #| label: fig-four-season-maps
-#| fig-cap: "Maps of the  3-month averages in sea surface temperature anomalies in 2022."
+#| fig-cap: "Maps of the  3-month averages in sea surface temperature anomalies in 2023."
 #| fig.width: 8
 #| fig.height: 6
 
@@ -741,7 +764,7 @@ grid::grid.raster(lab_logo, x = 0.08, y = 0.04, just = c('left', 'bottom'), heig
 ```
 
 
-## Annual Average 2022 SST Compared to Historical Conditions
+## Annual Average 2023 SST Compared to Historical Conditions
 
 When we compare the annual average SST in the Gulf of Maine for `r report_yr` (`r str_c(report_annual_temp, deg_f)`) to other years, we can see it narrowly beat out 2012 as the second warmest year on record. When we look at the deviation from the long-term average SST (i.e., the annual SST anomaly), the last decade stands out for its exceptional warmth (@fig-yr-ranks). `r report_yr` extends a pattern that began in 2010 of sustained above-average temperatures. With the exception of 2019 (ranked 13th), every one of the last ten years remains in the top 10 warmest years on record.
 
@@ -818,7 +841,8 @@ global_data_window <- data.frame(lon = c(-360, 180),
 global_anoms <- oisst_window_load(
   data_window = global_data_window, 
   anomalies = T, 
-  box_location = "cloudstorage")
+  box_location = "cloudstorage", 
+  climate_ref = "1991-2020")
 
 # Stack and tidy
 global_anoms <- stack(global_anoms)
@@ -1037,7 +1061,7 @@ In a world without human-caused climate change, we would expect, positive (warm)
 
 # Heatmap: All years:
 heatmap_p <- region_hw %>% 
-  heatwave_heatmap_plot(temp_units = "F", start_yr = 1981, end_yr = 2022) +
+  heatwave_heatmap_plot(temp_units = "F", start_yr = 1981, end_yr = 2023) +
   labs(title = "Gulf of Maine Heatwave Record",
        y = "Year",
        x = "Month") +
@@ -1080,7 +1104,7 @@ The figures in this report are created using remotely-sensed satellite data as p
 
 **Recommended Citation:**    
 
-> Gulf of Maine Research Institute. 2022. Gulf of Maine Warming Update: 2022. https://gmri.org/stories/warming-22
+> Gulf of Maine Research Institute. 2023. Gulf of Maine Warming Update: 2023. https://gmri.org/stories/warming-22
 
 
 
@@ -1099,7 +1123,7 @@ One way to think about the severity of these changes is to think about temperatu
 
 ```{r}
 #| label: fig-horizons-all
-#| fig-cap: "Temperature anomaly horizons for all years of available satellite data (1982-2022). Horizons display how long temperatures were above certain thresholds (horizon width) and are colored by the strength of these events."
+#| fig-cap: "Temperature anomaly horizons for all years of available satellite data (1982-2023). Horizons display how long temperatures were above certain thresholds (horizon width) and are colored by the strength of these events."
 #| fig-alt: "Horizon plot of all years and their temperature anomaly horizons"
 #| fig.height: 8
 #| fig.width: 8

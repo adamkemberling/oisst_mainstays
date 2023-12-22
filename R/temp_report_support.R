@@ -23,14 +23,15 @@ theme_set(
   theme_bw() + 
     theme(
       # Titles
+      text = element_text(family = "Avenir"),
       plot.title = element_text(hjust = 0, face = "bold", size = 14),
       plot.subtitle = element_text(size = 9),
       plot.caption = element_text(size = 8, margin = margin(t = 20), color = "gray40"),
       plot.margin = unit(c(1, 1, 1, 1), "cm"),
-      legend.title = element_text(size = 9),
+      legend.title = element_text(size = 11, face = "bold"),
       legend.text = element_text(size = 9),
       #panel lines
-      #panel.grid = element_blank(),
+      panel.grid = element_blank(),
       # panel.grid.major.x = element_blank(),
       # panel.grid.major.y = element_blank(),
       # panel.grid.minor.x = element_blank(),
@@ -44,9 +45,10 @@ theme_set(
       axis.title = element_text(size = 12),
       rect = element_rect(fill = "transparent", color = "black"),
       # Facets
-      strip.text = element_text(color = "white", 
-                                face = "bold",
-                                size = 11),
+      strip.text = element_text(
+        color = "white", 
+        face = "bold",
+        size = 11),
       strip.background = element_rect(
         color = "#00736D", 
         fill = "#00736D", 

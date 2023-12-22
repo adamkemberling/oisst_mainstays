@@ -26,7 +26,8 @@ annual_observations/*
 daily_climatologies/*
 regional_timeseries/*
 docs/*
-local_data/
+local_data/*
+fig_testing/*
 notebooks/testing_data/
 R/markdown_reports/local_report_data/
 R/markdown_reports/tech_report_imgs/
