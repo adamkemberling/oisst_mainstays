@@ -728,7 +728,7 @@ When looking at average `r tolower(params$season)` temperatures from the beginni
 l2 <- ggplot(glob_plot_dat) +
   geom_point(
     data = filter(glob_plot_dat, region == "Gulf of Maine"), 
-    aes(yr, anom_f, shape = "Gulf of Maine Seasonal Average SST"), 
+    aes(yr, anom_f, shape = "Gulf of Maine Average SST Anomaly"), 
     color = "gray20", 
     size = 2,
     alpha = 0.8) +

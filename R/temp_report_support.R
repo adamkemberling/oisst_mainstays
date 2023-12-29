@@ -864,7 +864,7 @@ map_study_area_color <- function(region_extent,
               fill = "gray90", 
               linewidth = .25) +
       geom_text(data = area_labs, aes(lon, lat, label = label, angle = angle), 
-                size = 3, color = "black") +
+                size = 4, color = "black", family = "Avenir") +
       geom_sf(data = region_extent, 
               color = "gray10", 
               fill = "transparent", alpha = 0.2, 
@@ -1147,15 +1147,19 @@ global_rate_comparison <- function(
   
   # Handling Temperature Units:
   temp_ops <- switch (EXPR = temp_units,
-    "C" = list(temp_col = expr(area_wtd_anom),
-               temp_suff = " \u00b0C"),
-    "F" = list(temp_col = expr(area_wtd_anom_f),
-               temp_suff = " \u00b0F"))
+    "C" = list(
+      temp_col = expr(area_wtd_anom),
+      temp_suff = " \u00b0C"),
+    "F" = list(
+      temp_col = expr(area_wtd_anom_f),
+      temp_suff = " \u00b0F"))
   temp_col <- temp_ops$temp_col
   
   # Adding warming rate equation to data
   annual_summary_dat <- annual_summary_dat %>% 
     mutate(`Warming Rate` = eq_all)
+  
+  # again for global temps
   global_summary_dat <- global_summary_dat %>% 
     mutate(`Warming Rate` = eq_global)
   
@@ -1167,15 +1171,13 @@ global_rate_comparison <- function(
       gmri_cols("gmri green"))),  
     c(eq_all, eq_global))
   
-  
-  
   # Single Line Plot
   temp_simplified <- ggplot(data = annual_summary_dat, 
                             aes(year, {{ temp_col }})) +
     
     # Overlay yearly means
-    geom_line(color = "gray10", linewidth = 1, linetype = 1) +
-    geom_point(color = "gray10", size = 1.5) +
+    geom_line(color = "gray20", linewidth = 0.5, alpha = 0.5, linetype = 3) +
+    geom_point(color = "gray20", size = 2, alpha = 0.8) +
     # Warming rates
     stat_smooth(
       method = "lm",
@@ -1195,14 +1197,16 @@ global_rate_comparison <- function(
     scale_color_manual(values = line_colors) +
     scale_x_continuous(limits = c(1982, 2022), expand = expansion(add = c(4,2))) +
     scale_y_continuous(labels =  number_format(suffix = temp_ops$temp_suff)) +
-    labs(title = str_c(region_label, ":"),
-         subtitle = "Annual Sea Surface Temperature Anomalies",
-         color = "SST Trend (1982-2022)",
-         x = "Year", 
-         y = "Sea Surface Temperature Anomaly",
-         caption = "Anomalies calculated using 1982-2011 reference period.") +
-    theme(legend.position = c(0.225, 0.825),
-          legend.background = element_rect(color = "black", fill = "white"))
+    labs(
+      title = str_c(region_label, ":"),
+      subtitle = "Annual Sea Surface Temperature Anomalies",
+      color = "1982-2023 Warming Rates",
+      x = "Year", 
+      y = "Sea Surface Temperature Anomaly",
+      caption = "Anomalies calculated using 1991-2020 reference period.") +
+    theme(
+      legend.position = c(0.225, 0.825),
+      legend.background = element_rect(color = "black", fill = "white"))
 
   # Return the plot
   temp_simplified
