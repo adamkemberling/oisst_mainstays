@@ -13,8 +13,8 @@ format:
     self-contained: true
 execute: 
   echo: false
-  message: false
   warning: false
+  message: false
   comment: ""
   fig.align: center
 params: 
@@ -31,26 +31,27 @@ params:
 
 ####  Packages  ####
 {
-library(lubridate)
-library(raster)
-library(here)
-library(rnaturalearth)
-library(rgeoboundaries)
-library(scales)
-library(sf)
-library(stars)
-library(gmRi)
-library(heatwaveR)
-library(gt)
-library(gtExtras)
-library(patchwork)
-library(tidyverse)
-library(ggthemes)
-library(ggstream)
-library(ggforce)
-library(geomtextpath)
-library(ggHoriPlot)
+  library(lubridate)
+  library(raster)
+  library(here)
+  library(rnaturalearth)
+  library(rgeoboundaries)
+  library(scales)
+  library(sf)
+  library(stars)
+  library(gmRi)
+  library(heatwaveR)
+  library(gt)
+  library(gtExtras)
+  library(patchwork)
+  library(tidyverse)
+  library(ggthemes)
+  library(ggstream)
+  library(ggforce)
+  library(geomtextpath)
+  library(ggHoriPlot)
   library(sysfonts)
+  library(gtable)
 }
 
 #---------- Support Functions
@@ -62,8 +63,9 @@ suppressPackageStartupMessages( source(here("R/temp_report_support.R"), verbose 
 oisst_path <- cs_path("res", "OISST/oisst_mainstays")
 
 # File paths for various extents based on "apershing_gulf_of_maine"
-region_paths <- get_timeseries_paths(region_group = "gmri_sst_focal_areas", 
-                                     box_location = "cloudstorage")
+region_paths <- get_timeseries_paths(
+  region_group = "gmri_sst_focal_areas", 
+  box_location = "cloudstorage")
 
 # Folder for Comms Team Update
 comm_folder <- cs_path("root", "Program Communications/Climate Center — Program Communications/Warming Updates/Visuals/")
@@ -106,7 +108,6 @@ master_crs <- st_crs("EPSG:4326")
 
 # Coastline Shapes
 canada      <- ne_states("canada", returnclass = "sf") %>% st_transform(master_crs)
-# new_england <- gb_adm1(country = "usa", type = "sscgs")  %>% st_transform(master_crs)
 new_england <- ne_states("united states of america", returnclass = "sf")
 world_sf    <- ne_countries(returnclass = "sf")  %>% st_transform(master_crs)
 greenland   <- ne_states(country = "greenland", returnclass = "sf") %>% st_transform(master_crs)
@@ -115,6 +116,25 @@ greenland   <- ne_states(country = "greenland", returnclass = "sf") %>% st_trans
 logo_path <- paste0(system.file("stylesheets", package = "gmRi"), "/gmri_logo.png")
 lab_logo <- magick::image_read(logo_path)
 
+```
+
+
+```{r}
+#| label: style-sheet
+#| results: asis
+
+# Use GMRI style
+use_gmri_style_rmd()
+
+```
+
+
+```{r}
+#| label: fonts-config
+#| echo: false
+
+# # Using Raleway Font because it works
+# sysfonts::font_add_google("Raleway")
 
 # Path to the directory containing the font file (replace with your actual path)
 font_dir <- paste0(system.file("stylesheets", package = "gmRi"), "/GMRI_fonts/Avenir/")
@@ -134,25 +154,38 @@ font_add(
 # Load the font
 showtext::showtext_auto()
 
-# Prevents tiny fonts when saving
-showtext::showtext_opts(dpi=300) 
-
 ```
-
-
-```{r}
-# #| label: code-add-css
-# #| results: asis
-# #| echo: false
-# 
-# gmRi::use_gmri_style_rmd(css = "gmri_rmarkdown.css")
-```
-
 
 
 Over the past decade, scientists at the Gulf of Maine Research Institute have led a body of research that highlights the rapid pace of warming in the Gulf of Maine. To keep you informed, we share seasonal and annual updates about conditions in the Gulf of Maine.
 
 For analyses like these that characterize environmental conditions for a particular area—in this case, the Gulf of Maine—it is important to be clear about the spatial extent that defines the region of study; different domain boundaries could produce different results. The spatial area we use to define the “Gulf of Maine” is displayed in @fig-map, and has remained consistent throughout our seasonal and annual warming updates. 
+
+
+```{r}
+#| label: bathymetry-details
+
+# This work to plot but the detail takes forever with ggplot the more we zoom out
+# Add the bottom contours:
+bathy <- raster(str_c(cs_path("res","Bathy/"), "ETOPO1/NEShelf_Etopo1_bathy.tiff")) 
+
+# Or make terra for ggplot using tidyterra
+elev_terra <- terra::rast(bathy)
+
+
+# Attempts at upgrading the new map
+area_labs<- tribble(
+  ~"label",              ~"lat", ~"lon", ~"angle", ~"color",
+  "Georges\nBank",       41.15,  -67.75, 0,        "black",        
+  "Jordan\nBasin",       43.5,   -67.5,  0,        "black", 
+  "Wilkinson\nBasin",    42.29,  -69.2,  0,        "black", 
+  "Northeast\nChannel",  42.385, -66.2,  0,        "black", 
+  "Scotian\nShelf",      43.675, -63.2,  0,        "black", 
+  "Mid-Atlantic\nBight", 40,     -72.6,  0,        "black", 
+  "Laurentian Channel",  46.3,   -58.2,  310,      "black" )
+  
+
+```
 
 
 ```{r}
@@ -169,11 +202,11 @@ region_extent <- st_read(poly_path, quiet = TRUE)
 
 # Map the Gulf of Maine with Bathymetry
 gom_extent_p <- map_study_area_color(
-  region_extent = region_extent,
+  region_extent  = region_extent,
   new_england_sf = new_england,
-  canada_sf = canada,
-  greenland_sf = greenland) +
-  labs(title = "Gulf of Maine Study Area")
+  canada_sf      = canada,
+  greenland_sf   = greenland) +
+  labs(title     = "Gulf of Maine Study Area")
 
 
 # Show figure
@@ -182,34 +215,6 @@ gom_extent_p
 
 
 
-```{r}
-#| label: bathymetry-details
-
-# This work to plot but the detail takes forever with ggplot the more we zoom out
-# Add the bottom contours:
-bathy <- raster(str_c(cs_path("res","Bathy/"), "ETOPO1/NEShelf_Etopo1_bathy.tiff")) 
-
-# Or make terra for ggplot using tidyterra
-elev_terra <- terra::rast(bathy)
-
-
-# If we go north a touch we can use the NE state outlines
-old_england <- ne_states("united states of america", returnclass = "sf")
-
-
-# Attempts at upgrading the new map
-area_labs<- tribble(
-  ~"label",              ~"lat", ~"lon", ~"angle", ~"color",
-  "Georges\nBank",       41.15,  -67.75, 0,        "black",        
-  "Jordan\nBasin",       43.5,   -67.5,  0,        "black", 
-  "Wilkinson\nBasin",    42.29,  -69.2,  0,        "black", 
-  "Northeast\nChannel",  42.385, -66.2,  0,        "black", 
-  "Scotian\nShelf",      43.675, -63.2,  0,        "black", 
-  "Mid-Atlantic\nBight", 40,     -72.6,  0,        "black", 
-  "Laurentian Channel",  46.3,   -58.2,  310,      "black" )
-  
-
-```
 
 ```{r}
 #| label: code-load-timeseries
@@ -278,26 +283,10 @@ global_summary <- global_anoms %>%
          anom_direction = ifelse(area_wtd_anom > 0, "Hot", "Cold"))
 ```
 
-```{r, eval = F}
-# Climatology figure for something random
-report_yr_only %>% 
-  mutate(time = as.Date(time),
-         mcs_thresh_f = as_fahrenheit(mcs_thresh, data_type = "temperature")) %>% 
-ggplot(aes(time)) +
-  geom_ribbon(aes(ymin = as_fahrenheit(mcs_thresh), ymax = mhw_thresh_f), fill = "lightblue") +
-  geom_line(aes(y = seas_f), color = gmri_cols("blue"), linetype = 1, linewidth = 2) +
-  scale_x_date(date_breaks = "1 month", labels = date_format("%b"),
-               expand = expansion(add = c(0,0))) +
-  scale_y_continuous(labels = label_number(suffix = deg_f)) +
-  labs(x = "Day of the Year", y = "Sea Surface Temperature",
-       title = "Gulf of Maine's Seasonal Climate ")
-
-```
-
 
 
 ```{r}
-#| label: code-all-data-summary
+#| label: code-all-year-temp-summary
 
 # Get the overall average and build labels
 all_year_avgs <- annual_summary %>% 
@@ -308,12 +297,6 @@ all_year_avgs <- annual_summary %>%
             .groups = "drop") %>% 
   mutate(temp_label = str_c(round(avg_temp_c, 2), " \u00b0C  |  ", round(avg_temp_f, 2), " \u00b0F"))
 
-```
-
-
-
-```{r}
-#| label: txt-report-yr-records
 
 # Values I need up front for text
 
@@ -426,9 +409,24 @@ temp_simplified <- global_rate_comparison(
   coord_cartesian(clip = "off") +
   geom_logo(x_npc = 0.115, y_npc = -0.175, logo_height = 1, height_units = "cm")
 
-# add logo
-temp_simplified 
+# Add a new legend for the points
+l2 <- ggplot() +
+  geom_point(
+    data = annual_summary, 
+    aes(year, anom_f, shape = "Gulf of Maine Annual SST Anomaly"), 
+    color = "gray20", 
+    size = 2,
+    alpha = 0.8) +
+  labs(shape = NULL) + 
+  guides(shape = guide_legend(label.position = "left",label.hjust = 1))
+leg2 <- gtable_filter(ggplot_gtable(ggplot_build(l2)), "guide-box") 
 
+
+
+# add second legend
+temp_simplified <- temp_simplified +
+  annotation_custom(grob = leg2, xmin = 2009, xmax = 2021, ymin = -1.3, ymax = -1)
+temp_simplified
 
 
 #------------
@@ -449,32 +447,6 @@ temp_simplified
 # 
 # # add logo
 # temp_simplified_c
-```
-
-
-```{r}
-#| eval: false
-#| label: svg-output
-
-# # Saving the plot as SVg for Scott
-# temps_svg <- global_rate_comparison(
-#   annual_summary_dat = annual_summary, 
-#   global_summary_dat = global_summary, 
-#   eq_all = str_remove(eq_all_f, "1982-2023"), 
-#   eq_global = str_remove(eq_global_f, "1982-2023"), 
-#   temp_units = "F",
-#   region_label = "Gulf of Maine")  +
-#   coord_cartesian(clip = "off") +
-#   theme(legend.position = c(0.2, -0.175))
-# 
-# # Remove the points from the plot
-# temps_svg$layers[[2]] <- NULL
-# 
-# 
-# ggsave(plot = temps_svg, filename = here::here("local_data/GulfofMaine_warming_rates.svg"), 
-#        height = 4, 
-#        width = 6,
-#        units = "in", scale = 1.5)
 ```
 
 
@@ -548,8 +520,8 @@ season_panels <- season_avgs %>%
   imap(function(x, y){
     
     season_p <- ggplot(x, aes(yr, anom_f)) +
-      geom_line( data = filter(x, Region == "Gulf of Maine"), linewidth = 1, linetype = 1) +
-      geom_point(data = filter(x, Region == "Gulf of Maine"), size = 1.5) +
+      geom_line( data = filter(x, Region == "Gulf of Maine"),alpha = 0.5, linewidth = .5, linetype = 3) +
+      geom_point(data = filter(x, Region == "Gulf of Maine"), size = 2, alpha = 0.8) +
       stat_smooth(
         aes(color = rate_eq), 
         method = "lm", 
@@ -562,7 +534,8 @@ season_panels <- season_avgs %>%
       scale_color_manual(values = c(gmri_cols("green"), gmri_cols("blue"))) +
       scale_y_continuous(labels = number_format(suffix = deg_f)) +
       theme(
-        legend.position = c(0.35, 0.8),
+        #legend.position = c(0.35, 0.8),
+        legend.position = "bottom",
         legend.background = element_rect(color = "black", fill = "white")) +
       labs(
         x = "Year", 
@@ -603,9 +576,10 @@ annual_dates <- as.Date(
   c(str_c(report_yr,"-01-01"), str_c(report_yr,"-12-31")))
 
 # Make data window for the year
-data_window <- data.frame(lon = c(-81, -54.5),
-                          lat = c(33.5, 50),
-                          time = annual_dates)
+data_window <- data.frame(
+  lon = c(-81, -54.5),
+  lat = c(33.5, 50),
+  time = annual_dates)
 
 # Load data, stack and tidy
 ne_anoms <- oisst_window_load(
@@ -649,14 +623,15 @@ annual_gom_map <- ggplot() +
           linetype = 2, linewidth = 1,
           fill = "transparent") +
   scale_y_continuous(breaks = seq(30, 50, by = 2)) +
-  scale_fill_distiller(palette = "RdBu", 
-                       na.value = "transparent", 
-                       limit = temp_limits, 
-                       labels = temp_labels,
-                       oob = scales::oob_squish) +
+  scale_fill_distiller(
+    palette = "RdBu", 
+    na.value = "transparent", 
+    limit = temp_limits, 
+    labels = temp_labels,
+    oob = scales::oob_squish) +
   coord_sf(xlim = c(-78, -56.5), ylim = c(37.8, 48)) +
   labs(title = str_c(report_yr, ": Average Temperature Anomalies"),
-       caption = "Anomalies calculated using 1982-2011 climatology.\n100m & 200m contours overlaid to show bathymetric details.") +
+       caption = "Anomalies calculated using 1991-2020 climatology.\n100m & 200m contours overlaid to show bathymetric details.") +
   map_theme(
     legend.position = "bottom",
     legend.title = element_text(angle = 0))+
