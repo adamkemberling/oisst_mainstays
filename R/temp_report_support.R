@@ -225,7 +225,8 @@ supplement_season_info <- function(regional_timeseries){
         season == "DJF" ~ "Winter",
         season == "MAM" ~ "Spring",
         season == "JJA" ~ "Summer"),
-      season_yr = ifelse( (season_eng == "Winter" & month_num %in% c(1,2)), yr - 1, yr))
+      season_yr = ifelse( 
+        (season_eng == "Winter" & month_num %in% c(1,2)), yr - 1, yr))
   
 }
 
@@ -237,11 +238,12 @@ supplement_season_info <- function(regional_timeseries){
 season_text_details <- function(season_op, year_op){
   
   # Set color for the season based on the parameter:
-  season_col <- switch(season_op,
-                       "Spring" = gmri_cols("teal"),
-                       "Summer" = gmri_cols("green"),
-                       "Fall"   = gmri_cols("orange"),
-                       "Winter" = "lightblue")
+  season_col <- switch(
+    season_op,
+    "Spring" = gmri_cols("teal"),
+    "Summer" = gmri_cols("green"),
+    "Fall"   = gmri_cols("orange"),
+    "Winter" = "lightblue")
   
   # Configure edges/centers of each season for label positioning
   # Center Date for the 3-month period
@@ -339,16 +341,43 @@ temperature_summaries <- function(x){
     summarise(
       sst             = mean(sst, na.rm = T),
       sst_anom        = mean(sst_anom, na.rm = T), 
-      sst_f           = as_fahrenheit(sst, "temperature"),
-      anom_f          = as_fahrenheit(sst_anom, "anomalies"),
       area_wtd_sst    = mean(area_wtd_sst, na.rm = T),
       area_wtd_anom   = mean(area_wtd_anom, na.rm = T),
-      area_wtd_f      = as_fahrenheit(area_wtd_sst, "temperature"),
-      area_wtd_anom_f = as_fahrenheit(area_wtd_anom, "anomalies"),
       .groups         = "drop") %>% 
     arrange(desc(sst)) %>% 
-    mutate(sst_rank = row_number())
+    mutate(sst_rank = row_number(),
+           sst_f           = as_fahrenheit(sst, "temperature"),
+           anom_f          = as_fahrenheit(sst_anom, "anomalies"),
+           area_wtd_f      = as_fahrenheit(area_wtd_sst, "temperature"),
+           area_wtd_anom_f = as_fahrenheit(area_wtd_anom, "anomalies"))
 }
+
+
+
+# Return Temperature and Anomaly info in both C and F
+# Uses heatwave results as start - this uses area weighted values by default
+# I preserved these duplicate columns because downstream functions expect the callouts
+temperature_summaries_hw <- function(x){
+  x %>% 
+    summarise(
+      sst             = mean(sst, na.rm = T),
+      sst_anom        = mean(sst_anom, na.rm = T), 
+      clim            = mean(seas, na.rm = T),
+      area_wtd_sst    = mean(sst, na.rm = T),
+      area_wtd_anom   = mean(sst_anom, na.rm = T),
+      .groups         = "drop") %>% 
+    arrange(desc(sst)) %>% 
+    mutate(sst_rank = row_number(),
+           sst_f           = as_fahrenheit(sst, "temperature"),
+           anom_f          = as_fahrenheit(sst_anom, "anomalies"),
+           clim_f          = as_fahrenheit(clim, "temperature"),
+           area_wtd_f      = as_fahrenheit(area_wtd_sst, "temperature"),
+           area_wtd_anom_f = as_fahrenheit(area_wtd_anom, "anomalies"))
+}
+
+
+
+
 
 
 
@@ -1195,7 +1224,7 @@ global_rate_comparison <- function(
       linewidth = 1.5,
       linetype = 1) +
     scale_color_manual(values = line_colors) +
-    scale_x_continuous(limits = c(1982, 2022), expand = expansion(add = c(4,2))) +
+    scale_x_continuous(expand = expansion(add = c(4,2))) +
     scale_y_continuous(labels =  number_format(suffix = temp_ops$temp_suff)) +
     labs(
       title = str_c(region_label, ":"),
@@ -1721,7 +1750,7 @@ heatwave_heatmap_plot <- function(hw_dat, temp_units = "C", start_yr = 1981, end
               fill = "gray75", color = "transparent") +
     
     # tile for sst colors
-    geom_tile(aes(fill = {{ anom_col }})) +
+    geom_tile(aes(fill = {{ anom_col }}), color = "transparent") +
     # points for heatwave events
     geom_point(data = filter(hw_dat, mhw_event == TRUE),
                aes(x = flat_date, y = year), size = .25)  +
@@ -1745,11 +1774,11 @@ heatwave_heatmap_plot <- function(hw_dat, temp_units = "C", start_yr = 1981, end
                                    frame.colour = "black", 
                                    ticks.colour = "black")) +  
     theme(legend.title = element_text(angle = 90)) +
-    labs(title = "Temperature Anomalies and Marine Heatwave Events",
-         x = "Month", 
-         y = "Year",
-         "\nClimate reference period : 1982-2011",
-         caption = "Heatwave event dates have been overlayed with black points for distinction.")
+    labs(
+      title = "Gulf of Maine Heatwave Record",
+      y = "Year",
+      x = "Month",
+      caption = "Heatwave event dates have been overlayed with black points for distinction.")
   
   
   # Assemble pieces
@@ -1960,6 +1989,7 @@ monthly_sst_map <- function(month_avg_layer, month_id, plot_yr, temp_lim = 8, de
                          breaks = temp_breaks, 
                          labels = temp_labels) +
     map_theme(
+      text = element_text(family = "Avenir"),
       title = element_text(hjust = 0.5, size = 8),
       axis.text = element_text(size = 6)) +
     coord_sf(xlim = crop_x, 

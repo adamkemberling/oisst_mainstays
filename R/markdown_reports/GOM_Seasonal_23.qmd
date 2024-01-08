@@ -22,8 +22,9 @@ execute:
 params: 
   year: 2023
   season: "Fall"
-  save_data: FALSE
-  save_figures: FALSE
+  seas: "fall"
+  save_data: TRUE
+  save_figures: TRUE
 ---
 
 ```{r}
@@ -145,8 +146,9 @@ month_range <- switch(params$season,
   "Fall" =   str_c("(September 1, ", params$year," - November 30, ", params$year,")"))
 ```
 
+
 ```{r}
-#| label: region-ts-prep
+#| label: regional-timeseries-prep
 
 # Timeseries Path +
 timeseries_path <- region_paths[["apershing_gulf_of_maine"]][["timeseries_path"]]
@@ -179,14 +181,6 @@ region_hw <- pull_heatwave_events(
   filter(doy != 366, # handle leap years
          time <= as.Date(str_c(params$year, season_right))) # remove dates past the seasonal update
 
-# Set up heatwave status outcomes for fancy gtextras table features:
-region_hw <- region_hw %>% 
-  mutate(
-    hw_outcomes = case_when(
-      mhw_event == TRUE ~ 1,
-      mcs_event == TRUE ~ 0,
-      TRUE ~ 0.5))
-
 
 ####  Prepare Data for This Seasonal Summary
 
@@ -208,7 +202,7 @@ this_season_data <-  this_season_data %>%
 ```
 
 ```{r}
-#| label: seasonal-temp-summary
+#| label: seasonal-sst-summary
 
 # 1. Get the overall all year averages
 
@@ -369,6 +363,7 @@ elev_terra <- terra::rast(bathy)
 
 ```
 
+
 ```{r}
 #| label: fig-map
 #| fig.width: 8
@@ -440,17 +435,17 @@ rank_labs <- switch(current_rank,
 max_anom_yr <- seasonal_avgs %>% 
   arrange(desc(mean_anom)) %>% 
   slice(1) %>% 
-  mutate(across(where(is.numeric), \(x) round(x, 3)))
+  mutate(across(c(mean_temp:anom_f), \(x) sprintf(signif(x, 3), fmt = '%#.1f')))
 
 ```
 
-For this seasonal report we present an analysis of SST for `r tolower(params$season)` `r month_range`. During this season, the average SST for the Gulf of Maine was `r season_avg_temp`°F, making it the `r rank_labs` hottest `r tolower(params$season)` on record for the period of 1982-2023 --- the period over which the satellite data used are available. This seasonal average temperature is `r season_avg_anom`°F above the 1991--2020 climatological reference period (CRP) `r params$season` average of `r season_avg_clim`°F.
+For this seasonal report we present an analysis of SST for `r params$seas` `r month_range`. During this season, the average SST for the Gulf of Maine was `r season_avg_temp`°F, making it the `r rank_labs` hottest `r params$seas` on record for the period of 1982-2023 --- the period over which the satellite data used are available. This seasonal average temperature is `r season_avg_anom`°F above the 1991--2020 climatological reference period (CRP) `r params$seas` average of `r season_avg_clim`°F.
 
 ## Weekly Temperatures
 
-In @tbl-season-temps we highlight how the SST for each week this `r tolower(params$season)` compares to the 1991-2020 CRP for the area shown in @fig-map. The observed SST, long-term average SST, and SST anomalies (i.e., departures from the long-term average SST) are shown. 
+@tbl-season-temps highlights how the SST for each week this `r params$seas` compares to the 1991-2020 CRP for the area shown in @fig-map. The observed SST, long-term average SST, and SST anomalies (i.e., departures from the long-term average SST) are shown. 
 
-SST departures from that long-term average were on average `r round(mean(this_season_data$anom_f),2)`°F or more above normal during the fall. With weekly averaged SST anomalies ranging from -1.79°F to +3.85°F.
+`r params$seas` average SST was on average `r round(mean(this_season_data$anom_f),2)`°F or more above normal during the fall, with weekly averaged SST anomalies ranging from -1.79°F to +3.85°F.
 
 ```{r}
 #| label: week-summary-data-prep
@@ -483,7 +478,7 @@ week_labels <- this_season_data  %>%
     
 # rejoin the temperatures to get weekly summaries
 week_data <- this_season_data %>%
-  select(time, sst, seas, sst_anom, hw_outcomes, wk_start) %>%
+  select(time, sst, seas, sst_anom, wk_start) %>%
   left_join(week_labels, by = "wk_start") 
 
 
@@ -494,7 +489,6 @@ week_summaries <- week_data %>%
     temp_c = mean(sst),
     clim_c = mean(seas),
     anom_c = mean(sst_anom),
-    outcomes = list(hw_outcomes), # list column for showing what days were heatwaves
     .groups = "drop") %>% 
   mutate(`Week` = fct_reorder(`Week`, .x = week_position)) %>% 
   arrange(week_position)
@@ -506,7 +500,9 @@ week_summaries <- week_summaries %>%
     temp_f = as_fahrenheit(temp_c),
     clim_f = as_fahrenheit(clim_c),
     anom_f = as_fahrenheit(anom_c, data_type = "anomalies")) %>% 
-  mutate(across(where(is.numeric), \(x) signif(x, 3)))
+  mutate(
+    across(.cols = all_of(c("temp_c", "clim_c", "anom_c","temp_f", "clim_f", "anom_f")), 
+           .fns = \(x) sprintf(signif(x, digits = 3), fmt = '%#.1f')))
 
 ```
 
@@ -526,7 +522,7 @@ week_summ_table <- week_summaries %>%
   select(Week, temp, clim, anom) %>%
    gt(rowname_col = "Week") %>% 
   tab_header(
-    title = md(paste0("Table 1. Weekly Averaged Sea Surface Temperatures - ", params$season)), 
+    title = md(paste0("Table 1. Weekly Average Sea Surface Temperatures - ", params$season)), 
     subtitle = month_range) %>%
     tab_stubhead(label = md("One-Week Period")) %>% 
   fmt_markdown(
@@ -540,7 +536,6 @@ week_summ_table <- week_summaries %>%
       anom = md("Temperature Anomaly")) %>% 
     tab_source_note(md("*Data Source: NOAA OISSTv2 Daily Sea Surface Temperature Data.*") ) %>% 
     tab_source_note(md("*Climatological Reference Period: 1991-2020.*")) %>%    
-    #opt_table_font(font = list(google_font(name = "Avenir")))
     opt_table_font(font = list(google_font(name = "Raleway")))
 
 # Show Table
@@ -548,10 +543,6 @@ week_summ_table
   
 
 # How to spit out the raw html:
-# # | eval: false
-# # | results: asis
-# # | label: table-html-isolation
-
 #week_summ_table %>% gt::as_raw_html()
 ```
 
@@ -571,7 +562,6 @@ monthly_avgs <- this_season_data %>%
     clim_f = as_fahrenheit(clim_c),
     anom_f = as_fahrenheit(anom_c, data_type = "anomalies"),
     temp_list = list(sst_f), # list column for sparkline anomalies
-    outcomes = list(hw_outcomes),
     .groups = "drop") %>% 
   mutate(across(c(temp_c:anom_f), \(x) signif(x, digits = 3))) 
 
@@ -597,7 +587,7 @@ monthly_avgs <- monthly_avgs %>% left_join(
 
 ```
 
-@tbl-monthly-temps shows monthly average SST for `r tolower(params$season)` `r params$year`, where we see each month was nearly `r ceiling(min(monthly_avgs$anom_f))`°F or more above the 1991-2020 CRP. `r peak_month_full` showed the largest deviation from the long-term climatological average, with an average SST anomaly of `r peak_month$anom_f` °F.
+@tbl-monthly-temps shows monthly average SST for `r params$seas` `r params$year`; each month was within `r ceiling(min(monthly_avgs$anom_f))`°F or more above the 1991-2020 CRP. `r peak_month_full` showed the largest deviation from the long-term climatological average, with an average SST anomaly of `r peak_month$anom_f` °F, making it the 12th warmest October on record. September and November were cooler at 0.6 & 0.5°F above the long-term average—coming in as the 14th and 16th warmest September and November on record, respectively.
 
 ```{r}
 #| label: tbl-monthly-temps
@@ -605,31 +595,32 @@ monthly_avgs <- monthly_avgs %>% left_join(
 #| tbl-cap: "Average monthly sea surface temperatures in the Gulf of Maine"
 
 # Create the Monthly Summary Table
+month_names <- data.frame("month" = month.abb, "month_full" = month.name)
 month_summ_table <- monthly_avgs %>% 
+  left_join(month_names) %>% 
+  mutate(across(c(temp_c:anom_f),\(x) sprintf(x, fmt = '%#.1f'))) %>% 
   mutate(
     temp = md(str_c(temp_f, deg_f, " *(", temp_c, deg_c, ")*")),
     clim = str_c(clim_f, deg_f, " *(", clim_c, deg_c, ")*"),
     anom = str_c(anom_f, deg_f, " *(", anom_c, deg_c, ")*"),
-    month = str_c("*", month, "*")) %>% 
+    month = str_c("*", month_full, "*")) %>% 
   select(month, rank, temp, clim, anom) %>%
    gt(rowname_col = "month") %>% 
   tab_header(
-    title = md(paste0("Table 2. Monthly Averaged Sea Surface Temperatures - ", params$season, "")), 
+    title = md(paste0("Table 2. Monthly Average Sea Surface Temperatures - ", params$season, "")), 
     subtitle = month_range) %>%
     tab_stubhead(label = md("Month")) %>% 
   fmt_markdown(
   columns = everything(),
   rows = everything(),
   md_engine = c("markdown", "commonmark")) %>% 
-  # Change the column names to the units
-    cols_label(
-      rank = md("Rank (1982-2023)"),
-      temp = md("Observed Temperature"),
-      clim = md("Climatological Average"),
-      anom = md("Temperature Anomaly")) %>% 
+  cols_label( # Change the column names to the units
+    rank = md("Rank (1982-2023)"),
+    temp = md("Observed Temperature"),
+    clim = md("Climatological Average"),
+    anom = md("Temperature Anomaly")) %>% 
   tab_source_note(md("*Data Source: NOAA OISSTv2 Daily Sea Surface Temperature Data.*") ) %>% 
   tab_source_note(md("*Climatological Reference Period: 1991-2020.*")) %>% 
-  #opt_table_font(font = list(google_font(name = "Avenir")))
   opt_table_font(font = list(google_font(name = "Raleway")))
 
 # # Display Table
@@ -637,9 +628,9 @@ month_summ_table
 
 ```
 
-## How Does this `r params$season` Compare?
+## How Does this `r params$season` Compare to the Past?
 
-`r params$year` is the **`r rank_labs`** warmest `r tolower(params$season)` season observed in the Gulf of Maine during the 41 years we have satellite data to analyze, a departure from a recent trend in above average fall temperatures in the last decade. Seasonal SST in 2023 fell 2.75F when compared to 2022. This marks the largest single-year decline in year-over-year fall temperatures. 
+`r params$year` is the **`r rank_labs`** warmest `r params$seas` season observed in the Gulf of Maine during the 41 years we have satellite data to analyze, a departure `r params$seas` seasons in recent years, which experienced well-above average SSTs. 
 
 ```{r}
 #| label: fig-season-rank
@@ -674,13 +665,7 @@ temp_rankings_p <- rank_plot_data %>%
     hjust = -.05,
     color = 'white',
     size = 5) +
-  # # Temperature Labels - Inside Bars
-  # geom_text(
-  #   mapping = aes(x = anom_f, y = year_rank, label = anom_label, group = rank),
-  #   hjust = 1.05,
-  #   color = 'white',
-  #   size = 4) +
-  # Temperature Labels - Outside Bars
+ # Temperature Labels - Outside Bars
   geom_text(
     mapping = aes(
       x = anom_f, y = rank, 
@@ -717,7 +702,8 @@ temp_rankings_p
 
 The Gulf of Maine is an area of particular interest to the scientific community because of the remarkable rate of warming it has experienced in recent years coupled with its importance as a major driver for the regional economy.
 
-When looking at average `r tolower(params$season)` temperatures from the beginning of the satellite record in 1982 @fig-global-rates, there is a clear long-term increase, with SST's warming at a rate of `r decadal_rate_f`°F per decade. This rate of seasonal spring warming is ~4x the rate that global ocean temperatures are warming (`r global_decadal_rate_f`°F per decade).
+ @fig-global-rates illustrates the average fall temperature anomaly for each year in the Gulf of Maine since the beginning of the satellite record in 1982 overlaid with long-term SST anomaly trends for the Gulf of Maine (orange) and global oceans (blue) overlaid. The `r params$seas` rate of warming for the Gulf of Maine (`r decadal_rate_f`°F per decade) is roughly 4x as fast as the warming rate for oceans globally (`r global_decadal_rate_f`°F per decade). The `r params$seas` SST anomaly for the Gulf of Maine in `r params$year` was 2.75°F cooler than that from 2022, the largest year-over-year decline in `r params$seas` temperatures in the satellite record. Despite the sizable year-over-year change, `r params$seas` `r params$year` remained warmer than 28 of the 29 fall seasons prior to 2010, consistent with the observed long-term warming trend in the region. 
+
 
 ```{r}
 #| label: fig-global-rates
@@ -728,12 +714,9 @@ When looking at average `r tolower(params$season)` temperatures from the beginni
 l2 <- ggplot(glob_plot_dat) +
   geom_point(
     data = filter(glob_plot_dat, region == "Gulf of Maine"), 
-    aes(yr, anom_f, shape = "Gulf of Maine Average SST Anomaly"), 
-    color = "gray20", 
-    size = 2,
-    alpha = 0.8) +
-  labs(shape = NULL) +
-  theme(text = element_text(family = "Avenir"))
+    aes(yr, anom_f, shape = "Gulf of Maine Seasonal Average SST Anomaly"), 
+    color = "gray20", size = 2, alpha = 0.8) +
+  guides(shape = guide_legend(title = NULL,label.position = "left",label.hjust = 1))
 leg2 <- gtable_filter(ggplot_gtable(ggplot_build(l2)), "guide-box") 
 
 
@@ -749,7 +732,7 @@ global_rate_plot <- ggplot(glob_plot_dat) +
     color = "gray20", 
     size = 2,
     alpha = 0.8) +
-  annotation_custom(grob = leg2, xmin = 2010, xmax = 2021, ymin = -3.6, ymax = -3.3) +
+  annotation_custom(grob = leg2, xmin = 2009, xmax = 2020, ymin = -3.6, ymax = -3.3) +
   # All year warming rate for GOM
   geom_smooth(
     aes(yr, anom_f, color = str_c(region, " Trend\n", rate)), 
@@ -781,9 +764,10 @@ global_rate_plot <- ggplot(glob_plot_dat) +
 
 The unprecedented levels of warmth over the past decade or so are consistent with what researchers describe as a distinct regime shift in terms of the major influences on SSTs in the Gulf of Maine. The drivers of this (e.g., a potential weakening of the Atlantic Meridional Overturning Circulation, widening of the Gulf Stream, changes in the characteristics of the Labrador Current) have been [well-documented in the peer-reviewed literature](https://eos.org/features/why-is-the-gulf-of-maine-warming-faster-than-99-of-the-ocean), including through research by GMRI scientists.
 
-Sea surface temperatures are also impacted by atmospheric weather patterns which can act to amplify warming or cool surface waters. Sustained periods of low cloud cover and the consequent direct sunlight can rapidly warm the ocean at the surface. Winds can act as a fan, advecting heat away and cooling the surface. Storm systems and any strong and/or sustained winds will also cool surface temperatures through mixing, as wave action stirs up cooler water from beneath the warmer surface layer, dispersing the heat through more of the water column.
+Observed SSTs are also influenced by atmospheric weather patterns which can act to amplify warming or cooling of surface waters. Sustained periods of low cloud cover and the consequent direct sunlight can rapidly warm the ocean at the surface. Steady winds can act as a fan, advecting heat away from the ocean and cooling the surface. Strong winds and storm systems may also lower SST through mixing, which can bring cooler water from depth closer to the surface.
 
-In September the Gulf of Maine was crossed by extratropical storm Lee, which weakened from hurricane strength as it crossed over Georges Bank on September 16th. The impacts of this storm on the region’s SSTs can be seen in the declines observed this fall as the storm passed through the region and the persistent lows that followed. Similar storm crossings have occurred in the past, including during 2019 when hurricane Dorian passed through the Gulf of Maine after working its way up the US East Coast. Each of these years had some of the fewest fall heatwave days seen in recent years (2019: 0 days, 2023: 6 days).
+In September 2023, extratropical storm Lee traversed the Gulf of Maine, which weakened from hurricane strength as it crossed over Georges Bank on September 16. The impacts of this storm on the region’s SSTs can be seen in Table 1. Similar storm crossings have occurred in the recent past, including in 2019 when Hurricane Dorian passed through the Gulf of Maine after working its way up the US East Coast. Both years had some of the fewest fall heatwave days seen in the past two decades (2019: 0 days, 2023: 6 days). 
+
 
 
 
@@ -834,12 +818,16 @@ region_hw %>%
   ggplot() +
   geom_col(aes(season_yr, hw_frac, alpha = I(yr_alpha), fill = "Above 90th Percentile"), color = "transparent") +
   geom_col(aes(season_yr, cs_frac, alpha = I(yr_alpha), fill = "Below 10th Percentile"), color = "transparent") +
+  geom_bracket(
+    data = data.frame(xmin = 1991, xmax = 2020,y.position = .15, label = "1991-2020 Climatological Reference Period"), 
+      aes(xmin = xmin, xmax = xmax, y.position = y.position, label = label), 
+      family = "Avenir") +
   scale_fill_gmri(reverse = T) +
   scale_y_continuous(labels = label_percent()) +
   labs(
     x = "Year", 
-    y = "Fraction of Fall Days", 
-    title = "High Percentile Fall Warmth More Prevalent Since 2010",
+    y = str_c("Fraction of ",params$season, " Days"), 
+    title = str_c("High Percentile ", params$season, " Warmth More Prevalent Since 2010"),
     fill = "SST Extremes")
   
 
@@ -849,7 +837,7 @@ region_hw %>%
 
 
 
-Using this broadly accepted definition, **the Gulf of Maine has experienced MHW conditions for `r round(hw_frac)`% of this `r tolower(params$season)`**. September was the only month this Fall where SST was above the threshold of a MHW (90th Percentile) long enough to meet standards for a MHW, but only for a total of six days.
+Using this broadly accepted definition, **the Gulf of Maine has experienced MHW conditions for `r round(hw_frac)`% of this `r params$seas`**. September was the only month this fall where SST was above the threshold of a MHW, ultimately exhibiting these anomalously warm conditions for a total of six days. SSTs for the remainder of the season remained closer to the long-term average, even dipping below that climatological average for almost three weeks from late September into early October.
 
 
 
@@ -874,36 +862,32 @@ temp_units <- "F"
   temp_ops <- switch (
     EXPR = temp_units,
     "C" = list(
-      temp_col = expr(sst),
-      anom_col = expr(sst_anom),
-      seas_col = expr(seas),
+      temp_col  = expr(sst),
+      anom_col  = expr(sst_anom),
+      seas_col  = expr(seas),
       hw_thresh = expr(mhw_thresh),
       cs_thresh = expr(mcs_thresh),
-      hw_temp = expr(hwe),
+      hw_temp   = expr(hwe),
       temp_suff = " \u00b0C"),
     "F" = list(
-      temp_col = expr(sst_f),
-      anom_col = expr(anom_f),
-      seas_col = expr(seas_f),
+      temp_col  = expr(sst_f),
+      anom_col  = expr(anom_f),
+      seas_col  = expr(seas_f),
       hw_thresh = expr(mhw_thresh_f),
       cs_thresh = expr(cs_thresh_f),
-      hw_temp = expr(hwe_f),
-      temp_suff = " \u00b0F")
-    )
+      hw_temp   = expr(hwe_f),
+      temp_suff = " \u00b0F"))
   
   # Assign to shorter names
-  temp_col <- temp_ops$temp_col
-  anom_col <- temp_ops$anom_col
-  clim_col <- temp_ops$seas_col
+  temp_col      <- temp_ops$temp_col
+  anom_col      <- temp_ops$anom_col
+  clim_col      <- temp_ops$seas_col
   hw_thresh_col <- temp_ops$hw_thresh
   cs_thresh_col <- temp_ops$cs_thresh
-  hw_temp_col <- temp_ops$hw_temp
+  hw_temp_col   <- temp_ops$hw_temp
   
   # Set colors by name
-  color_vals <- c(
-    "Non-Heatwave"    = "#0571B0",
-    "Marine Heatwave" = "darkred")
-  
+  color_vals <- c("Non-Heatwave" = "#0571B0", "Marine Heatwave" = "darkred")
   
   # Flag heatwave Events:
   hw_events <- year_hw_dat %>% 
@@ -949,7 +933,7 @@ hw_temp_p <- ggplot(year_hw_dat) +
     geom_bracket(
       data = hw_events, 
       aes(xmin = llim, xmax = rlim, y.position = ymax + 2, label = str_c(len, " Days")), 
-      family = "Avenir", ) +
+      family = "Avenir") +
     scale_color_manual(values = color_vals) +
     scale_x_date(
       date_labels = "%b", 
@@ -960,11 +944,12 @@ hw_temp_p <- ggplot(year_hw_dat) +
       labels =  number_format(suffix = temp_ops$temp_suff),
       expand = expansion(mult = c(0.05, .2))) +
     theme(legend.position = "bottom") +
-    labs(title = str_c("Gulf of Maine SST and MHW Events"),
-         x = NULL, 
-         color = "Sea Surface Temperature & Heatwave Status:",
-         fill = "Difference from Average SST",
-         y = "Sea Surface Temperature") +
+    labs(
+      title = str_c("Gulf of Maine SST and MHW Events"),
+      x = NULL, 
+      color = "Sea Surface Temperature & Heatwave Status:",
+      fill = "Difference from Average SST",
+      y = "Sea Surface Temperature") +
   coord_cartesian(clip = "off") +
   geom_logo(x_npc = 0.85, y_npc = 1.1, logo_height = 1, height_units = "cm")
 
@@ -978,7 +963,7 @@ max_int <- max(floor(this_season_data$anom_f))
 
 
 
-Presenting SST conditions in terms of anomalies ( @fig-season-anoms ) as opposed to absolute values ( @fig-season-mhw-timeline ) illustrates in greater detail the magnitude of MHW conditions throughout the `r tolower(params$season)`. The most extreme daily SST anomalies for fall 2023 occurred towards the start of September, with temperatures building to over `r max_int`°F above the climatological average above the climatological average before rapidly dropping to cooler for the remainder of the fall. This rapid drop in SST coincided with Hurricane Lee’s passage through the area, demonstrating how atmospheric conditions can alter ocean surface conditions.
+Presenting SST conditions in terms of anomalies ( @fig-season-anoms ) as opposed to absolute values ( @fig-season-mhw-timeline ) illustrates in greater detail the magnitude of MHW conditions throughout the `r params$seas`. The most extreme daily SST anomalies for fall 2023 occurred towards the start of September, with temperatures building to over `r max_int`°F above the climatological average above the climatological average before rapidly dropping to cooler for the remainder of the fall. This rapid drop in SST coincided with Hurricane Lee’s passage through the area, demonstrating how atmospheric conditions can alter ocean surface conditions.
 
 
 ```{r}
@@ -1001,7 +986,7 @@ hw_anom_p <- year_hw_dat %>%
       aes(x = time, y = 0), 
       color = "gray10", 
       label = "Climatological Avg. & \n 10th-90th Percentile Range", 
-      hjust = .125, lty = 1, family = "Avenir") +
+      hjust = .075, lty = 1, family = "Avenir") +
     geom_bracket(
       data = hw_events, 
       aes(xmin = llim, xmax = rlim, y.position = max_anom + 1, label = str_c(len, " Days")), 
@@ -1029,23 +1014,13 @@ hw_anom_p
 
 
 
-
-# # Show MHW Status Through the Year:
-# hw_anom_p <- year_hw_anoms_two(year_hw_dat = last_yr_heatwaves, temp_units = "F") + 
-#   labs(title = str_c(params$season, " ", params$year, " Gulf of Maine SST Anomalies")) +
-#   
-#   theme(text = element_text(family = "Avenir")) +
-#   coord_cartesian(clip = "off") +
-#   labs(title = str_c("Gulf of Maine SST Anomalies")) +
-#   geom_logo(x_npc = 0.85, y_npc = 1.1, logo_height = 1, height_units = "cm")
-# hw_anom_p
 ```
 
 ## Heatmap of Temperature Anomalies and Heatwave Events
 
 Looking at the full record of daily SST anomalies in the Gulf of Maine (@fig-mhw-heatmap), the distinct thermal regime shift beginning around 2010 is evident. Indeed, since 2012, the Gulf of Maine has experienced far more persistent MHW conditions (indicated by solid black lines) than at any other point in the satellite record.
 
-Conditions in the Gulf of Maine this fall were unusually cool when compared to recent years. Fall SST in the previous 3 years had been noteworthy for their extended MHW conditions, part of a long-term trend of unseasonably warm fall and fall temperatures since 2012. The relatively mild fall of 2023 stands in contrast to the preceding spring and summer seasons, which were the 2nd & 8th warmest on record. 
+SST anomalies in the Gulf of Maine this fall were lower than in any season since mid-2019. Fall SST in the previous 3 years had been noteworthy for their extended MHW conditions, part of the long-term trend of unseasonably warm fall since 2012 (Figure 2). The relatively mild fall in the Gulf of Maine this year is a contrast to the 2023 spring and summer seasons—which were the 2nd & 8th warmest on record—and stands in stark contrast to fall SST conditions in the broader North Atlantic region (see Figure 10). 
 
 ```{r}
 #| fig.height: 8
@@ -1066,10 +1041,11 @@ grid_dat <- region_hw %>%
 # All years:
 heatmap_p <- grid_dat %>% 
   heatwave_heatmap_plot(temp_units = "F", start_yr = 1981, end_yr = 2023) +
-  labs(title = "Gulf of Maine Heatwave Record",
-       y = "Year",
-       x = "Month",
-       caption = NULL) +
+  labs(
+    title = "Gulf of Maine Heatwave Record",
+    y = "Year",
+    x = "Month",
+    caption = NULL) +
   theme(
     legend.position = "bottom",
     legend.title = element_text(angle = 0, size = 11, face = "bold"),
@@ -1122,22 +1098,17 @@ season_anoms_c <- oisst_window_load(
   data_window = data_window, 
   anomalies = T, 
   climate_ref = "1991-2020",
-  box_location = "cloudstorage")
-
-
-# Stack the years
-season_anoms_c <- stack(season_anoms_c)
-
+  box_location = "cloudstorage") %>%  
+  stack()
 
 # Convert to F
 season_anoms_f <- as_fahrenheit(season_anoms_c, data_type = "anomalies")
 
 
+
+
+
 ####  Records for the Text  ####
-
-
-
-
 
 # Calculate the average for the season
 season_mean <- mean(season_anoms_f, na.rm = T)
@@ -1175,7 +1146,7 @@ peak_temp_df <- data.frame(
   lon = pos$x,
   lat = pos$y,
   do_circle = T) %>% 
-  mutate(descr = "Highest Seasonally-Averaged SST Anomaly") %>% 
+  mutate(descr = "Highest Seasonal SST Anomaly") %>% 
   bind_rows(
     data.frame(
       max_val = rep(NA, 25),
@@ -1190,7 +1161,7 @@ peak_temp_df <- data.frame(
 ```
 
 
-From an aerial perspective, the Gulf of Maine experienced mild above-average SSTs during `r tolower(params$season)` of `r params$year``, while surrounding areas experienced either extreme highs or extreme lows for the season. During the fall a large area of below average sea surface temperatures developed just south of Georges Bank. Further to the south a large patch of above-average SST anomalies had formed, located to the east of New Jersey just off the continental shelf and outside the domain analyzed in preceding sections (Figure 7). The highest seasonally averaged SST anomaly of any location in this broader region was `r max_season`°F - part of the large patch of positive anomalies to the east of New Jersey, south of Long Island Sound.
+From an aerial perspective, the Gulf of Maine experienced mild above-average SSTs during `r params$seas` of `r params$year`. In general, conditions were relatively mild, exhibiting seasonally-averaged SST anomalies that did not deviate beyond +/- 3°F from the long-term average. There was an east-to-west gradient in seasonally averaged SST anomalies within the Gulf of Maine, potentially representing the influence of the anomalously cool surface water (depicted by the deep blues in Figure 7) entering the study region through the Northeast Channel. The highest seasonally averaged SST anomaly in the Gulf of Maine was 3.05°F - located near Penobscot Bay.
 
 
 
@@ -1273,7 +1244,8 @@ season_map
 
 ## Monthly Temperature Anomalies
 
-Average monthly SST anomalies are shown in @fig-monthly-avg-map. The warmest anomalies were observed in March and April and were largely confined to areas just beyond the region of study (i.e, beyond the continental shelf where the Gulf Stream and Labrador Current have significantly more influence on oceanic conditions).
+Average monthly SST anomalies are shown in @fig-monthly-avg-map. During the month of September, the Gulf of Maine experienced above-average SSTs with the warmest anomalies concentrated along the shallower coastal areas to the west. Colder than average temperatures were present near the Northeast Channel to the east, where the waters are deeper. In October the pattern persisted, but with fewer below-average temperatures in the Northeast Channel area. By November the limited warming of October had reversed, with cooler anomalies again present near the Northeast Channel as well as to the north towards the Bay of Fundy. Across all months a large area of colder than average SST anomalies was present to the southeast of the Gulf of Maine. This area of colder water exhibited the coldest SST anomalies during October. The cold patch appeared to move westward over the course of the fall season, along the edge of the continental shelf.
+
 
 ```{r}
 #| label: fig-monthly-avg-map
@@ -1281,7 +1253,7 @@ Average monthly SST anomalies are shown in @fig-monthly-avg-map. The warmest ano
 #| fig.width: 8
 #| fig.height: 4
 #| fig.align: center
-#| fig-cap: "This series of maps shows the average monthly SST anomaly for March 2023, April 2023, and May 2023. The box outlined by the black dashed line denotes the region of study for the analysis. Darker red regions indicate warmer anomalies."
+#| fig-cap: "This series of maps shows the average monthly SST anomaly for September 2023, Ovtober 2023, and November 2023. The box outlined by the black dashed line denotes the region of study for the analysis. Darker red regions indicate warmer anomalies."
 
 
 # Get monthly averages
@@ -1318,8 +1290,7 @@ month_plots <- imap(
       plot_yr = params$year,
       depth_contours = contours_make, 
       temp_lim = 6,
-      convert_to_f = FALSE) + 
-      theme(text = element_text(family = "Avenir"))
+      convert_to_f = FALSE)
   }
 ) 
   
@@ -1339,165 +1310,11 @@ monthly_maps <- (
     legend.text = element_text(size = 9),
     plot.margin = margin(t = 0, b = 0, r = 0.5, l = 0.5)) 
 
-
+# Add a caption
 monthly_maps + plot_annotation(caption = "200m contour overlaid to show topographic details.")
 ```
 
-```{r}
-#| eval: false
-#Rt walk
-month_plots[[1]] + 
-  coord_sf(xlim = crop_x, 
-           ylim = crop_y, 
-           clip = "off") +
-  geom_logo(x_npc = 0.85, y_npc = 1.05, logo_height = 1, height_units = "cm") +
-  theme(
-    text = element_text(family = "Avenir"),
-    legend.position = 'bottom', 
-    plot.margin = margin(t = 0, b = 0, r = 0.5, l = 0.5)) 
-```
 
-## North Atlantic Heat
-
-2023 was a year with headline temperatures for the North Atlantic. A dramatic figure that was shared widely on social media was a version of figure 11. which captures just how profoundly hot this year's temperatures were across the N. Atlantic. SST in the North Atlantic have been off the charts hot for much of the year drawing attention and concerns for the rapidly changing ocean environment.
-
-```{r}
-#| label: fig-natl-timeseries
-#| fig-cap: " Light gray lines illustrate annual time series for SST anomalies in the North Atlantic from 1982-2023. North Atlantic SST anomalies for 2023 are shown in orange. Dashed black lines denote the 90th and 10th percentile SST anomalies (for the 1991-2020 CRP)."
-
-# Load the timeseries for the spaghetti plot
-natl_ts <- read_csv(here("notebooks/nb_testing_data/north_atlantic_sst_1982to2023.csv"))
-
-# Get the heatwave situation
-natl_ts <- pull_heatwave_events(natl_ts, clim_ref_period = c("1991-01-01", "2020-12-31"), temp_col = "area_wtd_sst")
-
-natl_ts <- natl_ts %>% 
-  mutate(yr = year(time),
-         is_23 = ifelse(yr == 2023, TRUE, FALSE),
-         yr_col   = ifelse(is_23, gmri_cols("orange"), "gray90"),
-         yr_lw    = ifelse(is_23, 1.5, 0.8),
-         yr_alpha = ifelse(is_23, 1, 0.5),
-         flat_date = as.Date("2000-01-01") + doy-1,
-         anom_f = as_fahrenheit(sst_anom, data_type = "anomalies"),
-         hw_thresh_f = as_fahrenheit(mhw_thresh-seas, data_type = "anomalies"),
-         cs_thresh_f = as_fahrenheit(mcs_thresh-seas, data_type = "anomalies")) %>% 
-  filter(time < max(this_season_data$time))
-
-
-
-# Plot how unusual this year was
-natl_tl <- natl_ts %>% 
-  ggplot(aes(flat_date, anom_f)) +
-  geom_line(aes(group = yr, linewidth = I(yr_lw), alpha = I(yr_alpha), color = I(yr_col))) +
-  geom_texthline(yintercept = 0, label = "1991-2020 Average", linewidth = 1, size = 5) +
-  geom_textline(data = filter(natl_ts, yr == 2022), aes(x = flat_date, y = hw_thresh_f), label = "90th Percentile", linewidth = 1, size = 5, linetype = 3, family = "Avenir") +
-  geom_textline(data = filter(natl_ts, yr == 2022), aes(x = flat_date, y = cs_thresh_f), label = "10th Percentile", linewidth = 1, size = 5, linetype = 3, family = "Avenir") +
-  geom_text(
-    data = filter(natl_ts, yr == 2023) %>% slice(yday(max(this_season_data$time))-1),
-    label = "2023", hjust = 0, vjust = -0.4,
-    size = 5, fontface = "bold", color = gmri_cols("orange"), 
-    family = "Avenir") +
-  scale_x_date(date_breaks = "1 month", labels = date_format("%b"), 
-               expand = expansion(add = c(0,0))) +
-  scale_y_continuous(labels = number_format(suffix = deg_f)) +
-  #theme_gmri() +
-  labs(x = "Day of Year", y = "Sea Surface Temperature Anomaly",
-       title = "North Atlantic SST Anomalies",
-       subtitle = "(0-60N, 0-80W)")  +
-  coord_cartesian(clip = "off") +
-  
-  theme(text = element_text(family = "Avenir")) +
-  geom_logo(x_npc = 0.85, y_npc = 1.1, logo_height = 1, height_units = "cm")
-
-natl_tl
-
-```
-
-In a departure from the now-familiar pattern of regionally concentrated warming, much of the attention this year was on large areas in the eastern Atlantic experiencing a large-scale MHW event. This summer scientists sounded the alarm over record setting temperatures for much of the Eastern Atlantic impacting population centers along the European coast and contributing to sweltering temperatures on land.
-
-```{r}
-#| label: fig-season-natl-map
-#| fig.width: 8
-#| fig.height: 8
-#| fig-cap: "Map of average SST anomalies for each grid cell in the satellite record for summer 2023 in the North Atlantic. Darker red regions indicate warmer anomalies."
-
-# Set time limits
-natl_dates <- c(min(this_season_data$time), max(this_season_data$time))
-
-# Spatial Extent Info
-natl_crop_x   <- c(-80, 0)
-natl_crop_y   <- c(0, 60)
-
-# Expanded area as bbox
-natl_area <- structure(
-    c(natl_crop_x, 
-      natl_crop_y),  
-    class = "bbox",
-  crs = 4326) %>% 
-  st_as_sfc() %>% 
-  st_as_sf()
-
-
-# Make data window for season
-data_window <- data.frame(
-  lon = natl_crop_x,
-  lat = natl_crop_y,
-  time = natl_dates)
-
-# Load data - Temperature Anomalies
-natl_anoms_c <- oisst_window_load(
-  data_window = data_window, 
-  anomalies = T, 
-  climate_ref = "1991-2020",
-  box_location = "cloudstorage") %>% 
-  stack()
-
-
-
-# Make a map of just this season, across 
-natl_mean <- calc(natl_anoms_c, mean, na.rm = T)
-natl_mean_f <- as_fahrenheit(natl_mean, data_type = "anomalies")
-
-
-
-# Mapping in absolute units:
-
-# Set Plot legend limits
-temp_limits <- c(-6, 6)
-temp_breaks <- c(temp_limits[1], temp_limits[1]/2,  0, temp_limits[2]/2, temp_limits[2])
-temp_labels <- str_c(c(str_c("< ", temp_limits[1]), temp_limits[1]/2, 0, temp_limits[2]/2, str_c("> ", temp_limits[2])), "\u00b0F")
-
-natl_map <- ggplot() +
-  geom_stars(
-  data = st_as_stars(natl_mean_f)) +
-  geom_sf(data = world_sf, fill = "gray90", linewidth = .25) +
-  scale_fill_distiller(
-    palette = "RdBu", 
-    direction = -1, 
-    labels = label_number(suffix = deg_f),
-    na.value = "transparent", 
-    limit = temp_limits,
-    breaks = temp_breaks,
-    oob = scales::oob_squish) +
-  map_theme(
-    text = element_text(family = "Avenir"),
-    legend.title = element_text(family = "Avenir", size = 11, face = "bold"),
-    legend.position = "bottom") +
-  coord_sf(xlim = c(-80, 0), 
-           ylim = c(0, 60), 
-           expand = F) +
-  guides("fill" = guide_colorbar(
-    title = "Surface Temperature Anomaly",
-    title.position = "top",
-    title.hjust = 0.5,
-    barwidth = unit(5, "in"), show.limits = T,
-    frame.colour = "black",
-    ticks.colour = "black")) +
-  labs(title = str_c("Seasonal Temperature Anomaly\n", params$season, " ", params$year))
-
-natl_map
-
-```
 
 ### Data Sources:
 
@@ -1532,13 +1349,14 @@ if(params$save_figures){
   showtext::showtext_opts(dpi=300) 
   
   # Gom Extent Map
-  ggsave(plot = gom_extent_p, 
-         filename = str_c(update_folder, "GOM_Extent.png"), 
-         height = unit(4, "in"),
-         width = unit(4, "in"),
-         dpi = "retina", 
-         bg = "transparent", 
-         scale = 2)
+  ggsave(
+    plot = gom_extent_p, 
+    filename = str_c(update_folder, "GOM_Extent.png"), 
+    height = unit(4, "in"),
+    width = unit(4, "in"),
+    dpi = "retina", 
+    bg = "transparent", 
+    scale = 2)
   
   
   # Weekly Report Table
@@ -1555,114 +1373,101 @@ if(params$save_figures){
   
   
   # Seasonal Rates Plot
-  ggsave(plot = global_rate_plot, 
-         filename = str_c(update_folder, "Seasonal_rates_plot.png"), 
-         height = unit(2.5, "in"),
-         width = unit(4, "in"),
-         dpi = "retina", 
-         bg = "transparent", 
-         scale = 2)
+  ggsave(
+    plot = global_rate_plot, 
+    filename = str_c(update_folder, "Seasonal_rates_plot.png"), 
+    height = unit(2.5, "in"),
+    width = unit(4, "in"),
+    dpi = "retina", 
+    bg = "transparent", 
+    scale = 2)
   
   
   # Seasonal Temp Rankings
-  ggsave(plot = temp_rankings_p, 
-         filename = str_c(update_folder, "Seasonal_temp_ranks_plot.png"), 
-         height = unit(3, "in"),
-         width = unit(4, "in"),
-         dpi = "retina", 
-         bg = "transparent", 
-         scale = 2)
+  ggsave(
+    plot = temp_rankings_p, 
+    filename = str_c(update_folder, "Seasonal_temp_ranks_plot.png"), 
+    height = unit(3, "in"),
+    width = unit(4, "in"),
+    dpi = "retina", 
+    bg = "transparent", 
+    scale = 2)
 
   
   # Heatwave Temperature Plot
-  ggsave(plot = hw_temp_p, 
-         filename = str_c(update_folder, "Heatwave_temp_plot.png"), 
-         height = unit(2.5, "in"),
-         width = unit(4, "in"),
-         dpi = "retina", 
-         bg = "transparent", 
-         scale = 2)
+  ggsave(
+    plot = hw_temp_p, 
+    filename = str_c(update_folder, "Heatwave_temp_plot.png"), 
+    height = unit(2.5, "in"),
+    width = unit(4, "in"),
+    dpi = "retina", 
+    bg = "transparent", 
+    scale = 2)
   
   
   # Heatwave Anomaly Plot
-  ggsave(plot = hw_anom_p, 
-         filename = str_c(update_folder, "Heatwave_anom_plot.png"), 
-         height = unit(2.5, "in"),
-         width = unit(4, "in"),
-         dpi = "retina", 
-         bg = "transparent", 
-         scale = 2)
+  ggsave(
+    plot = hw_anom_p, 
+    filename = str_c(update_folder, "Heatwave_anom_plot.png"), 
+    height = unit(2.5, "in"),
+    width = unit(4, "in"),
+    dpi = "retina", 
+    bg = "transparent", 
+    scale = 2)
   
   # heatwave heatmap
-  ggsave(plot = heatmap_p, 
-         filename = str_c(update_folder, "Heatwave_Heatmap.png"), 
-         height = unit(4, "in"),
-         width = unit(4, "in"),
-         dpi = "retina", 
-         bg = "transparent", 
-         scale = 2)
+  ggsave(
+    plot = heatmap_p, 
+    filename = str_c(update_folder, "Heatwave_Heatmap.png"), 
+    height = unit(4, "in"),
+    width = unit(4, "in"),
+    dpi = "retina", 
+    bg = "transparent", 
+    scale = 2)
   
   
   # Season Map
-  ggsave(plot = season_map, 
-         filename = str_c(update_folder, "Seasonal_anom_map.png"), 
-         height = unit(4, "in"),
-         width = unit(4, "in"),
-         dpi = "retina", 
-         bg = "transparent", 
-         scale = 2)
+  ggsave(
+    plot = season_map, 
+    filename = str_c(update_folder, "Seasonal_anom_map.png"), 
+    height = unit(4, "in"),
+    width = unit(4, "in"),
+    dpi = "retina", 
+    bg = "transparent", 
+    scale = 2)
   
   # monthly maps
-  ggsave(plot = monthly_maps,
-         filename = str_c(update_folder, "Monthly_anom_maps.png"), 
-         height = unit(2.5, "in"),
-         width = unit(4, "in"),
-         dpi = "retina", 
-         bg = "transparent", 
-         scale = 2)
+  ggsave(
+    plot = monthly_maps,
+    filename = str_c(update_folder, "Monthly_anom_maps.png"), 
+    height = unit(2.5, "in"),
+    width = unit(4, "in"),
+    dpi = "retina", 
+    bg = "transparent", 
+    scale = 2)
   
   
-  # North Atlantic Plots:
-  ggsave(plot = natl_tl,
-         filename = str_c(update_folder, "north_atlantic_timelines.png"), 
-         height = unit(2.5, "in"),
-         width = unit(4, "in"),
-         dpi = "retina", 
-         bg = "transparent", 
-         scale = 2)
   
-  # North atlantic Map
-  ggsave(plot = natl_map,
-         filename = str_c(update_folder, "north_atlantic_map.png"), 
-         height = unit(4, "in"),
-         width = unit(4, "in"),
-         dpi = "retina", 
-         bg = "transparent", 
-         scale = 2)
+  #--------  HTML Tables  ----------------
+    
   
- 
-
-
-# Weekly Report Table html
-gtsave(
-  data = week_summ_table %>% 
-    opt_table_font(font = list(google_font(name = "Avenir"))), 
-  filename = str_c(update_folder, "weekly_summary_table.html"))
-
-# Monthly Report Table html
-gtsave(
-  data = month_summ_table %>% 
-    opt_table_font(font = list(google_font(name = "Avenir"))), 
-  filename = str_c(update_folder, "monthly_summary_table.html"))
+  # Weekly Report Table html
+  gtsave(
+    data = week_summ_table %>% 
+      opt_table_font(font = list(google_font(name = "Avenir"))), 
+    filename = str_c(update_folder, "weekly_summary_table.html"))
   
+  # Monthly Report Table html
+  gtsave(
+    data = month_summ_table %>% 
+      opt_table_font(font = list(google_font(name = "Avenir"))), 
+    filename = str_c(update_folder, "monthly_summary_table.html"))
+    
   
-# For HTML
-# Add this to table tag as inline style to center:
-#  style="margin-left:auto; margin-right:auto;"
-# Or add it to the .gt_table class controls
-
-
- 
+  # For HTML
+  # Add this to table tag as inline style to center:
+  #  style="margin-left:auto; margin-right:auto;"
+  # Or add it to the .gt_table class controls
 }
 
 
