@@ -510,7 +510,7 @@ week_summaries <- week_summaries %>%
 
 ```{r}
 #| label: tbl-season-temps
-#| #| tbl-cap-location: bottom
+#| tbl-cap-location: bottom
 #| tbl-cap: "Average weekly sea surface temperatures in the Gulf of Maine"
 
 week_summ_table <- week_summaries %>% 
