@@ -414,12 +414,15 @@ supplement_hw_data <- function(region_hw_data){
 
 
 # This should all be a function:
-get_decadal_rates <- function(temp_df, 
-                              temp_col = "area_wtd_sst", 
-                              year_col = "year",                              
-                              year_lim = c(1982,2021), 
-                              area_name = "GoM",
-                              degree_c = T){
+get_decadal_rates <- function(
+    temp_df, 
+    temp_col = "area_wtd_sst", 
+    year_col = "year",                              
+    year_lim = c(1982,2021), 
+    area_name = "GoM",
+    degree_c = T){
+  
+  
   # Filter years
   year_sym <- sym(year_col)
   temp_df_filtered <- dplyr::filter(temp_df, {{year_sym}} %in% seq(year_lim[1], year_lim[2], by = 1))
@@ -427,8 +430,9 @@ get_decadal_rates <- function(temp_df,
   
   # Do regression on years
   lm_form <- as.formula(paste0(temp_col, "~", year_col))
-  annual_lm <- lm(formula = lm_form, 
-                  data = temp_df_filtered) 
+  annual_lm <- lm(
+    formula = lm_form, 
+    data = temp_df_filtered) 
   
   # Pull Coefficients
   ann_coef <- annual_lm %>% 
@@ -1201,12 +1205,14 @@ global_rate_comparison <- function(
     c(eq_all, eq_global))
   
   # Single Line Plot
-  temp_simplified <- ggplot(data = annual_summary_dat, 
-                            aes(year, {{ temp_col }})) +
+  temp_simplified <- ggplot(
+    data = annual_summary_dat, 
+    aes(year, {{ temp_col }})) +
     
     # Overlay yearly means
     geom_line(color = "gray20", linewidth = 0.5, alpha = 0.5, linetype = 3) +
     geom_point(color = "gray20", size = 2, alpha = 0.8) +
+    
     # Warming rates
     stat_smooth(
       method = "lm",
@@ -1224,7 +1230,7 @@ global_rate_comparison <- function(
       linewidth = 1.5,
       linetype = 1) +
     scale_color_manual(values = line_colors) +
-    scale_x_continuous(expand = expansion(add = c(4,2))) +
+    scale_x_continuous(expand = expansion(add = c(4,4))) +
     scale_y_continuous(labels =  number_format(suffix = temp_ops$temp_suff)) +
     labs(
       title = str_c(region_label, ":"),

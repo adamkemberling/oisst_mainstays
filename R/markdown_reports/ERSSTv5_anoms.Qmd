@@ -45,12 +45,14 @@ ersst_anoms
 
 ```
 
-## Funcitons to Mask and to Area-Weight
+
+
+## Functions to Mask and to Area-Weight
 
 ```{python, eval = T}
 
 # Function to make area-weighted means
-def area_weighted_means(grid_obj, var_name = "sst", sd = False):
+def area_weighted_means(grid_obj, var_name = "sst"):
     """
     Run an area-weighted average using an xarray dataset, the cell weights, and the variable of interest.
     
@@ -60,9 +62,6 @@ def area_weighted_means(grid_obj, var_name = "sst", sd = False):
         grid_obj     : xr.Dataset to calculate average of
         var_name     : data variable
         sd           : perform standard deviations?
-    
-    
-    
     """
     
     # Pull an array of the variable of interest
@@ -83,23 +82,16 @@ def area_weighted_means(grid_obj, var_name = "sst", sd = False):
     grid_weighted = array_var.weighted(cell_areas)
     
     # Get the mean
-    if sd == False:
-        # print("Processing Area-Weighted Means")
-        weighted_vals = grid_weighted.mean(("lat", "lon"))
-        weighted_vals = weighted_vals.to_dataset(name = f"area_wtd_{var_name}")
-    
-#     # Standard deviation not a method available to weighted dataset
-#     elif sd == True:
-#         # print("Processing Area-Weighted Standard Deviations")
-#         weighted_vals = grid_weighted.std(("lat", "lon"))
-#         weighted_vals = weighted_vals.to_dataset(name = f"{var_name}_sd")
+    print("Processing Area-Weighted Means")
+    weighted_vals = grid_weighted.mean(("lat", "lon"))
+    weighted_vals = weighted_vals.to_dataset(name = f"area_wtd_{var_name}")
     
     return weighted_vals
 
 
 
 # Function to mask an xr.dataset and return a timeseries
-def calc_ts_mask(grid_obj, shp_obj, shp_name, var_name = "sst", climatology = False):
+def calc_ts_mask(grid_obj, shp_obj, shp_name, var_name = "sst"):
   """
   Return a timeseries using data that falls within shapefile. 
   
@@ -111,7 +103,6 @@ def calc_ts_mask(grid_obj, shp_obj, shp_name, var_name = "sst", climatology = Fa
     shp_obj        : shapefile polygon to use as a mask
     shp_name (str) : String to use as name when making mask
     var_name (str) : Optional string identifying the variable to use
-    climatology (bool): Whether you are masking a cliimatology, informs naming conventions and
     whether to process standard deviation
   """
 
@@ -130,29 +121,12 @@ def calc_ts_mask(grid_obj, shp_obj, shp_name, var_name = "sst", climatology = Fa
   #### 4. Calculate timeseries mean
 
   # Get the timeseries mean of the desired variable
-  if climatology == False:
         
-    # area-weighted
-    masked_ts = area_weighted_means(masked_ds, var_name, sd = False)
-    
-    # Not area-weighted
-    masked_ts[var_name] = getattr(masked_ds, var_name).mean(dim = ("lat", "lon"))
-    
-   
-    
-  elif climatology == True:
-    
-    # area-weighted?
-    masked_ts = area_weighted_means(masked_ds, var_name, sd = False)
-    # masked_ts["clim_sd"] = area_weighted_means(masked_ds, var_name, sd = True)
-    
-    # Not area-weighted
-    masked_ts[var_name] = getattr(masked_ds, var_name).mean(dim = ("lat", "lon"))
-    masked_ts["clim_sd"] = getattr(masked_ds, var_name).std(dim = ("lat", "lon"))
-    
-    
-    
-
+  # area-weighted
+  masked_ts = area_weighted_means(masked_ds, var_name)
+  
+  # Not area-weighted
+  masked_ts[var_name] = getattr(masked_ds, var_name).mean(dim = ("lat", "lon"))
   
   #### 5. Change time index rownames to a column 
 
@@ -160,13 +134,8 @@ def calc_ts_mask(grid_obj, shp_obj, shp_name, var_name = "sst", climatology = Fa
   masked_ts_df = masked_ts.to_dataframe()
 
   # Reset the index, rename variables
-  if climatology == False:
-    masked_ts_df = masked_ts_df.reset_index()[["time", f"area_wtd_{var_name}", var_name]]
+  masked_ts_df = masked_ts_df.reset_index()[["time", f"area_wtd_{var_name}", var_name]]
     
-  elif climatology == True:
-    clim_name = f"{var_name}_clim"
-    masked_ts_df = masked_ts_df.reset_index()[["modified_ordinal_day", f"area_wtd_{var_name}", var_name, "clim_sd"]]
-    masked_ts_df = masked_ts_df.rename(columns = {f"{var_name}" : f"{clim_name}", f"area_wtd_{var_name}" : "area_wtd_clim"})
   
   # Return the table as output
   return masked_ts_df
@@ -174,15 +143,15 @@ def calc_ts_mask(grid_obj, shp_obj, shp_name, var_name = "sst", climatology = Fa
 ```
 
 
-## Mask ERSSTv5 with Gulf of Maine
+## Masking ERSSTv5 with Gulf of Maine BBOX
 
 ```{python}
 # Load Gulf of Maine
 shape_name = "apershing_gulf_of_maine"
 gom = gp.read_file(f"{res_path}Shapefiles/gmri_sst_focal_areas/{shape_name}.geojson")
 
-# Mask the
-gom_sst = calc_ts_mask(grid_obj = ersst, shp_obj = gom, shp_name = "Gulf of Maine", var_name = "sst")
+# Mask the SST values and the anomalies
+gom_sst   = calc_ts_mask(grid_obj = ersst, shp_obj = gom, shp_name = "Gulf of Maine", var_name = "sst")
 gom_anoms = calc_ts_mask(grid_obj = ersst_anoms, shp_obj = gom, shp_name = "Gulf of Maine", var_name = "sst_anom")
 
 # Merge
@@ -194,3 +163,79 @@ gom_ersst.to_csv(f"{res_path}ERSSTv5/ERSSTv5_anom_{shape_name}.csv", index = Fal
 ```
 
 
+
+
+## Check GOM ERSST Timeline
+
+```{r}
+library(tidyverse)
+library(gmRi)
+library(here)
+
+# Paths
+res_path <- cs_path("res")
+
+# Load oisst
+gom_oisst <- oisst_access_timeseries(box_location = "cloudstorage") %>% 
+  mutate(time = as.Date(time)) %>% 
+  filter(lubridate::year(time) > 1981)
+
+# Load ersst
+gom_ersst <- read_csv(str_c(res_path, "ERSSTv5/ERSSTv5_anom_apershing_gulf_of_maine.csv")) %>% 
+  rename(area_wtd_anom = area_wtd_sst_anom)
+
+
+# Plot in original time
+ggplot() +
+  geom_line(
+    data = gom_ersst,
+    aes(time, area_wtd_sst, color = "ERSSTv5")) +
+  geom_line(
+    data = gom_oisst,
+    aes(time, area_wtd_sst, color = "OISSTv2"))
+
+
+# Do annual
+both_yrly <- map_dfr(list("OISSTv2" = gom_oisst, "ERSSTv5" = gom_ersst), function(x){
+  x %>% 
+    group_by(year = lubridate::year(time)) %>% 
+    summarise(sst = mean(area_wtd_sst, na.rm = T),
+              anom = mean(area_wtd_anom, na.rm = T),
+              .groups = "drop")
+}, .id = "Source")
+
+
+# Plot in original time
+ggplot(both_yrly) +
+  geom_line(aes(year, sst, color = Source)) 
+
+```
+
+
+
+## Masking NMFS Trawl Regions
+
+
+
+
+```{python}
+# Process the four regions we use from the trawl survey
+shape_names = ["gulf_of_maine", "georges_bank", "mid_atlantic_bight", "southern_new_england"]
+
+# Load them and process timeseries
+for shape_name in shape_names:
+  shape_path = f"{res_path}Shapefiles/nmfs_trawl_regions/nmfs_trawl_{shape_name}.geojson"
+  shape_poly = gp.read_file(f"{shape_path}")
+
+  # Mask the SST values and the anomalies
+  shape_sst   = calc_ts_mask(grid_obj = ersst, shp_obj = shape_poly, shp_name = shape_name, var_name = "sst")
+  shape_anoms = calc_ts_mask(grid_obj = ersst_anoms, shp_obj = shape_poly, shp_name = shape_name, var_name = "sst_anom")
+
+  # Merge
+  shape_ersst = shape_sst.merge(shape_anoms, on = "time")
+
+  # Save
+  print(f"Saving: {shape_name}")
+  shape_ersst.to_csv(f"{res_path}ERSSTv5/ERSSTv5_anom_nmfs_trawl_{shape_name}.csv", index = False)
+
+```

@@ -98,8 +98,7 @@ font_add(
 # Load the font
 showtext::showtext_auto()
 
-# Prevents tiny fonts when saving
-showtext::showtext_opts(dpi=300) 
+
 ```
   
 ## Read in the data
@@ -110,7 +109,7 @@ showtext::showtext_opts(dpi=300)
 # Want the data in grid form
 
 # Set time limits
-sst_dates <- as.Date(c("2000-01-01", "2020-12-31"))
+sst_dates <- as.Date(c("2020-01-01", "2020-12-31"))
 
 # Spatial Extent Info
 crop_x <- c("xmin" = -70.340, "xmax" = -69.806)
@@ -138,10 +137,11 @@ Not looking good...
 
 ```{r}
 ggplot() +
-  geom_stars(data = st_as_stars(sst_nc[["2012"]][[2]])) +
+  geom_stars(data = st_as_stars(sst_nc[["2020"]][[2]])) +
   geom_sf(data = new_england) +
   scale_fill_distiller(na.value = "transparent") +
-  coord_sf(xlim = crop_x, ylim = crop_y)
+  coord_sf(xlim = crop_x, ylim = crop_y) +
+  labs(title = "OISSTv2-2.1", subtitle = "Casco Bay")
 ```
 
 
