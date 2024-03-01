@@ -5,7 +5,7 @@ url: "https://github.com/adamkemberling"
 affiliation: "Gulf of Maine Research Institute"
 affiliation_url: "https://www.gmri.org"
 description: | 
-  An Interactive Map of the 1982-2022 SST Warming Rates
+  An Interactive Map of the 1982-2023 SST Warming Rates
 date: "Updated on: `r Sys.Date()`"
 format: 
   html:
@@ -67,20 +67,20 @@ gom_poly <- read_sf(region_paths[["apershing_gulf_of_maine"]][["shape_path"]])
 # Warming Rates Raster
 # Warming Ranks Raster
 # # 1. Warming Rates and Rankings
-rates_path <- str_c(oisst_path, "warming_rates/annual_warming_rates1982to2022.nc")
+rates_path <- str_c(oisst_path, "warming_rates/annual_warming_rates1982to2023.nc")
 rates_nc <- raster(rates_path, varname= "annual_warming_rate") 
 ranks_nc <- raster(rates_path, varname = "rate_percentile") 
 
 
-# Do the regular sst layers work
-anom_r <- stack()
+# Adding Logo to plots
+logo_path <- paste0(system.file("stylesheets", package = "gmRi"), "/gmri_logo.png")
+lab_logo <- magick::image_read(logo_path)
 ```
 
 
 ## Warming Rates Static
 
 ```{r}
-
 # Change to F
 world_rate_stars <- calc(rotate(rates_nc), function(x) as_fahrenheit(x, data_type = "anomalies")) %>% 
   st_as_stars()
@@ -120,28 +120,27 @@ global_rates_zoom <- ggplot() +
     ticks.colour = "black")) 
 
 
-# Global View
+
+# Norttheast/Global View
 global_rates <- ggplot() +
   geom_stars(data = world_rate_stars) +
-  geom_sf(data = world_sf, color = "white", fill = "gray30", size = .1) +
-  scale_fill_distiller(palette = "RdBu", 
-                       na.value = "transparent", 
-                       limit = temp_limits, 
-                       breaks = temp_breaks, 
-                       labels = temp_labels,
-                       oob = oob_squish) +
+  geom_sf(
+    data = new_england, 
+    color = "white", fill = "gray30", size = .1) +
+  scale_fill_distiller(
+    palette = "RdBu", 
+    na.value = "transparent", 
+    limit = temp_limits, 
+    breaks = temp_breaks, 
+    labels = temp_labels,
+    oob = oob_squish) +
   map_theme(
+    legend.position = "none",
     axis.text.x = element_blank(),
     axis.ticks.x = element_blank()) +
-  coord_sf(expand = F) +
-  scale_y_continuous(breaks = seq(-90, 90, by = 30)) +
-  guides("fill" = guide_colorbar(
-    title = "Annual Warming Rate: 1982-2022",
-    title.position = "top", 
-    title.hjust = 0.5,
-    barwidth = unit(5, "in"),
-    frame.colour = "black",
-    ticks.colour = "black"))  
+  #coord_sf(expand = F) +
+  coord_sf(expand = T, xlim = c(-80, 0), ylim = c(20,60)) +
+  scale_y_continuous(breaks = seq(-90, 90, by = 30)) 
 
 
 # plot map
@@ -157,6 +156,77 @@ rates_global_figure
 ```
 
 
+### Warming Rates Projected/Warped
+
+```{r}
+
+# Set the raster/stars
+to_warp <- world_rate_stars
+
+
+# Set Projection
+
+# Use this tool
+#https://projectionwizard.org/
+oblique_lae <- "+proj=aea +lon_0=-40 +lat_1=29.5675 +lat_2=56.2341667 +lat_0=42.9008333 +datum=WGS84 +units=m +no_defs"
+
+# Set projections crs
+proj_crs <- oblique_lae
+
+
+# 1.Reproject lims
+# A. Set Desired Limits for plot and to crop raster
+lim_bbox <- st_sfc(
+  st_polygon(list(cbind(
+    c(-90, -90, 10, 10, -90), # x-coordinates (longitudes) of points A,B,C,D
+    c(20, 70, 70, 20, 20)))),     # y-coordinates (latitudes) of points A,B,C,D
+  crs = 4326)
+
+# B. Convert lims to projection coordinates
+projected_bbox <- st_bbox(st_transform(lim_bbox, crs = proj_crs))
+
+
+# 2. Warp  Raster so we can map it
+# A. crop for expediency 
+rates_crop <- st_crop(to_warp, lim_bbox)
+
+# B. Create Projection Grid to Warp to
+projection_grid <- rates_crop %>%
+  st_transform(crs = proj_crs) %>%
+  st_bbox() %>%
+  st_as_stars()
+# projection_grid <- st_as_stars(projected_bbox)
+
+# C. Warp the raster to projection grid (don't ask me why I have to do all this)
+rates_warp <- st_warp(rates_crop, projection_grid)
+
+
+# Make plot
+sf::sf_use_s2(FALSE)
+ ggplot() +
+  geom_stars(data = rates_warp) +
+  geom_sf(
+    data = st_transform(st_crop(world_sf, lim_bbox), proj_crs),
+    color = "white", fill = "gray30", size = .1) +
+  scale_fill_distiller(
+    palette = "RdBu", 
+    na.value = "transparent", 
+    limit = temp_limits, 
+    breaks = temp_breaks, 
+    labels = temp_labels,
+    oob = oob_squish) +
+  map_theme(
+    legend.position = "none",
+    axis.text.x = element_blank(),
+    axis.ticks.x = element_blank()) +
+  scale_y_continuous(breaks = seq(-90, 90, by = 30)) +
+  coord_sf(
+    expand = T, 
+    crs = proj_crs, 
+    xlim = c(projected_bbox["xmin"], projected_bbox["xmax"]), 
+    ylim = c(projected_bbox["ymin"], projected_bbox["ymax"])) 
+
+```
 
 
 ## Warming Ranks Static
@@ -170,7 +240,7 @@ world_ranks_binned <- world_rank_stars %>%
   mutate(
     rank = Annual.Sea.Surface.Temperature.Warming.Rate.Rank,
     rank_bin = cut(rank, breaks = seq(0, 1, by = 0.1))) %>% 
-  select(-c(rank, Annual.Sea.Surface.Temperature.Warming.Rate.Rank))
+  dplyr::select(-c(rank, Annual.Sea.Surface.Temperature.Warming.Rate.Rank))
 
 # # Define the number of colors you want
 # nb.cols <- 10
@@ -242,6 +312,445 @@ ranks_global_figure <- (global_ranks_zoom | global_ranks ) +
 ranks_global_figure
 grid::grid.raster(lab_logo, x = 0.05, y = 0.03, just = c('left', 'bottom'), width = unit(0.8, 'inches'))
 ```
+
+
+
+
+### Warming Ranks Projected/Warped
+
+```{r}
+# What is the percentile for gulf of maine
+# Polygon Path
+poly_path <- region_paths[["apershing_gulf_of_maine"]][["shape_path"]]
+region_extent <- read_sf(poly_path)
+
+# Mean rate
+gom_rate <- st_crop(world_rate_stars, region_extent)
+plot(gom_rate)
+mean(gom_rate$layer, na.rm = T) *10
+
+
+# MEan rank
+gom_ranks <- st_crop(world_rank_stars, region_extent)
+mean(gom_ranks$Annual.Sea.Surface.Temperature.Warming.Rate.Rank, na.rm = T)
+
+```
+
+
+```{r}
+
+# Set the raster/stars
+to_warp <- world_rank_stars
+
+# Set Projection:
+
+# Use this tool to get a custom proj4 string for your needs:
+#https://projectionwizard.org/
+
+
+# This page has some useful/fun projections
+# https://www.happykhan.com/posts/map-projections-in-r/
+
+
+# World Azimuthal Equidistant
+world_az <- "+proj=aeqd +lat_0=0 +lon_0=0 +x_0=0 +y_0=0 +ellps=WGS84 +datum=WGS84 +units=m +no_defs"
+
+# CustomAzimuthal equidistant centered on maine
+azimuth_eq_maine <- "+proj=aeqd +lat_0=44.5 +lon_0=-71 +x_0=0 +y_0=0 +ellps=WGS84 +datum=WGS84 +units=m +no_defs"
+
+# Lamberts equal area custom
+oblique_lae <- "+proj=aea +lon_0=-40 +lat_1=29.5675 +lat_2=56.2341667 +lat_0=42.9008333 +datum=WGS84 +units=m +no_defs"
+
+
+# Set what projection to use
+proj_crs <- azimuth_eq_maine
+
+
+
+# 1.Reproject lims
+# A. Set Desired Limits for plot and to crop raster
+lim_bbox <- st_sfc(
+  st_polygon(list(cbind(
+    c(-140, -140, 30, 30, -140), # x-coordinates (longitudes) of points A,B,C,D
+    c(-10, 90, 90, -10, -10)))),     # y-coordinates (latitudes) of points A,B,C,D
+  crs = 4326)
+
+# B. Convert lims to projection coordinates
+projected_bbox <- st_bbox(st_transform(lim_bbox, crs = proj_crs))
+
+
+# 2. Warp  Raster so we can map it
+# A. crop for expediency 
+rates_crop <- st_crop(to_warp, lim_bbox)
+#rates_crop <- to_warp
+
+# B. Create Projection Grid to Warp to
+projection_grid <- rates_crop %>%
+  st_transform(crs = proj_crs) %>%
+  st_bbox() %>%
+  st_as_stars()
+# projection_grid <- st_as_stars(projected_bbox)
+
+# C. Warp the raster to projection grid (don't ask me why I have to do all this)
+rates_warp <- st_warp(rates_crop, projection_grid)
+
+
+# nat geo color scale
+reds <- RColorBrewer::brewer.pal(9, name = "Reds")
+reds_asym <- c("white", "white", "#FFF5F0", "#FEE0D2", "#FCBBA1", reds[4],  reds[8])
+
+
+# # Make plot
+# sf::sf_use_s2(FALSE)
+# ggplot() +
+#   geom_stars(data = rates_warp) +
+#   # geom_sf(data = st_transform(lim_bbox, crs = proj_crs), fill = "transparent", color = "gray30") +
+#   geom_sf(
+#     data = st_transform(st_crop(world_sf, lim_bbox), proj_crs),
+#     fill = "white", color = "gray30", size = .1) +
+#   scale_fill_stepsn(
+#     colors = reds_asym, 
+#     na.value = "transparent",
+#     breaks = c(0,0.5,0.75,0.85,0.9,0.95,0.99,1), 
+#     labels = function(x) {x*100}, # Just display the breaks
+#     show.limits = T,
+#     oob = oob_squish) +
+#   guides(fill = guide_colorbar(
+#     title = "Warming Percentile",
+#     title.position = "top",
+#     title.hjust = 0.5,
+#     frame.colour = "black",
+#     barwidth = unit(15, "cm"))) +
+#   map_theme(
+#     legend.position = "bottom",
+#     axis.text.x = element_blank(),
+#     axis.ticks.x = element_blank()) +
+#   coord_sf(
+#     expand = T, 
+#     crs = proj_crs, 
+#     xlim = c(projected_bbox["xmin"], projected_bbox["xmax"]), 
+#     ylim = c(projected_bbox["ymin"], projected_bbox["ymax"])) 
+
+
+
+
+# Manually force colors using I()
+warp_cols <- rates_warp %>% 
+  setNames("percentile") %>% 
+  mutate(
+    col = case_when(
+      percentile < 0.5  ~ "white",
+      percentile < 0.75 ~ "#FEE0D2",
+      percentile < 0.85 ~ "#FCBBA1",
+      percentile < 0.90 ~ "#FC9272",
+      percentile < 0.95 ~ "#FB6A4A",
+      percentile < 0.99 ~ "#EF3B2C",
+      percentile < 1    ~ "#CB181D"
+      
+    )
+  )
+
+
+# Here is the map
+dumb_map <-ggplot() +
+  geom_stars(data = warp_cols, aes(fill = I(col)), alpha = 0.8) +
+  geom_sf(
+    data = st_transform(st_crop(world_sf, lim_bbox), proj_crs),
+    fill = "white", color = "gray30", size = .1) +
+  map_theme(
+    legend.position = "bottom",
+    axis.text.x = element_blank(),
+    axis.ticks.x = element_blank()) +
+  coord_sf(
+    expand = T, 
+    crs = proj_crs#, 
+    # xlim = c(projected_bbox["xmin"], projected_bbox["xmax"]), 
+    # ylim = c(projected_bbox["ymin"], projected_bbox["ymax"])
+    ) + theme_void()
+
+# Make the stupid legend
+fil_rects <- tribble(
+  ~"fill",  ~"llim",  ~"rlim",
+  "white",   0,         0.5, 
+  "#FEE0D2", 0.5,       0.75, 
+  "#FCBBA1", 0.75,      0.85, 
+  "#FC9272", 0.85,      0.9, 
+  "#FB6A4A", 0.9,       0.95, 
+  "#EF3B2C", 0.95,      0.99, 
+  "#CB181D", 0.99,       1 
+)
+fil_labs <- data.frame(
+  x = c(0, 0.5, 0.75, 0.85, 0.9, 0.95, 0.99, 1),
+  y = 1.05) %>% 
+  mutate(labs = str_c(x*100, "%"))
+
+dumb_legend <- ggplot() +
+  geom_rect(data = fil_rects, aes(xmin = llim, xmax = rlim, ymin = 0, ymax = 1, fill = I(fill)),
+            color = "white", linewidth = 0.5) +
+  geom_rect(aes(xmin = 0, xmax = 1, ymin = 0, ymax = 1), color = "darkgray", fill = "transparent") +
+  geom_text(data = fil_labs, aes(x, y, label = labs), size = 2.5) +
+  theme_void() +
+  theme(plot.title = element_text(hjust = 0.1, face = "bold"),
+        plot.subtitle = element_text(hjust = 0.075),
+        plot.margin = margin(0,0,0,0)) +
+  labs(
+    title = "Sea Surface Temperature Warming (1982-2023)",
+    subtitle = "Represented as a percentile",
+    x = NULL, y = NULL)
+
+
+dumb_map / dumb_legend + plot_layout(heights = c(5, 1))
+```
+
+
+
+### World Azimuthal Testing
+
+```{r}
+world_sf <- ne_countries(returnclass = "sf")
+library(cowplot)
+
+world_az <- "+proj=laea +x_0=0 +y_0=0 +lon_0=-74 +lat_0=40"
+
+
+# Set what projection to use
+proj_crs <- azimuth_eq_maine
+
+
+
+# 2. Warp  Raster so we can map it
+
+# B. Create Projection Grid to Warp to
+projection_grid <- world_rank_stars %>%
+  st_transform(crs = proj_crs) %>%
+  st_bbox() %>%
+  st_as_stars()
+
+# C. Warp the raster to projection grid (don't ask me why I have to do all this)
+world_warp <- st_warp(world_rank_stars, projection_grid)
+
+
+# nat geo color scale
+reds <- RColorBrewer::brewer.pal(9, name = "Reds")
+reds_asym <- c("white", "white", "#FFF5F0", "#FEE0D2", "#FCBBA1", reds[4],  reds[8])
+
+
+# Manually force colors using I()
+warp_cols <- world_warp %>% 
+  setNames("percentile") %>% 
+  mutate(
+    col = case_when(
+      percentile < 0.5  ~ "white",
+      percentile < 0.75 ~ "#FEE0D2",
+      percentile < 0.85 ~ "#FCBBA1",
+      percentile < 0.90 ~ "#FC9272",
+      percentile < 0.95 ~ "#FB6A4A",
+      percentile < 0.99 ~ "#EF3B2C",
+      percentile < 1    ~ "#CB181D"
+      
+    )
+  )
+
+
+# Here is the map
+dumb_map <- ggplot() +
+  geom_stars(data = warp_cols, aes(fill = I(col)), alpha = 0.8) +
+  geom_sf(
+    data = world_sf,
+    fill = "white", color = "gray30", size = .1) +
+  theme_void() +
+  coord_sf(
+    expand = T, 
+    crs = proj_crs) 
+
+
+dumb_map / dumb_legend + plot_layout(heights = c(5, 1))
+
+
+world <- ggplot() +
+    geom_sf(data = world_sf)  +
+    ggtitle("Lambert azimuthal equal-area projection") +
+  theme_minimal_grid()+
+    coord_sf(crs= world_az)
+world
+```
+
+
+### World Orthographic Rates
+
+```{r}
+
+
+# Define the orthographic projection
+# Choose lat_0 with -90 <= lat_0 <= 90 and lon_0 with -180 <= lon_0 <= 180
+lat <- 45
+lon <- -70
+ortho <- paste0('+proj=ortho +lat_0=', lat, ' +lon_0=', lon, ' +x_0=0 +y_0=0 +a=6371000 +b=6371000 +units=m +no_defs')
+
+# Set what projection to use
+proj_crs <- ortho
+
+# 2. Warp  Raster so we can map it
+
+# This code was instrumental:
+# https://gist.github.com/fzenoni/ef23faf6d1ada5e4a91c9ef23b0ba2c1
+# Define a circle polygon that will help you finding the "blade"
+# to split what lies within and without your projection
+ortho_circle <-  st_point(x = c(0,0)) %>% 
+  st_buffer(dist = 6371000) %>% 
+  st_sfc(crs = ortho)
+
+# Make Projection Grid from Hemisphere Circle in output crs
+projection_grid <- ortho_circle %>% st_as_stars()
+
+# C. Warp the raster to projection grid 
+# (don't ask me why I have to do all this)
+rates_warp <- world_rate_stars %>% 
+  st_warp(projection_grid, 
+          use_gdal = T, 
+          no_data_value = 999)
+
+
+# Manually set colors using I()
+rates_cols <- rates_warp %>% 
+  setNames("rate") %>% 
+  mutate(
+    rates_d = rate*10,
+    col = case_when(
+      rates_d < -1  ~ "white",
+      rates_d < 0 ~ "#FEE0D2",
+      rates_d < 1 ~ "#FCBBA1",
+      rates_d < 2 ~ "#FC9272",
+      rates_d < 3 ~ "#FB6A4A"))
+
+
+# Here is the map
+ggplot() +
+  geom_stars(data = rates_cols, aes(fill = rates_d), alpha = 0.8) +
+  geom_sf(data = ortho_circle, fill = "transparent", color = "gray30") +
+  geom_sf(
+    data = world_sf,
+    fill = "white", 
+    color = "gray30", size = .1) +
+  scale_fill_distiller(
+    palette = "RdBu",
+    limits = c(-1, 1),
+    oob = oob_squish) +
+  theme_void() +
+  coord_sf(
+    expand = T, 
+    crs = proj_crs) 
+```
+
+
+
+### World Orthographic Ranks
+
+
+
+```{r}
+
+# Define the orthographic projection
+# Choose lat_0 with -90 <= lat_0 <= 90 and lon_0 with -180 <= lon_0 <= 180
+lat <- 45
+lon <- -70
+ortho <- paste0('+proj=ortho +lat_0=', lat, ' +lon_0=', lon, ' +x_0=0 +y_0=0 +a=6371000 +b=6371000 +units=m +no_defs')
+
+# Set what projection to use
+proj_crs <- ortho
+
+# 2. Warp  Raster so we can map it
+
+# This code was instrumental:
+# https://gist.github.com/fzenoni/ef23faf6d1ada5e4a91c9ef23b0ba2c1
+# Define a circle polygon that will help you finding the "blade"
+# to split what lies within and without your projection
+ortho_circle <-  st_point(x = c(0,0)) %>% 
+  st_buffer(dist = 6371000) %>% 
+  st_sfc(crs = ortho)
+
+# Make Projection Grid from Hemisphere Circle in output crs
+projection_grid <- ortho_circle %>% st_as_stars()
+
+# C. Warp the raster to projection grid 
+# (don't ask me why I have to do all this)
+world_warp <- world_rank_stars %>% 
+  st_warp(projection_grid, 
+          use_gdal = T, 
+          no_data_value = 999)
+
+# Can now be plotted as intended
+
+# nat geo color scale
+reds <- RColorBrewer::brewer.pal(9, name = "Reds")
+reds_asym <- c("white", "white", "#FFF5F0", "#FEE0D2", "#FCBBA1", reds[4],  reds[8])
+
+
+# Manually force colors using I()
+warp_cols <- world_warp %>% 
+  setNames("percentile") %>% 
+  mutate(
+    col = case_when(
+      percentile < 0.5  ~ "white",
+      percentile < 0.75 ~ "#FEE0D2",
+      percentile < 0.85 ~ "#FCBBA1",
+      percentile < 0.90 ~ "#FC9272",
+      percentile < 0.95 ~ "#FB6A4A",
+      percentile < 0.99 ~ "#EF3B2C",
+      percentile < 1    ~ "#CB181D"))
+
+
+# Here is the map
+dumb_map <- ggplot() +
+  geom_stars(data = warp_cols, aes(fill = I(col)), alpha = 0.8) +
+  geom_sf(data = ortho_circle, fill = "transparent", color = "gray30") +
+  geom_sf(
+    data = world_sf,
+    fill = "white", 
+    color = "gray30", size = .1) +
+  theme_void() +
+  coord_sf(
+    expand = T, 
+    crs = proj_crs) 
+
+
+# Make the stupid legend
+fil_rects <- tribble(
+  ~"fill",  ~"llim",  ~"rlim",
+  "white",   0,         0.5, 
+  "#FEE0D2", 0.5,       0.75, 
+  "#FCBBA1", 0.75,      0.85, 
+  "#FC9272", 0.85,      0.9, 
+  "#FB6A4A", 0.9,       0.95, 
+  "#EF3B2C", 0.95,      0.99, 
+  "#CB181D", 0.99,       1 
+)
+fil_labs <- data.frame(
+  x = c(0, 0.5, 0.75, 0.85, 0.9, 0.95, 0.99, 1),
+  y = 1.05) %>% 
+  mutate(labs = str_c(x*100, "%"))
+
+dumb_legend <- ggplot() +
+  geom_rect(data = fil_rects, aes(xmin = llim, xmax = rlim, ymin = 0, ymax = 1, fill = I(fill)),
+            color = "white", linewidth = 0.5) +
+  geom_rect(aes(xmin = 0, xmax = 1, ymin = 0, ymax = 1), color = "darkgray", fill = "transparent") +
+  geom_text(data = fil_labs, aes(x, y, label = labs), size = 2.5) +
+  theme_void() +
+  theme(plot.title = element_text(hjust = 0.1, face = "bold"),
+        plot.subtitle = element_text(hjust = 0.075),
+        plot.margin = margin(0,0,0,0)) +
+  labs(
+    title = "Sea Surface Temperature Warming (1982-2023)",
+    subtitle = "Represented as a percentile",
+    x = NULL, y = NULL)
+
+
+
+dumb_map / dumb_legend + plot_layout(heights = c(5, 1))
+
+
+```
+
 
 
 ## Warming Rates Interactive 
