@@ -1240,7 +1240,7 @@ def update_global_anomalies(yr_min, yr_max, box_root, var_name = "sst", referenc
 # Update Global timeseries
 #
 #-----------------------------------------------------
-def update_global_timeseries(yr_min, yr_max, box_root, var_name = "sst", reference_period = "1982-2011"):
+def update_global_timeseries(yr_min, yr_max, box_root, var_name = "sst", reference_period = "1991-2020", append_existing = True):
   """
     Update the timeseries for global temperatures/climate/anomalies and their area-weighted counterparts.
     
@@ -1249,31 +1249,39 @@ def update_global_timeseries(yr_min, yr_max, box_root, var_name = "sst", referen
         end_yr   : String indicating the last year to include in the update
         box_root : Root to oisst_mainstays
         var_name : String indicating the variable being processed
-        reference_period : String composed of two years connected with a dash indicating start and end period for reference climatology NOT USED TO UPDATE ANOMALIES
+        reference_period : String composed of two years connected with a dash indicating start and end period for reference climatology. Impacts update period only, does not change existing records when appending. 
+        append_existing: True/False argument on whether to load and append to existing file or save a new file.
   
   """
 
+  # Key for matching input to file names
+  ref_key = {"1982-2011" : "1982to2011", "1991-2020" : "1991to2020"}
+  ref_lab = ref_key[reference_period]
 
   # Load all years of oisst and anomalies
-  oisst = load_box_oisst(box_root, 
-                         yr_min, 
-                         yr_max, 
-                         anomalies = False, 
-                         do_parallel = True)
+  oisst = load_box_oisst(
+    box_root, 
+    yr_min, 
+    yr_max, 
+    anomalies = False, 
+    do_parallel = True)
   oisst = add_mod(oisst, 'time')
 
   # Anomalies
-  daily_anoms = load_box_oisst(box_root, 
-                               yr_min, 
-                               yr_max, 
-                               anomalies = True, 
-                               do_parallel = True)
+  daily_anoms = load_box_oisst(
+    box_root, 
+    yr_min, 
+    yr_max, 
+    anomalies = True, 
+    do_parallel = True, reference_period=reference_period)
 
   # Climatology
-  oisst_clim = load_oisst_climatology(box_root = box_root, 
-                                      reference_period = reference_period)
+  oisst_clim = load_oisst_climatology(
+    box_root = box_root, 
+    reference_period = reference_period)
 
-  # 1. Mean Temp
+
+  # 1. Process the Mean Temperatures
   mean_sst = oisst.mean(["lat", "lon"])
   weighted_sst = area_weighted_means(oisst, var_name = "sst", sd = False)
 
@@ -1284,7 +1292,7 @@ def update_global_timeseries(yr_min, yr_max, box_root, var_name = "sst", referen
 
   # Merge standard and area weighted values
   sst_join = sst_df.merge(sst_wt_df, how = "left", on = ["time", "MOD"])
-  sst_join = sst_join.drop(columns=['modified_ordinal_day'])
+  sst_join = sst_join.drop(columns = ['modified_ordinal_day'])
   sst_join = sst_join[['time', 'MOD', 'sst', 'area_wtd_sst']]
 
 
@@ -1320,31 +1328,39 @@ def update_global_timeseries(yr_min, yr_max, box_root, var_name = "sst", referen
 
 
   # 4. Append to Full Timeseries
-  # Open what we have already on Box
-  old_sst = pd.read_csv(f"{box_root}Res_Data/OISST/oisst_mainstays/global_timeseries/global_anoms_1982to2011.csv")
+  # Open what we have already on Box:
+  if append_existing == True:
+    # old_sst = pd.read_csv(f"{box_root}Res_Data/OISST/oisst_mainstays/global_timeseries/global_anoms_1982to2011.csv")
+    old_sst = pd.read_csv(f"{box_root}Res_Data/OISST/oisst_mainstays/global_timeseries/global_anoms_{ref_lab}.csv")
 
-  # Remove dates from old timeseries overlap from the update timeseries
-  not_overlapped = ~old_sst.time.isin(update_ts.time)
-  old_sst  = old_sst[not_overlapped]
+    # Remove dates from old timeseries overlap from the update timeseries
+    not_overlapped = ~old_sst.time.isin(update_ts.time)
+    old_sst  = old_sst[not_overlapped]
 
-  # Concatenate onto the original
-  appended_ts = pd.concat([ old_sst, update_ts ])
+    # Concatenate onto the original
+    appended_ts = pd.concat([ old_sst, update_ts ])
 
-  # Format time as datetime
-  appended_ts["time"] = appended_ts["time"].astype("datetime64")
+    # Format time as datetime
+    # Sort
+    # Drop any actual duplicate dates
+    # Remove Dates that Overlap Dates but Different Time Stamps b/c Data Sources
+    appended_ts["time"] = appended_ts["time"].astype("datetime64")
+    appended_ts = appended_ts.sort_values(by = "time")
+    appended_ts = appended_ts.drop_duplicates(subset=['time'])
+    appended_ts = date_source_prefer(appended_ts, phase_out = "ncei")
 
-  # Sort
-  appended_ts = appended_ts.sort_values(by = "time")
+    # SAVING
+    print("Updating Global Timeseries")
+    # appended_ts.to_csv(f"{box_root}Res_Data/OISST/oisst_mainstays/global_timeseries/global_anoms_1982to2011.csv", index = False)
+    appended_ts.to_csv(f"{box_root}Res_Data/OISST/oisst_mainstays/global_timeseries/global_anoms_{ref_lab}.csv", index = False)
+  
+  
+  if append_existing == False:
+    print("Saving Global Timeseries")
+    update_ts.to_csv(f"{box_root}Res_Data/OISST/oisst_mainstays/global_timeseries/global_anoms_{ref_lab}.csv", index = False)
 
-  # Drop any actual duplicate dates
-  appended_ts = appended_ts.drop_duplicates(subset=['time'])
 
-  # Remove Dates that Overlap Dates but Different Time Stamps b/c Data Sources
-  appended_ts = date_source_prefer(appended_ts, phase_out = "ncei")
-
-  # SAVING
-  print("Updating Global Timeseries")
-  appended_ts.to_csv(f"{box_root}Res_Data/OISST/oisst_mainstays/global_timeseries/global_anoms_1982to2011.csv", index = False)
+   
 
 
 
@@ -1387,10 +1403,11 @@ def update_regional_timeseries_collection(start_yr, end_yr, region_collection, b
       print(f" - {region}")
 
   # Get paths to each shapefile
-  mask_paths = get_timeseries_paths(box_root = box_root, 
-                                    region_list = region_names, 
-                                    region_group = region_collection, 
-                                    polygons = True)
+  mask_paths = get_timeseries_paths(
+    box_root = box_root, 
+    region_list = region_names, 
+    region_group = region_collection, 
+    polygons = True)
 
 
 
@@ -1401,31 +1418,34 @@ def update_regional_timeseries_collection(start_yr, end_yr, region_collection, b
       mask_list.append(mask_shape)
 
   # Load the OISST SST grid using ot.load_box_oisst()
-  oisst_grid = load_box_oisst(box_root, 
-                              start_yr, 
-                              end_yr, 
-                              anomalies = False, 
-                              do_parallel = True)
+  oisst_grid = load_box_oisst(
+    box_root, 
+    start_yr, 
+    end_yr, 
+    anomalies = False, 
+    do_parallel = True)
   
   # List to store the update period timeseries
   new_ts = []
   for mask_shp, mask_name in zip(mask_list, region_names):
       
       # Get masked timeseries
-      masked_ts = calc_ts_mask(grid_obj = oisst_grid, 
-                               shp_obj = mask_shp, 
-                               shp_name = mask_name,
-                               var_name = var_name)
+      masked_ts = calc_ts_mask(
+        grid_obj = oisst_grid, 
+        shp_obj = mask_shp, 
+        shp_name = mask_name,
+        var_name = var_name)
       
       # Add to list
       new_ts.append(masked_ts)
 
 
   # Get paths to each existing timeseries
-  mask_ts_paths = get_timeseries_paths(box_root = box_root, 
-                                       region_list = region_names, 
-                                       region_group = region_collection, 
-                                       polygons = False)
+  mask_ts_paths = get_timeseries_paths(
+    box_root = box_root, 
+    region_list = region_names, 
+    region_group = region_collection, 
+    polygons = False)
 
 
   # Open existing time series to update them
@@ -1461,8 +1481,6 @@ def update_regional_timeseries_collection(start_yr, end_yr, region_collection, b
       # Add to list
       anomaly_timeseries.append(anomaly_ts)
         
-        
-
 
   # Use the file paths we looked up before to set the save destinations and save them
   for updated_timeline_i, update_path_i in zip(anomaly_timeseries, mask_ts_paths):

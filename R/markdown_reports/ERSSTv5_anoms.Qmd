@@ -216,8 +216,6 @@ ggplot(both_yrly) +
 ## Masking NMFS Trawl Regions
 
 
-
-
 ```{python}
 # Process the four regions we use from the trawl survey
 shape_names = ["gulf_of_maine", "georges_bank", "mid_atlantic_bight", "southern_new_england"]
