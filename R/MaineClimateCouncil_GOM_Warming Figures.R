@@ -17,7 +17,11 @@
   library(tidyverse)
   library(geomtextpath)
   library(sysfonts)
+  library(geomtextpath)
+  library(ggpubr)
+  library(ggtext)
 }
+
 
 #---------- Support Functions
 suppressPackageStartupMessages( source(here::here("R/oisst_support_funs.R"), verbose = FALSE) )
@@ -35,7 +39,7 @@ font_add(
   bolditalic = file.path(font_dir, "LTe50347.ttf"))
 
 # # Load the font
-#showtext::showtext_auto()
+showtext::showtext_auto()
 
 
 #----------- Paths
@@ -55,7 +59,9 @@ timeseries_path <- region_paths[["apershing_gulf_of_maine"]][["timeseries_path"]
 
 
 
-####  Data  ####
+
+
+####  Load Data  ####
 
 
 
@@ -81,7 +87,8 @@ gom_hw <- pull_heatwave_events(
   threshold = 90, 
   clim_ref_period = c("1991-01-01", "2020-12-31")) %>% 
   supplement_hw_data() %>% 
-  filter(doy != 366)
+  filter(doy != 366)  %>% 
+  filter(between(yr, 1982, 2023))
 
 
 
@@ -97,7 +104,7 @@ global_anoms <- read_csv(
 
 
 
-#### Prep  ####
+#### Prep Annual Summaries and Rates  ####
 
 
 # Summarize by year to return mean annual anomalies and variance
@@ -117,67 +124,70 @@ global_summary <- global_anoms %>%
     yr_as_dtime = as.Date(paste0(year, "-07-02")))
 
 
-
-
-####  Plot 1: Annual Rate Comparison  ####
-
-
 #---- Celsius
 
 # Get Rates:
-gom_rates <- get_decadal_rates(
+gom_rates_c <- get_decadal_rates(
   temp_df = annual_summary, 
   temp_col = "area_wtd_sst", 
   year_col = "year", 
   year_lim = c(1982, 2023), 
   area_name = "Gulf of Maine", 
   degree_c = T)
-world_rates <- get_decadal_rates(
+world_rates_c <- get_decadal_rates(
   temp_df = global_summary, 
   temp_col = "area_wtd_sst", 
   year_col = "year", 
   year_lim = c(1982, 2023), 
   area_name = "Global SST", 
   degree_c = T)
+
+#---- Fahrenheit
+
+# Get Rates:
+gom_rates_f <- get_decadal_rates(
+  temp_df = annual_summary, 
+  temp_col = "area_wtd_f", 
+  year_col = "year", 
+  year_lim = c(1982, 2023), 
+  area_name = "Gulf of Maine", 
+  degree_c = F)
+world_rates_f <- get_decadal_rates(
+  temp_df = global_summary, 
+  temp_col = "area_wtd_f", 
+  year_col = "year", 
+  year_lim = c(1982, 2023), 
+  area_name = "Global SST", 
+  degree_c = F)
+
+
+
+####  Plot 1: Annual Rate Comparison  ####
+
+
+
 
 
 # Plot
 simple_c <- global_rate_comparison(
   annual_summary_dat = annual_summary, 
   global_summary_dat = global_summary, 
-  eq_all = gom_rates$eq_label, 
-  eq_global = world_rates$eq_label, 
+  eq_all = gom_rates_c$eq_label, 
+  eq_global = world_rates_c$eq_label, 
   temp_units = "C", 
   region_label = "Gulf of Maine")  +
   coord_cartesian(clip = "off") +
   geom_logo(x_npc = 0.115, y_npc = -0.15, logo_height = 1, height_units = "cm")
 
 
-#---- Fahrenheit
-
-# Get Rates:
-gom_rates <- get_decadal_rates(
-  temp_df = annual_summary, 
-  temp_col = "area_wtd_f", 
-  year_col = "year", 
-  year_lim = c(1982, 2023), 
-  area_name = "Gulf of Maine", 
-  degree_c = F)
-world_rates <- get_decadal_rates(
-  temp_df = global_summary, 
-  temp_col = "area_wtd_f", 
-  year_col = "year", 
-  year_lim = c(1982, 2023), 
-  area_name = "Global SST", 
-  degree_c = F)
 
 
 # Plot
 simple_f <- global_rate_comparison(
   annual_summary_dat = annual_summary, 
   global_summary_dat = global_summary, 
-  eq_all = gom_rates$eq_label, 
-  eq_global = world_rates$eq_label, 
+  eq_all = gom_rates_f$eq_label, 
+  eq_global = world_rates_f$eq_label, 
   temp_units = "F", 
   region_label = "Gulf of Maine")  +
   coord_cartesian(clip = "off") +
@@ -186,22 +196,18 @@ simple_f <- global_rate_comparison(
 
 
 
+# Review 
+simple_c
 
 
 
-
-####  Plot 2: Decadal Regimes Annotated  ####
-
+####  Plot 2: Lollipop Regimes Annotated  ####
 
 # This figure looks at the bump in SST that 
 # occurred around 2010 using text annotations
 
 
-# Lollipops
-library(geomtextpath)
-library(ggpubr)
-library(ggtext)
-
+# Lollipops Figure
 shift_c <- annual_summary  %>% 
   ggplot() +
   # Lollipops
@@ -233,8 +239,8 @@ shift_c
 
 # Warming rate:
 rate_lm <- lm(area_wtd_anom ~ year, data = annual_summary)
-rate_df <- data.frame("year" = 1984:1996)
-rate_df$y <- predict(rate_lm, rate_df) + 2.8
+rate_df <- data.frame("year" = 1983:1997)
+rate_df$y <- predict(rate_lm, rate_df) + 3
 
 # rate annotation
 #rate_text <- "SST in the Gulf of Maine has been\nwarming at a rate of 0.48\u00b0C / decade\nsince 1982, 3x the global average."
@@ -243,15 +249,15 @@ rate_text_df <- data.frame(x = 1991, y = 1.4, label = rate_text)
 
 
 # Step Increase annotation
-fancy_text <- "<span style = 'color:#EA4F12;'>**Since 2010, the Gulf of Maine has been +1.38°C**</span><span> warmer than <span style = 'color:#00608A;'>**SST's during 1982-2009.**</span><span> Rapid changes linked to shifts in regional currents."
-fancy_df <- data.frame(x = 2016.5, y = -1.6, label = fancy_text)
+fancy_text <- "<span style = 'color:#EA4F12;'>**Since 2010, Gulf of Maine SST's have been +1.38°C warmer**</span><span> than <span style = 'color:#00608A;'>**SST's during 1982-2009.**</span>"
+fancy_df <- data.frame(x = 2015.5, y = -1.6, label = fancy_text)
 
 # annotate the rate change and the jump in sst
 shift_annotated <- shift_c +
   geom_textline(
     data = rate_df, aes(year, y), 
     linewidth = 0.5, 
-    arrow = arrow(length = unit(0.3, "cm")),
+    arrow = arrow(length = unit(0.2, "cm")),
     label = "Long-Term Warming", family = "Avenir", 
     size = 5.5) +
   geom_textbox(
@@ -295,20 +301,53 @@ late_df <- data.frame(
   y = avg_late, 
   yend = avg_late)
 
+# Rectangles for shading
+
+# Height for 1st bracket, manual
+brack_h <- 11.2
+early_rect <- data.frame(
+  xmin = 1982, 
+  xmax = 2009, 
+  ymin = -Inf, 
+  ymax = brack_h, 
+  ymin = avg_early - (brack_h - avg_early))
+late_rect <- data.frame(
+  xmin = 2009, 
+  xmax = 2023, 
+  ymin = -Inf, 
+  ymax = brack_h + (avg_late-avg_early), 
+  ymin = (avg_late - (brack_h - avg_early)))
 
 
-  
+
+
+# Using Brackets to Label Period Averages
 rates_c <- annual_summary  %>% 
   ggplot() +
-  # Lollipops
+  # Shaded Areas
+  geom_rect(
+    data = early_rect,
+    aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
+    fill = gmri_cols("gmri blue"), alpha = 0.1) +
+  geom_rect(
+    data = late_rect,
+    aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
+    fill = gmri_cols("orange"), alpha = 0.1) +
+  # Period Averages:
+  geom_segment(
+    data = early_df, aes(x, xend = xend, y , yend = yend), 
+    color = gmri_cols("blue"), linewidth = 1, linetype = 2) +
+  geom_segment(
+    data = late_df, aes(x, xend = xend, y , yend = yend), 
+    color = gmri_cols("orange"), linewidth = 1, linetype = 2) +
+  # Actual SST
   geom_line(
     aes(x = year, y = area_wtd_sst),
     color = "gray30", linetype = 1, linewidth = 1.5) +
-  geom_segment(data = early_df, aes(x, xend = xend, y , yend = yend), color = gmri_cols("blue"), linewidth = 1.2) +
-  geom_segment(data = late_df, aes(x, xend = xend, y , yend = yend), color = gmri_cols("orange"), linewidth = 1.2) +
   geom_point(
-    data = filter(annual_summary, year < 2010),
-    aes(year, area_wtd_sst), color = "gray30", size = 2) +
+    data = annual_summary,
+    aes(year, area_wtd_sst), color = "gray30", size = 4) +
+  # Warming Trend
   geom_smooth(
     aes(year, area_wtd_sst),
     method = "lm",
@@ -316,33 +355,123 @@ rates_c <- annual_summary  %>%
     color = gmri_cols("gmri green"),
     se = F,
     linewidth = 2) +
-  scale_x_continuous(expand = expansion(add = c(3,3))) +
+  # Brackets
+  geom_bracket(
+    xmin = 1982, xmax = 2009,
+    y.position = brack_h, 
+    label = str_c("1982-2009 Average: ", round(avg_early, 2), "°C"),
+    tip.length = 0.05, coord.flip = F,
+    color = gmri_cols("blue"),
+    family = "Avenir", fontface = "bold",
+    vjust = -.3, label.size = 5, size = 1) +
+  geom_bracket(
+    xmin = 2009, xmax = 2023,
+    y.position = brack_h + (avg_late-avg_early), 
+    label = str_c("2009-2023 Average: ", round(avg_late, 2), "°C"),
+    tip.length = 0.05, coord.flip = F,
+    color = gmri_cols("orange"),
+    family = "Avenir", fontface = "bold",
+    vjust = -.3, label.size = 5, size = 1) +
+  scale_x_continuous(expand = expansion(add = c(2,2))) +
   scale_y_continuous(
     labels = label_number(suffix = deg_c),
     expand = expansion(add = c(0.8,0.5))) +
   theme(axis.title = element_text(family = "Avenir", size = 16))  +
-  geom_bracket(
-    xmin = 1982, xmax = 2009,
-    y.position = 11.1, 
-    label = str_c("1982-2009 Average: ", round(avg_early, 2), "°C"),
-    tip.length = 0.05, coord.flip = F,
-    color = gmri_cols("blue"),
-    family = "Avenir",
-    label.size = 5,
-    size = 0.75) +
-  geom_bracket(
-    xmin = 2009, xmax = 2023,
-    y.position = 11.1 + (avg_late-avg_early), 
-    label = str_c("2009-2023 Average: ", round(avg_late, 2), "°C"),
-    tip.length = 0.05, coord.flip = F,
-    color = gmri_cols("orange"),
-    family = "Avenir",
-    label.size = 5,
-    size = 0.75) +
   labs(
     title = "Gulf of Maine SST Changes",
     y = "Sea Surface Temperature",
-    x = "Year") 
+    x = "Year")+
+  coord_cartesian(clip = "off") +
+  geom_logo(x_npc = 0.875, y_npc = 1.08, logo_height = 1, height_units = "cm")
 
 rates_c
 
+
+
+
+
+# Again, but without the shading changes
+rates_c_lame <- annual_summary  %>% 
+  ggplot() +
+  # Period Averages:
+  geom_segment(
+    data = early_df, aes(x, xend = xend, y , yend = yend), 
+    color = gmri_cols("blue"), linewidth = 2, linetype = 1) +
+  geom_segment(
+    data = late_df, aes(x, xend = xend, y , yend = yend), 
+    color = gmri_cols("orange"), linewidth = 2, linetype = 1) +
+  # Actual SST
+  geom_line(
+    aes(x = year, y = area_wtd_sst),
+    color = "gray30", linetype = 1, linewidth = 1.5) +
+  geom_point(
+    data = annual_summary,
+    aes(year, area_wtd_sst), color = "gray30", size = 4) +
+  # Warming Trend
+  geom_smooth(
+    aes(year, area_wtd_sst),
+    method = "lm",
+    formula = y ~ x,
+    color = gmri_cols("gmri green"),
+    se = F,
+    linewidth = 2) +
+  # Brackets
+  geom_bracket(
+    xmin = 1982, xmax = 2009,
+    y.position = brack_h, 
+    label = str_c("1982-2009 Average: ", round(avg_early, 2), "°C"),
+    tip.length = 0.05, coord.flip = F,
+    color = gmri_cols("blue"),
+    family = "Avenir", fontface = "bold",
+    vjust = -.3, label.size = 5, size = 1) +
+  geom_bracket(
+    xmin = 2009, xmax = 2023,
+    y.position = brack_h + (avg_late-avg_early), 
+    label = str_c("2009-2023 Average: ", round(avg_late, 2), "°C"),
+    tip.length = 0.05, coord.flip = F,
+    color = gmri_cols("orange"),
+    family = "Avenir", fontface = "bold",
+    vjust = -.3, label.size = 5, size = 1) +
+  scale_x_continuous(expand = expansion(add = c(2,2))) +
+  scale_y_continuous(
+    labels = label_number(suffix = deg_c),
+    expand = expansion(add = c(0.8,0.5))) +
+  theme(axis.title = element_text(family = "Avenir", size = 16))  +
+  labs(
+    title = "Gulf of Maine SST Changes",
+    y = "Sea Surface Temperature",
+    x = "Year")+
+  coord_cartesian(clip = "off") +
+  geom_logo(x_npc = 0.875, y_npc = 1.08, logo_height = 1, height_units = "cm")
+
+rates_c_lame
+
+
+
+####  Save Them:
+
+# Prevents tiny fonts when saving
+showtext::showtext_opts(dpi=300) 
+
+# Save location is local
+save_location <- here::here("local_data", "MCC_figures/")
+
+# Gom VS Global - annual trends w/ brackets
+ggsave(
+  plot = rates_c_lame, 
+  filename = str_c(save_location, "MCC_Gom_annual_sst_changes.jpeg"),
+  height = unit(2.5, "in"),
+  width = unit(4, "in"),
+  dpi = "retina", 
+  bg = "white", 
+  scale = 2)
+
+# Gom VS Global - annual trends w/ brackets
+ggsave(
+  plot = rates_c, 
+  filename = str_c(save_location, "MCC_Gom_annual_sst_changes_shaded.jpeg"),
+  height = unit(2.5, "in"),
+  width = unit(4, "in"),
+  dpi = "retina", 
+  bg = "white", 
+  scale = 2)
