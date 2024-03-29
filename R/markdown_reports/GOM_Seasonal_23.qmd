@@ -22,7 +22,7 @@ params:
   season: "Winter"
   seas: "winter"
   save_data: FALSE
-  save_figures: FALSE
+  save_figures: TRUE
 ---
 
 ```{r}
@@ -265,15 +265,23 @@ seasonal_avgs <- region_hw %>%
      season_center = as.Date(str_c(yr, season_cent)),
      season_llim   = as.Date(str_c(yr, season_left)),
      season_rlim   = as.Date(str_c(yr, season_right)),
-     temp_label    = str_c(round(temp_f, 2), " \u00b0F  |  ", round(mean_temp, 2), " \u00b0C"),
-     anom_label    = str_c(round(anom_f, 2), " \u00b0F  |  ", round(mean_anom, 2), " \u00b0C")
+     temp_c_rnd    = sprintf(signif(mean_temp, 3), fmt = '%#.2f'),
+     temp_f_rnd    = sprintf(signif(temp_f, 3), fmt = '%#.2f'),
+     anom_c_rnd    = sprintf(signif(mean_anom, 3), fmt = '%#.2f'),
+     anom_f_rnd    = sprintf(signif(anom_f, 3), fmt = '%#.2f'),
+     temp_label    = str_c(temp_f_rnd, " \u00b0F  |  ", temp_c_rnd, " \u00b0C"),
+     anom_label    = str_c(anom_f_rnd, " \u00b0F  |  ", anom_c_rnd, " \u00b0C")
   )
   
 # Ranking the hottest years - on seasonal temperature
 seasonal_ranks <- seasonal_avgs %>% 
   mutate(
     yr = factor(yr),
-    year_rank = fct_reorder(.f = yr, .x = mean_temp, .fun = median, .desc = TRUE)) %>% 
+    year_rank = fct_reorder(
+      .f = yr, 
+      .x = mean_temp, 
+      .fun = median, 
+      .desc = TRUE)) %>% 
   arrange(year_rank) %>% 
   mutate(rank = row_number())
 
@@ -397,23 +405,22 @@ rank_labs <- switch(current_rank,
 max_anom_yr <- seasonal_avgs %>% 
   arrange(desc(mean_anom)) %>% 
   slice(1) %>% 
-  mutate(across(c(mean_temp:anom_f), \(x) sprintf(signif(x, 3), fmt = '%#.1f')))
+  mutate(across(c(mean_temp:anom_f), \(x) sprintf(signif(x, 3), fmt = '%#.2f')))
 
 ```
 
-For this seasonal report we present an analysis of SST for `r params$seas` `r month_range`. 
+For this seasonal report we present an analysis of sea surface temperature (SST) for `r params$seas` 2023-2024, defined as the period extending from  `r month_range`. 
 
-Winter is an important time of year for the Gulf of Maine. During this time of year sea surface temperatures are typically falling, and the surface stratification breaks down. The breakdown of stratification allows for vertical mixing in the water column, which helps transport important nutrients through the near-surface waters. These nutrients are what fuel the spring phytoplankton blooms that support the high productivity in the region. Vertical mixing may be enhanced in Winter with the help of Nor'Easters, which are most common this time of year and stir up the water column with rough seas and strong winds.
+Winter is an important time of year for the Gulf of Maine. During this time of year, SSTs are typically falling, weakening the stratification of surface waters from deeper waters that occurs during warmer months.  The breakdown of stratification allows for vertical mixing in the water column, which helps transport important nutrients up into the near-surface waters. These nutrients fuel the spring phytoplankton blooms that support the high productivity in the region. Vertical mixing may be enhanced in winter with the help of Nor’Easters, which are most common this time of year and stir up the water column with rough seas and strong winds.
 
-This year, the average SST for the Gulf of Maine was `r season_avg_temp`°F, making it the `r rank_labs` hottest `r params$seas` on record for the period of 1982-2023 --- the period over which the satellite data used are available. 
-
-This seasonal average temperature is `r season_avg_anom`°F above the 1991--2020 climatological reference period (CRP) `r params$seas` average of `r season_avg_clim`°F.
+This year, the average SST for the Gulf of Maine was `r season_avg_temp`°F. This seasonal average temperature was `r season_avg_anom`°F above the 1991–2020 climatological reference period (CRP) `r params$seas` average of `r season_avg_clim`°F.
 
 ## Weekly Temperatures
 
 @tbl-season-temps highlights how the SST for each week this `r params$seas` compares to the 1991-2020 CRP for the area shown in @fig-map. The observed SST, long-term average SST, and SST anomalies (i.e., departures from the long-term average SST) are shown. 
 
-`r params$seas` average SST was on average `r round(mean(this_season_data$anom_f),2)`°F or more above normal during the fall, with weekly averaged SST anomalies ranging from -1.7°F to +0.4°F.
+`r params$seas` average SST were on average `r round(mean(this_season_data$anom_f),2)`°F below normal, with weekly SST anomalies ranging from -1.68°F to +0.41°F; all but one week at the end of 2023 recorded SSTs that were below the 1991-2020 average.
+
 
 ```{r}
 #| label: week-summary-data-prep
@@ -469,8 +476,9 @@ week_summaries <- week_summaries %>%
     clim_f = as_fahrenheit(clim_c),
     anom_f = as_fahrenheit(anom_c, data_type = "anomalies")) %>% 
   mutate(
-    across(.cols = all_of(c("temp_c", "clim_c", "anom_c","temp_f", "clim_f", "anom_f")), 
-           .fns = \(x) sprintf(signif(x, digits = 3), fmt = '%#.1f')))
+    across(
+      .cols = all_of(c("temp_c", "clim_c", "anom_c","temp_f", "clim_f", "anom_f")), 
+      .fns = \(x) sprintf(signif(x, 3), fmt = '%#.2f')))
 
 ```
 
@@ -545,6 +553,8 @@ month_rankings <- region_hw %>%
   group_by(month) %>% 
   arrange(desc(mean_anom)) %>% 
   mutate(rank = rank(-mean_anom)) %>% 
+  arrange(mean_anom) %>% 
+  mutate(rev_rank = rank(mean_anom)) %>% 
   ungroup() %>% 
   arrange(rank, month)
 
@@ -555,11 +565,12 @@ monthly_avgs <- monthly_avgs %>% left_join(
 
 ```
 
-@tbl-monthly-temps shows monthly average SST for `r params$seas` `r params$year`; each month was within `r ceiling(min(monthly_avgs$anom_f))`°F or more above the 1991-2020 CRP. 
+@tbl-monthly-temps shows monthly average SST for `r params$seas` `r params$year`. December SSTs were slightly below the 1991-2020 CRP, but the average SST anomalies for January and February were near or more than 1°F  below the 1991-2020 CRP.
 
-`r peak_month_full` showed the largest deviation from the long-term climatological average, with an average SST anomaly of `r peak_month$anom_f` °F, making it the 34th warmest `r peak_month_full`` on record. 
+February showed the largest deviation from the long-term climatological average, with an average SST anomaly of -1.08 °F, making it the 34th warmest February on record. Said another way, it was the 10th coldest February in the satellite era. January averaged –0.94 °F below the 1991-2020 climatology, making it the 25th warmest (19th coldest) January since 1982.
 
-December and January were warmer at -0.1 & 0.9°F below the long-term average—coming in as the 19th and 25th warmest December and January on record, respectively.
+December was more mild, recording a monthly average SST that was 0.13 °F below the long-term average, respectively. This made December the 19th warmest (24th coldest) since 1982.
+
 
 ```{r}
 #| label: tbl-monthly-temps
@@ -570,7 +581,7 @@ December and January were warmer at -0.1 & 0.9°F below the long-term average—
 month_names <- data.frame("month" = month.abb, "month_full" = month.name)
 month_summ_table <- monthly_avgs %>% 
   left_join(month_names) %>% 
-  mutate(across(c(temp_c:anom_f),\(x) sprintf(x, fmt = '%#.1f'))) %>% 
+  mutate(across(c(temp_c:anom_f),\(x) sprintf(signif(x, 3), fmt = '%#.2f'))) %>% 
   mutate(
     temp = md(str_c(temp_f, deg_f, " *(", temp_c, deg_c, ")*")),
     clim = str_c(clim_f, deg_f, " *(", clim_c, deg_c, ")*"),
@@ -602,7 +613,8 @@ month_summ_table
 
 ## How Does this `r params$season` Compare to the Past?
 
-`r params$year` was the **`r rank_labs`** warmest `r params$seas` season observed in the Gulf of Maine during the 41 years we have satellite data to analyze, a departure `r params$seas` seasons in recent years, which experienced well-above average SSTs. 
+`r params$year` was the **`r rank_labs`** warmest (18th coolest) `r params$seas` season observed in the Gulf of Maine during the 41 years we have satellite data to analyze, a departure from `r params$seas` seasons in recent years, which experienced well-above average SSTs.
+
 
 ```{r}
 #| label: fig-season-rank
@@ -628,37 +640,60 @@ rank_plot_data <- seasonal_ranks %>%
     flag_col = ifelse(flag_year == "flag", gmri_cols("orange"), gmri_cols("blue"))) 
 
 
+
+
+
 # Plot them
 temp_rankings_p <- rank_plot_data %>% 
+  mutate(
+    anom_label = ifelse(
+      str_sub(anom_label, 1,1) == "-", 
+      anom_label, 
+      str_c(" ", anom_label)),
+    anom_label = str_sub(anom_label, 1, 8)) %>% 
   ggplot() +
   geom_col(aes(x = anom_f, y = rank, fill = I(flag_col)))+
-  # Year Labels
+  # # Year Labels - within bars
+  # geom_text(
+  #   mapping = aes(
+  #     x = ifelse(anom_f < 0, anom_f, 0), 
+  #     y = rank, 
+  #     label = year_rank,
+  #     color = I(ifelse(between(anom_f, -0.35, 0.35), "transparent", "white"))), # No numbering 
+  #   fontface = "bold",
+  #   family = "Avenir",
+  #   hjust = -.05,
+  #   #color = 'white',
+  #   size = 5) +
+  # Year labels - Along axis
   geom_text(
     mapping = aes(
-      x = ifelse(anom_f < 0, anom_f, 0), 
-      y = rank, 
+      x = 3.9,
+      y = rank,
       label = year_rank,
-      color = I(ifelse(between(anom_f, -0.35, 0.35), "transparent", "white"))), # No numbering 
+      color = I(flag_col)), 
     fontface = "bold",
     family = "Avenir",
     hjust = -.05,
-    #color = 'white',
     size = 5) +
  # Temperature Labels - Outside Bars
   geom_text(
     mapping = aes(
-      x = ifelse(anom_f > 0, anom_f, 0), 
+      # x = ifelse(anom_f > 0, anom_f, 0), 
+      x = 4.4, 
       y = rank, 
-      label = anom_label, group = rank, color = I(flag_col)),
+      label = anom_label, 
+      group = rank, 
+      color = I(flag_col)),
     family = "Avenir",
     hjust = -.05, size = 4, show.legend = F) +
   scale_x_continuous(
     labels = number_format(suffix = " \u00b0F"), 
-    expand = expansion(mult = c(0,0.25))) +
+    expand = expansion(mult = c(0.015,0.15))) +
   labs(
     x = "Seasonal SST Anomaly",
     y = "Rank",
-    caption = "",
+    caption = NULL,
     title = str_c("Gulf of Maine's Warmest ", params$season, " SST Anomalies")) +
   theme(
     plot.background = element_blank(),
@@ -679,7 +714,7 @@ temp_rankings_p
 
 ## Seasonal Trends and Long-Term Global Context
 
-The Gulf of Maine is an area of particular interest to the scientific community because of the remarkable rate of warming it has experienced in recent years coupled with its importance as a major driver for the regional economy.
+The Gulf of Maine is an area of particular interest to the scientific community because of the remarkable rate of warming it has experienced in recent years, coupled with its importance as a major driver for the regional economy.
 
  @fig-global-rates illustrates the average fall temperature anomaly for each year in the Gulf of Maine since the beginning of the satellite record in 1982 overlaid with long-term SST anomaly trends for the Gulf of Maine (orange) and global oceans (blue) overlaid. 
  
@@ -695,16 +730,6 @@ The `r params$seas` SST anomaly for the Gulf of Maine in `r params$year` was 4.2
 #| eval: true
 #| fig-cap: "Average annual winter SSTs in the Gulf of Maine from 1982 through 2023-24 (black dots). The orange line indicates the trend for the full time series for the Gulf of Maine. The blue line indicates the trend for the full time series for the global oceans."
 
-# # Make a standalon legend for the points:
-# l2 <- ggplot(glob_plot_dat) +
-#   geom_point(
-#     data = filter(glob_plot_dat, region == "Gulf of Maine"), 
-#     aes(yr, anom_f, shape = "Gulf of Maine Seasonal Average SST Anomaly"), 
-#     color = "gray20", size = 2, alpha = 0.8) +
-#   guides(shape = guide_legend(title = NULL,label.position = "left",label.hjust = 1))
-# leg2 <- gtable_filter(ggplot_gtable(ggplot_build(l2)), "guide-box") 
-
-
 # Compare warming rates
 global_rate_plot <- ggplot(glob_plot_dat) +
   geom_line(
@@ -717,8 +742,6 @@ global_rate_plot <- ggplot(glob_plot_dat) +
     color = "gray20", 
     size = 2,
     alpha = 0.8) +
-  # # Add second legend
-  # annotation_custom(grob = leg2, xmin = 2009, xmax = 2020, ymin = -3.6, ymax = -3.3) +
   # All year warming rate for GOM
   geom_smooth(
     aes(yr, anom_f, color = str_c(region, " Trend\n", rate)), 
@@ -739,7 +762,7 @@ global_rate_plot <- ggplot(glob_plot_dat) +
   labs(title = str_c(params$season, " SST Warming Rates"),
        x = "Year",
        y = str_c("Sea Surface Temperature Anomalies\n(", season_range, ")"),
-       color = "1982-2023 Warming Rates")  +
+       color = "1982-2024 Warming Rates")  +
   coord_cartesian(clip = "off") +
   geom_logo(x_npc = 0.85, y_npc = 1.1, logo_height = 1, height_units = "cm")
 
@@ -747,11 +770,6 @@ global_rate_plot <- ggplot(glob_plot_dat) +
 
  global_rate_plot
 ```
-
-
-
-Observed SSTs are influenced by atmospheric weather patterns which can act to amplify warming or cooling of surface waters. Sustained periods of low cloud cover and the consequent direct sunlight can rapidly warm the ocean at the surface. Steady winds can act as a fan, advecting heat away from the ocean and cooling the surface. Strong winds and storm systems may also lower SST through mixing, which can bring cooler water from depth closer to the surface.
-
 
 
 
@@ -1007,7 +1025,7 @@ hw_anom_p <- year_hw_dat %>%
     scale_color_manual(values = color_vals) +
     scale_x_date(
       # date_labels = "%b", 
-      date_labels = "%b, %y", 
+      date_labels = "%b %y", 
       date_breaks = "1 month", 
       expand = expansion(add = c(0,0))) +
     scale_y_continuous(
@@ -1249,7 +1267,6 @@ season_map <- ggplot() +
     ticks.colour = "black")) +
   labs(
     title = str_c("Seasonal Sea Surface Temperature Anomaly\n", params$season, " ", params$year),
-    caption = "100m & 200m contours overlaid to show topographic details.",
     fill = "Surface Temperature Anomaly")
 
 # Show figure
@@ -1331,7 +1348,7 @@ monthly_maps <- (
     plot.margin = margin(t = 0, b = 0, r = 0.5, l = 0.5)) 
 
 # Add a caption
-monthly_maps + plot_annotation(caption = "200m contour overlaid to show topographic details.")
+monthly_maps + plot_annotation(caption = NULL)
 ```
 
 ## About the Updates:
