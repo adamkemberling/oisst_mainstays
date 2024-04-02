@@ -1433,101 +1433,28 @@ if(params$save_figures){
   ggsave(
     plot = gom_extent_p, 
     filename = str_c(update_folder, "GOM_Extent.png"), 
-    height = unit(4, "in"),
-    width = unit(4, "in"),
+    height = unit(3.2, "in"),
+    width = unit(3.2, "in"),
     dpi = "retina", 
     bg = "transparent", 
-    scale = 2)
+    scale = 2.5)
   
   
   # Weekly Report Table
   gtsave(data = week_summ_table %>% 
     opt_table_font(
       font = list(google_font(name = "Avenir"))), 
-    filename = str_c(update_folder, "weekly_summary_table.png"))
+    filename = str_c(update_folder, "weekly_summary_table.png"),
+    vwidth = 800,
+    vheight = 400)
   
   # Monthly Report Table
   gtsave(
     data = month_summ_table %>% 
       opt_table_font(font = list(google_font(name = "Avenir"))), 
-    filename = str_c(update_folder, "monthly_summary_table.png"))
-  
-  
-  # Seasonal Rates Plot
-  ggsave(
-    plot = global_rate_plot, 
-    filename = str_c(update_folder, "Seasonal_rates_plot.png"), 
-    height = unit(2.5, "in"),
-    width = unit(4, "in"),
-    dpi = "retina", 
-    bg = "transparent", 
-    scale = 2)
-  
-  
-  # Seasonal Temp Rankings
-  ggsave(
-    plot = temp_rankings_p, 
-    filename = str_c(update_folder, "Seasonal_temp_ranks_plot.png"), 
-    height = unit(3, "in"),
-    width = unit(4, "in"),
-    dpi = "retina", 
-    bg = "transparent", 
-    scale = 2)
-
-  
-  # Heatwave Temperature Plot
-  ggsave(
-    plot = hw_temp_p, 
-    filename = str_c(update_folder, "Heatwave_temp_plot.png"), 
-    height = unit(2.5, "in"),
-    width = unit(4, "in"),
-    dpi = "retina", 
-    bg = "transparent", 
-    scale = 2)
-  
-  
-  # Heatwave Anomaly Plot
-  ggsave(
-    plot = hw_anom_p, 
-    filename = str_c(update_folder, "Heatwave_anom_plot.png"), 
-    height = unit(2.5, "in"),
-    width = unit(4, "in"),
-    dpi = "retina", 
-    bg = "transparent", 
-    scale = 2)
-  
-  # heatwave heatmap
-  ggsave(
-    plot = heatmap_p, 
-    filename = str_c(update_folder, "Heatwave_Heatmap.png"), 
-    height = unit(4, "in"),
-    width = unit(4, "in"),
-    dpi = "retina", 
-    bg = "transparent", 
-    scale = 2)
-  
-  
-  # Season Map
-  ggsave(
-    plot = season_map, 
-    filename = str_c(update_folder, "Seasonal_anom_map.png"), 
-    height = unit(4, "in"),
-    width = unit(4, "in"),
-    dpi = "retina", 
-    bg = "transparent", 
-    scale = 2)
-  
-  # monthly maps
-  ggsave(
-    plot = monthly_maps,
-    filename = str_c(update_folder, "Monthly_anom_maps.png"), 
-    height = unit(2.5, "in"),
-    width = unit(4, "in"),
-    dpi = "retina", 
-    bg = "transparent", 
-    scale = 2)
-  
-  
+    filename = str_c(update_folder, "monthly_summary_table.png"),
+    vwidth = 800,
+    vheight = 100)
   
   #--------  HTML Tables  ----------------
     
@@ -1549,10 +1476,93 @@ if(params$save_figures){
   # Add this to table tag as inline style to center:
   #  style="margin-left:auto; margin-right:auto;"
   # Or add it to the .gt_table class controls
+  
+  
+  
+  
+  # Seasonal Rates Plot
+  ggsave(
+    plot = global_rate_plot, 
+    filename = str_c(update_folder, "Seasonal_rates_plot.png"), 
+    height = unit(2, "in"),
+    width = unit(3.2, "in"),
+    dpi = "retina", 
+    bg = "transparent", 
+    scale = 2.5)
+  
+  
+  # Seasonal Temp Rankings
+  ggsave(
+    plot = temp_rankings_p, 
+    filename = str_c(update_folder, "Seasonal_temp_ranks_plot.png"), 
+    height = unit(2.4, "in"),
+    width = unit(3.2, "in"),
+    dpi = "retina", 
+    bg = "transparent", 
+    scale = 2.5)
+
+  
+  # Heatwave Temperature Plot
+  ggsave(
+    plot = hw_temp_p, 
+    filename = str_c(update_folder, "Heatwave_temp_plot.png"), 
+    height = unit(2, "in"),
+    width = unit(3.2, "in"),
+    dpi = "retina", 
+    bg = "transparent", 
+    scale = 2.5)
+  
+  
+  # Heatwave Anomaly Plot
+  ggsave(
+    plot = hw_anom_p, 
+    filename = str_c(update_folder, "Heatwave_anom_plot.png"), 
+    height = unit(2, "in"),
+    width = unit(3.2, "in"),
+    dpi = "retina", 
+    bg = "transparent", 
+    scale = 2.5)
+  
+  # heatwave heatmap
+  ggsave(
+    plot = heatmap_p, 
+    filename = str_c(update_folder, "Heatwave_Heatmap.png"), 
+    height = unit(3.2, "in"),
+    width = unit(3.2, "in"),
+    dpi = "retina", 
+    bg = "transparent", 
+    scale = 2.5)
+  
+  
+  # Season Map
+  ggsave(
+    plot = season_map, 
+    filename = str_c(update_folder, "Seasonal_anom_map.png"), 
+    height = unit(3.2, "in"),
+    width = unit(3.2, "in"),
+    dpi = "retina", 
+    bg = "transparent", 
+    scale = 2.5)
+  
+  # monthly maps
+  ggsave(
+    plot = monthly_maps,
+    filename = str_c(update_folder, "Monthly_anom_maps.png"), 
+    height = unit(2, "in"),
+    width = unit(3.2, "in"),
+    dpi = "retina", 
+    bg = "transparent", 
+    scale = 2.5)
+  
+  
+  
+  
 }
 
 
 ```
+
+
 
 ```{r}
 #| label: data-save
