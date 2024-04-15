@@ -703,7 +703,7 @@ temp_rankings_p <- rank_plot_data %>%
     legend.position = "none", 
     plot.margin = margin(t = 20, l = 10, r = 5, b = 5)) +
   coord_cartesian(clip = "off") +
-  geom_logo(x_npc = 0.875, y_npc = 1.075, logo_height = 1, height_units = "cm")
+  geom_logo(x_npc = 0.875, y_npc = 1.05, logo_height = 1, height_units = "cm")
 
 
 temp_rankings_p
