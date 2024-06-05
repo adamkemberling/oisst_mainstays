@@ -58,9 +58,6 @@ timeseries_path <- region_paths[["apershing_gulf_of_maine"]][["timeseries_path"]
 
 
 
-
-
-
 ####  Load Data  ####
 
 
@@ -218,6 +215,7 @@ shift_c <- annual_summary  %>%
     alpha = 0.2) +
   geom_point(aes(year, area_wtd_anom, color = I(regime)), size = 2.5) +
   # Climatological Average
+  
   geom_texthline(
     yintercept = 0, label = "1991-2020 Average",
     linewidth = 1.5, color = "black", family = "Avenir",
@@ -231,6 +229,7 @@ shift_c <- annual_summary  %>%
     y = "Sea Surface Temperature Anomaly",
     x = "Year")
   
+
 shift_c
 
 
@@ -448,28 +447,33 @@ rates_c_lame
 
 
 
+
+####____________####
 ####  Save Them:
 
 # Prevents tiny fonts when saving
 showtext::showtext_opts(dpi=300) 
 
 # Save location is local
-save_location <- here::here("local_data", "MCC_figures/")
+# save_location <- here::here("local_data", "MCC_figures/")
+save_location <- cs_path("mills", "Projects/MCC-STS/")
+
+
 
 # Gom VS Global - annual trends w/ brackets
 ggsave(
   plot = rates_c_lame, 
-  filename = str_c(save_location, "MCC_Gom_annual_sst_changes.jpeg"),
+  filename = str_c(save_location, "MCC_Gom_annual_sst_changes.png"),
   height = unit(2.5, "in"),
   width = unit(4, "in"),
   dpi = "retina", 
   bg = "white", 
   scale = 2)
 
-# Gom VS Global - annual trends w/ brackets
+# Gom VS Global - annual trends w/ brackets Shaded
 ggsave(
   plot = rates_c, 
-  filename = str_c(save_location, "MCC_Gom_annual_sst_changes_shaded.jpeg"),
+  filename = str_c(save_location, "MCC_Gom_annual_sst_changes_shaded.png"),
   height = unit(2.5, "in"),
   width = unit(4, "in"),
   dpi = "retina", 

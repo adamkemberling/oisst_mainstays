@@ -19,10 +19,10 @@ execute:
   fig.align: center
 params: 
   year: 2024
-  season: "Winter"
-  seas: "winter"
+  season: "Spring"
+  seas: "spring"
   save_data: FALSE
-  save_figures: TRUE
+  save_figures: FALSE
 ---
 
 ```{r}
@@ -653,6 +653,7 @@ temp_rankings_p <- rank_plot_data %>%
     anom_label = str_sub(anom_label, 1, 8)) %>% 
   ggplot() +
   geom_col(aes(x = anom_f, y = rank, fill = I(flag_col)))+
+  #-------
   # # Year Labels - within bars
   # geom_text(
   #   mapping = aes(
@@ -665,7 +666,8 @@ temp_rankings_p <- rank_plot_data %>%
   #   hjust = -.05,
   #   #color = 'white',
   #   size = 5) +
-  # Year labels - Along axis
+  #-----
+  # Year labels - Out in whitespace
   geom_text(
     mapping = aes(
       x = 3.9,
@@ -883,10 +885,14 @@ hw_events <- year_hw_dat %>%
 # end_cap_breaks <- end_cap - 5 - months(0:29) # subtract a couple days before the months to not lose feb
   
 # Set limits that work for winter
-hw_plot_lims <- ifelse(
-  params$season == "Winter",
-  as.Date(c(str_c(params$year-1, "-12-01"), str_c(params$year, "-04-30"))),
-  as.Date(str_c(params$year, c("-01-01", "-12-31"))))
+if(params$season == "Winter"){
+  hw_plot_lims <- as.Date(
+    c(str_c(params$year-1, "-12-01"), 
+      str_c(params$year, "-04-30")))} else {
+  hw_plot_lims <- as.Date(str_c(params$year, c("-01-01", "-12-31")))
+}
+
+  
 
 
     
@@ -951,13 +957,17 @@ if(params$season == "Winter"){
 }
 
 
+
+
+
+
 # Weird behavior for winter
 if(params$season != "Winter"){
   hw_temp_p <- hw_temp_p +
     geom_textpath(
       aes(x = time, y = {{hw_thresh_col}}), 
       color = "gray10", label = "90th Percentile", 
-      hjust = 1.15, lty = 1, vjust = 0, family = "Avenir") + 
+      hjust = 1.35, lty = 1, vjust = 0, family = "Avenir") + 
     geom_textpath(
       aes(x = time, y = {{clim_col}}), 
       color = "gray10", label = "Climatological Avg.", 
@@ -976,8 +986,8 @@ if(params$season != "Winter"){
     scale_x_date(
       date_labels = "%b",
       date_breaks = "1 month",
-      expand = expansion(add = c(1,90)),
-      limits = hw_plot_lims)
+      expand = expansion(add = c(0,60)))
+      #limits = hw_plot_lims)
 }
 
 
@@ -1014,9 +1024,9 @@ hw_anom_p <- year_hw_dat %>%
     geom_textpath(
       aes(x = time, y = 0), 
       color = "gray10", 
-      label = "Climatological Avg. & \n 10th-90th Percentile Range", 
+      label = "Climatological Avg. & \n 10th-90th Percentile Range",
       vjust = 0,
-      hjust = .65, lty = 1, family = "Avenir") +
+      hjust = .15, lty = 1, family = "Avenir") +
   # # Only Works if there are heatwaves
   #   geom_bracket(
   #     data = hw_events, 

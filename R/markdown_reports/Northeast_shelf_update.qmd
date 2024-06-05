@@ -73,9 +73,6 @@ logo_path <- paste0(system.file("stylesheets", package = "gmRi"), "/gmri_logo.pn
 lab_logo <- magick::image_read(logo_path)
 ```
 
-
-
-
 ```{r params formatting}
 
 # Set the shapefile to use as a parameter
@@ -94,7 +91,7 @@ tidy_name <- "Northeastern US Shelf Region"
 current_yr <- year(Sys.Date())
 
 # Use panelset
-use_panelset()
+xaringanExtra::use_panelset()
 
 # Turn on the stylesheet:
 gmRi::use_gmri_style_rmd(css = "gmri_rmarkdown.css")
@@ -102,7 +99,6 @@ gmRi::use_gmri_style_rmd(css = "gmri_rmarkdown.css")
 # Turn on the gmri font for plots
 showtext::showtext_auto()
 ```
-
 
 ```{r}
 #| label: style-config
@@ -112,7 +108,6 @@ showtext::showtext_auto()
 use_gmri_style_rmd()
 
 ```
-
 
 ```{r}
 #| label: fonts-config
@@ -140,10 +135,6 @@ showtext::showtext_auto()
 
 ```
 
-
-
-
-
 # `r paste(tidy_name, current_yr)`: Sea Surface Temperature
 
 This report was created to track the sea surface temperature regimes for the Northeastern US continental shelf, an area sampled as part of the NMFS Northeast trawl survey.
@@ -158,6 +149,7 @@ Whenever discussing the `r tidy_name` in this report, we refer to the following 
 
 ```{r}
 # Load the bounding box for Northeast Shelf
+timeseries_path     <- region_paths[[params$region]][["timeseries_path"]]
 poly_path     <- region_paths[[params$region]][["shape_path"]]
 region_extent <- st_read(poly_path, quiet = TRUE)
 # region_extent <- st_union(region_extent)
@@ -179,11 +171,10 @@ map_study_area(region_extent = st_union(region_extent),
 ```
 
 
-
 ```{r}
 #| label: load-timeseries-data
 
-
+# Set the year of the report
 report_yr <- 2023
 
 
@@ -191,9 +182,10 @@ report_yr <- 2023
 #---------  Northeast Shelf Timeseries  --------#
 
 # Load the timeseries
-region_timeseries <- read_csv(timeseries_path, 
-                              col_types = cols(), 
-                              guess_max = 1e6)
+region_timeseries <- read_csv(
+  timeseries_path, 
+  col_types = cols(), 
+  guess_max = 1e6)
 
 
 # Clean up the data - add labels
@@ -259,7 +251,6 @@ global_summary <- global_anoms %>%
 ```
 
 
-
 ```{r}
 #| label: code-all-year-temp-summary
 
@@ -303,11 +294,7 @@ month_ranks <- region_timeseries %>%
 hw_criteria <- report_yr_only %>% pull(mhw_event) %>% sum()
 ```
 
-
-
 ## Annual Warming Trends in the Northeast Shelf
-
-
 
 ```{r}
 #| label: code-warming-rates
@@ -354,9 +341,7 @@ eq_global_c <- rate_data[["Global All C"]][["eq_label"]]
 
 ```
 
-
-Since the early 1980s, the rate of warming in the Northeast Shelf `r str_c(rate_data[["GoM All F"]][["decadal_rate"]], "\u00b0F / Decade")` has been more than triple that of the world’s oceans (`r str_c(rate_data[["Global All F"]][["decadal_rate"]], "\u00b0F / Decade")` @fig-global-comparison). The precise causes of the pronounced jump in annual average SSTs in the region from 2009 to 2012 remains an area of active research, but the sustained warm conditions suggest a regime shift in the influence of major ocean currents (i.e., Gulf Stream vs Labrador Current) in the Northeast Shelf. While a long-term increase in SSTs is expected as a result of human-caused climate change, we also expect each year to be influenced by large-scale patterns of natural variability, particularly on sub-global (i.e., regional) scales. SST conditions in the Northeast Shelf for `r report_yr` retain the region’s distinction as being one of the fastest warming ocean regions on the planet; including the `r report_yr` data shows that the Northeast Shelf is warming faster than 97% of the world’s ocean surface. 
-
+Since the early 1980s, the rate of warming in the Northeast Shelf `r str_c(rate_data[["GoM All F"]][["decadal_rate"]], "\u00b0F / Decade")` has been more than triple that of the world’s oceans (`r str_c(rate_data[["Global All F"]][["decadal_rate"]], "\u00b0F / Decade")` @fig-global-comparison). The precise causes of the pronounced jump in annual average SSTs in the region from 2009 to 2012 remains an area of active research, but the sustained warm conditions suggest a regime shift in the influence of major ocean currents (i.e., Gulf Stream vs Labrador Current) in the Northeast Shelf. While a long-term increase in SSTs is expected as a result of human-caused climate change, we also expect each year to be influenced by large-scale patterns of natural variability, particularly on sub-global (i.e., regional) scales. SST conditions in the Northeast Shelf for `r report_yr` retain the region’s distinction as being one of the fastest warming ocean regions on the planet; including the `r report_yr` data shows that the Northeast Shelf is warming faster than 97% of the world’s ocean surface.
 
 ```{r}
 #| label: fig-global-comparison
@@ -374,23 +359,32 @@ temp_simplified <- global_rate_comparison(
   geom_logo(x_npc = 0.115, y_npc = -0.175, logo_height = 1, height_units = "cm")
 
 
-
-# add second legend
-# temp_simplified <- temp_simplified +
-#   annotation_custom(grob = leg2, xmin = 2012, xmax = 2025, ymin = -2.5, ymax = -1.5)
 temp_simplified
 
 
+# # Prevents tiny fonts when saving
+# showtext::showtext_opts(dpi=300) 
+# 
+# # Save location is local
+# save_location <- here::here("local_data", "COCA_report_figs/")
+# 
+# # Gom VS Global - annual trends w/ brackets
+# ggsave(
+#   plot = temp_simplified, 
+#   filename = str_c(save_location, "COCA_NEShelf_sst_rates.jpeg"),
+#   height = unit(2.5, "in"),
+#   width = unit(4, "in"),
+#   dpi = "retina", 
+#   bg = "white", 
+#   scale = 2)
+
 ```
-
-
-
 
 ## 2023: SST in the Northeast Shelf
 
 As these broad regional patterns transpired, the Northeast Shelf was experiencing a range of conditions that stood in contrast to recent years and the timing of the North Atlantic's record temperatures.
 
-What began as one of the warmest years on record for the Northeast Shelf ended on the cooler side, with seasonal conditions not seen in the last decade. 
+What began as one of the warmest years on record for the Northeast Shelf ended on the cooler side, with seasonal conditions not seen in the last decade.
 
 ```{r}
 #| label: fig-gom-record-temps
@@ -472,26 +466,17 @@ gom_23_record_ts
 
 ```
 
-
-
-
 ### Air-Sea Interactions: Extratropical Storm Lee
 
 Observed SSTs may both influence and be influenced by atmospheric weather patterns. These interactions can act to amplify warming or cooling of surface waters. Sustained periods of low cloud cover and the consequent direct sunlight can rapidly warm the ocean at the surface. Steady winds can act as a fan, advecting heat away from the ocean and cooling the surface. Strong winds and storm systems may also lower SST through mixing, which can bring cooler water from depth closer to the surface.
 
-During September, extratropical storm Lee traversed the Northeast Shelf, which weakened from hurricane strength as it crossed over Georges Bank on September 16 @fig-lee-traversal. The impacts of this storm on the region’s SSTs can be seen in @fig-gom-record-temps when temperature fell over 5F over a period of 12 days. 
+During September, extratropical storm Lee traversed the Northeast Shelf, which weakened from hurricane strength as it crossed over Georges Bank on September 16 @fig-lee-traversal. The impacts of this storm on the region’s SSTs can be seen in @fig-gom-record-temps when temperature fell over 5F over a period of 12 days.
 
-Similar storm crossings have occurred in the recent past, including in 2019 when Hurricane Dorian passed through the Northeast Shelf after working its way up the US East Coast. Both years had some of the fewest autumn heatwave days seen in the past two decades (2019: 0 days, 2023: 6 days). 
-
-
-
-
+Similar storm crossings have occurred in the recent past, including in 2019 when Hurricane Dorian passed through the Northeast Shelf after working its way up the US East Coast. Both years had some of the fewest autumn heatwave days seen in the past two decades (2019: 0 days, 2023: 6 days).
 
 ## Comparing Annual SST to Historical Conditions
 
 When we compare the annual average SST in the Northeast Shelf for `r report_yr` (`r str_c(report_annual_temp, deg_f)`) to other years, we can see it narrowly beat out 2012 as the second warmest year on record. When we look at the deviation from the long-term average SST (i.e., the annual SST anomaly), the last decade stands out for its exceptional warmth (@fig-yr-ranks). `r report_yr` extends a pattern that began in 2010 of sustained above-average temperatures. With the exception of 2019 (ranked 13th), every one of the last ten years remains in the top 10 warmest years on record.
-
-
 
 ```{r}
 #| label: fig-yr-ranks
@@ -555,10 +540,9 @@ temp_rankings_p
 
 ```
 
+### Average Monthly Conditions
 
-###  Average Monthly Conditions
-
-Monthly average SSTs (Table 1.) show how variable conditions were throughout the year. For the first third of the year, monthly SSTs were among the top three warmest for those months. May, June, July, & August average SSTs ranked lower, ranging from 4th to 12th warmest. The final four months were each much cooler, ranging from 12th to 19th warmest for those months. 
+Monthly average SSTs (Table 1.) show how variable conditions were throughout the year. For the first third of the year, monthly SSTs were among the top three warmest for those months. May, June, July, & August average SSTs ranked lower, ranging from 4th to 12th warmest. The final four months were each much cooler, ranging from 12th to 19th warmest for those months.
 
 ```{r}
 #| label: tbl-monthly-avgs
@@ -641,14 +625,6 @@ month_summ_table
 
 ```
 
-
-
-
-
-
-
-
-
 ## Daily SSTs in the Northeast Shelf
 
 ```{r}
@@ -673,13 +649,9 @@ report_yr_max_anom <- round(report_yr_max_anom, 2)
 report_yr_min <- round(report_yr_min, 2)
 ```
 
-
-
-
-The annual cycle of SST in the Northeast Shelf exhibits a pattern common to regions in the Northern Hemisphere, with the lowest temperatures observed in March and the highest values observed in August (@fig-annual-hw-timeseries). Daily SST anomalies in `r report_yr` never fell below +`r report_yr_min_anom` °F compared to the long-term (1991-2020) average and reached as high as high as `r floor(report_yr_max_anom)` °F above the long-term average. 
+The annual cycle of SST in the Northeast Shelf exhibits a pattern common to regions in the Northern Hemisphere, with the lowest temperatures observed in March and the highest values observed in August (@fig-annual-hw-timeseries). Daily SST anomalies in `r report_yr` never fell below +`r report_yr_min_anom` °F compared to the long-term (1991-2020) average and reached as high as high as `r floor(report_yr_max_anom)` °F above the long-term average.
 
 The largest temperature anomalies were observed during November, which also turned out to be the warmest November on record (as highlighted in our [Fall 2022 update](https://www.gmri.org/stories/gulf-of-maine-warming-update-fall-2022/)). @fig-annual-hw-timeseries also illustrates that, in `r report_yr`, `r sum(report_yr_only$mhw_event)` days experienced SST anomalies that exceeded the threshold for being considered marine heatwaves, or MHW (more on MHWs below, including @fig-mhw-heatmap)
-
 
 ```{r}
 #| label: fig-annual-hw-timeseries
@@ -816,9 +788,7 @@ hw_temp_p
 
 ### SST Anomalis & MHW Events
 
-
-A marine heatwave (MHW) is defined as a period when there are five or more consecutive days when the observed SST is greater than the 90th percentile of the long-term average for that day. Gaps of 2 days or less in this threshold do not constitute a break in the MHW event. @fig-annual-hw-timeseries  illustrates that the Northeast Shelf met the criteria for experiencing a MHW for `r hw_criteria` days in `r report_yr` (or 97% of the year). Superimposing MHW status (black line) over the full timeseries of daily SST anomalies (blue/white/red shading) (@fig-annual-hw-timeseries) reveals that the frequency, duration, and intensity of MHWs has increased in the past decade. 
-
+A marine heatwave (MHW) is defined as a period when there are five or more consecutive days when the observed SST is greater than the 90th percentile of the long-term average for that day. Gaps of 2 days or less in this threshold do not constitute a break in the MHW event. @fig-annual-hw-timeseries illustrates that the Northeast Shelf met the criteria for experiencing a MHW for `r hw_criteria` days in `r report_yr` (or 97% of the year). Superimposing MHW status (black line) over the full timeseries of daily SST anomalies (blue/white/red shading) (@fig-annual-hw-timeseries) reveals that the frequency, duration, and intensity of MHWs has increased in the past decade.
 
 ```{r}
 #| label: fig-season-mhw-timeline
@@ -867,9 +837,7 @@ hw_anom_p
   
 ```
 
-
 ### Record Setting Daily Sea Surface Temperatures
-
 
 ```{r}
 #| label: fig-above-average-days
@@ -908,10 +876,7 @@ hot_summary %>%
 
 ```
 
-
-
 Daily SST values in `r report_yr` were some of the highest ever recorded in the Northeast Shelf. Record high SSTs were set for more than half of all days during the months of February, March, & April. February saw the most new records, with 86% of days setting new daily record highs.
-
 
 ```{r}
 #| label: fig-percent-record-bars
@@ -986,13 +951,11 @@ fig_percents
 
 ```
 
-
 ### Decline of Below Average SST Temperature Days
 
 As SST in the Northeast Shelf continues to rise, the fraction of days when the region experiences below-average temperatures is expected to continue to fall. In a world without human-caused climate change, we would expect, positive (warm) and negative (cool) SST anomalies to more or less balance out over the span of several years, as various patterns of natural climate variability alternate having a dominant influence on Earth’s climate (e.g., La Niña vs El Niño). What is being observed in the Northeast Shelf (and elsewhere around the world), however, is a loss of that balance: larger fractions of recent years are experiencing above average temperatures and cold spells are becoming vanishingly rare.
 
 During 2023 the Northeast Shelf experienced SSTs below the long-term average for a total of 48 days. A period of less than 2 months, and with no days experiencing temperatures that would qualify as marine cold-spells, the cool-water equivalent of a MHW. These events have become rare, with just 5 days of cold spell conditions in the last 20 years.
-
 
 ```{r}
 #| label: fig-cold-days
@@ -1050,17 +1013,9 @@ cold_days_plot
 
 ```
 
-
-
-
-
 ### Northeast Shelf SSTs Out of Balance
 
-
 The complete picture of above and below average conditions for the Northeast Shelf reveals a region out of balance. Since 2010 the Northeast Shelf has experienced a disproportionate number of anomalously hot SSTs and experienced many prolonged MHW events.
-
-
-
 
 ```{r}
 #| label: fig-mhw-heatmap
@@ -1089,14 +1044,9 @@ heatmap_p <- region_hw %>%
 heatmap_p + labs(caption = "")
 ```
 
-
-
 ### Quarterly SST Trends
 
-
-Zooming in to sub-annual timescales reveals some interesting patterns: the observed rate of warming in the Northeast Shelf varies throughout the year. Comparisons across the four quarters of the year  (@fig-seasons-comparison) reveal that the Northeast Shelf is warming fastest during July-September (~4x the global ocean average)—almost twice the rate seen during January-June (~3x the global ocean average).
-
-
+Zooming in to sub-annual timescales reveals some interesting patterns: the observed rate of warming in the Northeast Shelf varies throughout the year. Comparisons across the four quarters of the year (@fig-seasons-comparison) reveal that the Northeast Shelf is warming fastest during July-September (\~4x the global ocean average)—almost twice the rate seen during January-June (\~3x the global ocean average).
 
 ```{r}
 #| label: fig-seasons-comparison
@@ -1205,15 +1155,11 @@ panel_plot
 grid::grid.raster(lab_logo, x = 0.08, y = 0, just = c('left', 'bottom'), height = unit(1, "cm"))
 ```
 
-
-
-
 ## Annual SST Anomaly Map
 
-In addition to the sub-annual (or temporal) variation, there can also be significant spatial variability in annually-averaged SST patterns (@fig-new-england-map). 
+In addition to the sub-annual (or temporal) variation, there can also be significant spatial variability in annually-averaged SST patterns (@fig-new-england-map).
 
 This year the impacts of large-scale variability in major oceanic currents, such as the relative influence of the Gulf Stream versus the Labrador Current was quite apparent. With large pockets of above and below average SST anomalies present along the turbulent path of the Gulf Stream to the South of our study area.
-
 
 ```{r}
 #| label: fig-new-england-map
@@ -1298,12 +1244,9 @@ grid::grid.raster(lab_logo, x = 0.1, y = 0.05, just = c('left', 'bottom'), heigh
 
 ```
 
-
-
 ### Quarterly Average SST Maps
 
-Looking at these spatial patterns across the annual quarters of `r report_yr` (@fig-four-season-maps) shows not only the large spatial variability in SST conditions, but also the significant variation in those patterns over the course of the year. 
-
+Looking at these spatial patterns across the annual quarters of `r report_yr` (@fig-four-season-maps) shows not only the large spatial variability in SST conditions, but also the significant variation in those patterns over the course of the year.
 
 ```{r}
 #| label: fig-four-season-maps
@@ -1393,7 +1336,5 @@ season_panels_all
 grid::grid.raster(lab_logo, x = 0.08, y = 0.04, just = c('left', 'bottom'), height = unit(1, "cm"))
 
 ```
-
-
 
 `r insert_gmri_footer()`

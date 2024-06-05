@@ -1206,7 +1206,8 @@ global_rate_comparison <- function(
     aes(year, {{ temp_col }})) +
     
     # Overlay yearly means
-    geom_line(color = "gray20", linewidth = 0.5, alpha = 0.5, linetype = 3) +
+    #geom_line(color = "gray20", linewidth = 0.5, alpha = 0.5, linetype = 3) +
+    geom_line(color = "gray20", linewidth = 1, alpha = 0.8, linetype = 1) +
     geom_point(color = "gray20", size = 2, alpha = 0.8) +
     
     # Warming rates
