@@ -1002,7 +1002,6 @@ hw_temp_p
 
 Presenting SST conditions in terms of anomalies ( @fig-season-anoms ) as opposed to absolute values ( @fig-season-mhw-timeline ) illustrates in greater detail the magnitude of MHW conditions throughout the `r params$seas`. 
 
-The highest daily SST anomalies for `r params$seas` 2023-2024 occurred towards the end of December, with anomalies near `r max_int`°F above the climatological average. All daily SSTs after January 1st were below the climatological average, contributing to this season's unexpectedly low ranking.
 
 
 ```{r}
@@ -1345,8 +1344,8 @@ month_plots <- imap(
 
 # assemble aggregate plot
 monthly_maps <- (
-  month_plots[[1]] + labs(title = "December 2023") | # WINTER control
-  # month_plots[[1]] |
+  # month_plots[[1]] + labs(title = "December 2024") | # WINTER control
+  month_plots[[1]] |
     month_plots[[2]] | 
     month_plots[[3]]) + 
   plot_layout(guides = "collect")  & 
