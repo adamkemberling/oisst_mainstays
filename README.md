@@ -1,17 +1,20 @@
 OISST Mainstays
 ================
 
-# OISSTv2 Sea Surface Temperature Reporting
+### A Repository for OISSTv2 Sea Surface Temperature Reporting
 
-## About:
+#### About:
 
 This repository maintains the core workflows for accessing, processing,
 and mapping patterns in OISSTv2 sea surface temperature data. There are
-two main SST processing routines housed here: 1. [The acquisition and
-data transformation of global OISSTv2 data, done in
-python](https://github.com/adamkemberling/oisst_mainstays/tree/master/notebooks)
-2. [The programmatic synthesis reports done R using
-Rmarkdown/Quarto](https://github.com/adamkemberling/oisst_mainstays/tree/master/R)
+two main SST processing routines housed here:
+
+1.  [The acquisition and data transformation of global OISSTv2 data,
+    done in
+    python](https://github.com/adamkemberling/oisst_mainstays/tree/master/notebooks)
+
+2.  [The programmatic synthesis reports done R using
+    Rmarkdown/Quarto](https://github.com/adamkemberling/oisst_mainstays/tree/master/R)
 
 All report drafts are published using github pages and can be found
 here: [OISST Mainstays
@@ -20,75 +23,51 @@ Reports](https://github.com/adamkemberling/oisst_mainstays/blob/master/index.md)
 ## Repository Organization
 
 There are two main processes at work within this repository. The first
-is a **Continuous-integration workflow** that downloads and processes
-sea surface temperature anomalies and regional timelines. This workflow
-is done primarily in python and lives within the `notebooks/` folder.
-Much of the heavy lifting is done using [xarray]() and [regionmask]()
-libraries. There is also an oisstools module within the `notebooks/`
-folder that supplies many of the discrete processing steps, which are
-flexible for adding new study regions.
+is a **ETL Workflow** that downloads and processes sea surface
+temperature anomalies and regional timelines.
+
+This workflow is done primarily in python and lives within the
+`notebooks/` folder. Much of the heavy lifting is done using [xarray]()
+and [regionmask]() libraries. There is also an `oisstools.py` module
+within the `notebooks/` folder that supplies many of the discrete
+processing steps, which are flexible for adding new study regions.
 
 The second side of this repo is for **Analysis and Reporting** where I
 handle the processing and manipulation of these data products for
-climate reports. This section is done using R and Rmarkdown for
-consistent reporting (and because I am much better with these tools).
-The processed data is accessed from our cloud storage using our in-house
-r-package [{gmRi}](www.github.com/gulfofmaine/gmri).
+climate reports.
 
-### Jupyter Notebook Workflows
+This section is done using R and Rmarkdown for consistent reporting (and
+because I am much better with these tools). The processed data is
+accessed from our cloud storage using our in-house r-package
+[{gmRi}](www.github.com/gulfofmaine/gmri).
+
+### 1. Global/Regional Gridded Data Processing - Python
 
 The notebooks in this repo form the core workflow for processing
-climatology products from the global OISSTv2 products. The notebooks are
-numbered to suggest a step-wise workflow that will take the original
-files containing sea surface temperature observations and step the user
-through calculating a climatology, and for getting timeseries for
-particular regions of interest. Ongoing development is being done now to
-create an automatic updating procedure.
+climatology products from the global OISSTv2 products and can be found
+in the `R/notebooks/` directory. Notebooks are numbered to suggest a
+step-wise workflow that will take the original files containing sea
+surface temperature observations and step the user through calculating a
+climatology, and for getting timeseries for particular regions of
+interest.
 
-### R Workflows
+If starting from scratch begin with the notebooks with names beginning
+with `BASE_`. These will construct building blocks used to generate
+things like climatologies etc.
 
-The R-workflows in this repository are primarily report driven. Here you
-will find code for our seasonal SST update, the Gulf of Maine SST
-Report, and the impacts of shifting climatology periods from 1982-2011
-to 1991-2020.
+Ongoing development is being done now to create an automatic updating
+procedure. At present the core workflow is contained within three
+notebooks with names beginning with `UPDATE_`.
 
-## Working with Docker and Local Paths
+Testing and prototyping is done in notebooks beginning with the name
+`TESTING_`.
 
-The code for this repo was set up originally to be run using docker, and
-a suitable docker image configuration is contained here for users
-wishing to take advantage of that. When operating within the docker
-image, be sure to set the workspace variable in any of the notebooks to
-“docker” to direct paths to the mounted volumes and not local paths.
+### 2. Web-Based Reports - R
 
-### Docker `make up` & `make down`
-
-These commands provide a quick way to spin up notebooks and rstudio
-server.
-
-Enter `make up` into the terminal for a quick start. Watch for the
-notebook service to give you a URL with a login token. Toss that link
-into the browser to start the notebook.
-
-Once the environment is running Rstudio server can be found at
-`localhost:8787` which can be entered into any browser.
-
-### docker-compose.override.yaml
-
-For colleagues wishing to access shared resources a
-`docker-compose.override.yaml` file will need to be placed in the main
-directory of this repository to link shared paths to shared resources.
-
-### Operating locally for `BASE` & `UPDATE` steps
-
-The workflow steps that make up the core foundation of the workflow are
-often too large to run successfully in docker. To get around this a
-suitable conda environment may be needed to run the notebooks. In my
-case I need to navigate to this repo in the terminal and type
-`conda activate py36`.
-
-Most of the notebooks will have a “workspace” parameter to be set which
-determines the path structures for the rest of the notebooks
-accordingly.
+The R-workflows in this repository are primarily html report driven and
+can be found in the `R/markdown_reports/` directory. Here you will find
+code for our seasonal SST update, the Gulf of Maine SST Report, and the
+impacts of shifting climatology periods from 1982-2011 to 1991-2020.
 
 ## Reference Data Access
 

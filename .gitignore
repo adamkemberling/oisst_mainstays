@@ -17,6 +17,8 @@ docker-compose.override.yaml
 *.ipynb_checkpoints*
 *.csv
 *.docx
+*tif
+*tfw
 
 
 # Data folders
