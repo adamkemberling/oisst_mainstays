@@ -5,6 +5,7 @@
 data/*
 animations/*
 .vscode/
+*.DS_Store
 
 # Rstudio Password Info
 secret.env
