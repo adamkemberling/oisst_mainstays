@@ -82,16 +82,10 @@ poly_path <- region_paths[["apershing_gulf_of_maine"]][["shape_path"]]
 region_extent <- st_read(poly_path, quiet = TRUE)
 
 # Load bathymetry for the bottom contours:
-bathy <- raster("~/Documents/Repositories/Points_and_contours/NEShelf_Etopo1_bathy.tiff")
+# Bathymetric Contour Data
+bathy <- raster(str_c(cs_path("res","Bathy/"), "ETOPO1/NEShelf_Etopo1_bathy.tiff")) 
 
-# Contours for geom_contour()
-bathy_df <- as.data.frame(raster::coordinates(bathy))
-bathy_df$depth <- raster::extract(bathy, bathy_df)
-bathy_df$depth <- bathy_df$depth * -1
-contours_make <- c(200)
-
-
-# Or make terra for ggplot using tidyterra
+# Make a terra copyfor ggplot using tidyterra
 elev_terra <- terra::rast(bathy)
 
 ```

@@ -1,0 +1,337 @@
+---
+title: "Global SST Trends"
+author: "Adam A. Kemberling"
+date: "Updated on: `r Sys.Date()`"
+format: 
+  html:
+    code-fold: true
+    code-tools: true
+    toc: true
+    toc-depth: 2
+    df-print: kable
+    self-contained: true
+editor: source
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, 
+                      message = F, 
+                      warning = F, 
+                      comment = "", 
+                      fig.align = "center")
+
+# Packages
+library(lubridate)
+library(ncdf4)
+library(raster)
+library(rnaturalearth)
+library(sf)
+library(stars)
+library(gmRi)
+library(here)
+library(janitor)
+library(knitr)
+library(patchwork)
+library(tidyverse)
+library(kableExtra)
+library(heatwaveR)
+library(plotly)
+library(ggpmisc)
+
+# Support Functions
+source(here("R/oisst_support_funs.R"))
+source(here("R/temp_report_support.R"))
+
+#box paths
+box_paths <- research_access_paths()
+
+
+# File Paths
+mills_path <- box_paths$mills
+res_path   <- str_replace(box_paths$res, "RES Data", "RES_Data")
+okn_path   <- box_paths$okn  
+oisst_path <- paste0(res_path, "OISST/oisst_mainstays/")
+
+
+# Set ggplot theme for figures
+theme_set(theme_bw())
+
+
+# Set theme up for maps
+map_theme <- list(
+  theme(
+    panel.border       = element_rect(color = "black", fill = NA),
+    plot.background    = element_rect(color = "transparent", fill = "transparent"),
+    line               = element_blank(),
+    axis.title.x       = element_blank(), # turn off titles
+    axis.title.y       = element_blank(),
+    legend.position    = "bottom", 
+    legend.title.align = 0.5))
+
+
+# Polygons for mapping
+new_england <- ne_states("united states of america") %>% st_as_sf(crs = 4326) 
+canada      <- ne_states("canada") %>% st_as_sf(crs = 4326)
+world       <- ne_countries() %>% st_as_sf(crs = 4326)
+greenland   <- ne_states(country = "greenland") %>% st_as_sfc(crs = 4326)
+
+```
+
+`r gmRi::use_gmri_style_rmd(css = "gmri_rmarkdown.css")`
+
+```{r}
+# Turn on the gmri font for plots
+showtext::showtext_auto()
+```
+
+#  Global Trends in Sea Surface Temperature
+
+The 2020 global sea surface temperature anomalies have been loaded and displayed below to visualize how different areas of the ocean experience swings in temperature.
+
+```{r}
+
+# Access information to netcdf on box
+nc_year <- "2021"
+anom_path <- str_c(oisst_path, "annual_anomalies/1982to2011_climatology/daily_anoms_", nc_year, ".nc")
+
+
+# Load 2020 as stack
+anoms_2020 <- stack(anom_path)
+
+
+```
+
+## Last Month's Mean 
+
+The following code will subset the anomalies for the last full month and plot the average sea surface temperature anomalies for that month:
+
+```{r}
+# Get the mean temperature anomalies for the last full month
+which_month <- str_sub(Sys.Date(), 6, 7)
+which_month <- str_pad(as.numeric(which_month) - 1, width = 2, side = "left", pad = "0")
+
+# Pull last month from the anomaly stack
+last_month_dates <- which(str_sub(names(anoms_2020), 7, 8) == which_month)
+last_month_avg   <- mean(anoms_2020[[last_month_dates]])
+
+# Convert wgs84 raster to stars array
+last_month_st <- st_as_stars(rotate(last_month_avg))
+
+
+# Set palette limits to center it on 0 with scale_fill_distiller
+limit <- max(abs(last_month_st[[1]]), na.rm = T) * c(-1,1)
+
+# Plot global map
+ggplot() +
+  geom_stars(data = last_month_st) +
+  geom_sf(data = world, fill = "gray90") +
+  scale_fill_distiller(palette = "RdYlBu", na.value = "transparent", limit = limit) +
+  map_theme +
+  coord_sf(expand = FALSE) +
+  guides("fill" = guide_colorbar(title = "Mean Sea Surface Temperature Anomaly",
+                                 title.position = "top", 
+                                 title.hjust = 0.5,
+                                 barwidth = unit(4, "in"), 
+                                 frame.colour = "black", 
+                                 ticks.colour = "black"))
+  
+```
+
+
+
+
+
+## Warming Rates {.tabset .tabset-pills}
+
+Global warming rates are calculated by getting the average temperature for each year across all cells in the data, then using a linear regression for each to determine the annual warming rate in degrees Celsius.
+
+The warming rates are then ranked from high to low to identify areas with the most rapid ocean warming. The following maps display the warming rates and the percentile ranks for the top 20% of warming rates, or rates above the 80th percentile of the data.
+
+```{r}
+# Access information to warming rate netcdf files on box
+rates_path <- paste0(oisst_path, "warming_rates/annual_warming_rates")
+
+# Percentile cutoff for displaying warming rates on map
+percentile_cutoff <- 80
+
+```
+
+
+
+### 2006-2020 {.tabset}
+
+```{r}
+####  Data Prep  ####
+
+# 2006-2020
+rates_stack_all <- stack(str_c(rates_path, "2006to2020.nc"), 
+                         varname = "annual_warming_rate")
+ranks_stack_all <- stack(str_c(rates_path, "2006to2020.nc"), 
+                         varname = "rate_percentile")
+
+rates_prepped <- reclassify_to_discrete(rates_stack = rates_stack_all, 
+                                        ranks_stack = ranks_stack_all)
+
+# separaate rates from rank order
+rates_st <- rates_prepped$rates
+ranks_st <- rates_prepped$ranks
+
+
+```
+
+
+#### Global Rates
+
+
+```{r}
+####  Plot Setup  ####
+
+# guide label
+guide_lab <- expression("Annual Warming Rate - "~degree~C)
+
+# ggplot using stars
+ggplot() +
+  geom_stars(data = rates_st) +
+  geom_sf(data = world, fill = "gray90") + 
+  scale_fill_viridis_c(na.value = "black", option = "plasma") +
+  guides("fill" = guide_colorbar(title = guide_lab,
+                                 title.position = "top", 
+                                 title.hjust = 0.5,
+                                 barwidth = unit(4, "in"), 
+                                 frame.colour = "black", 
+                                 ticks.colour = "black")) +
+  map_theme +
+  coord_sf(expand = FALSE) +
+  labs(caption = str_c("Top ", percentile_cutoff, "% of Warming Rates Shown.",
+                       "\n Data from Years: 2006-2020"))
+  
+```
+
+#### Global Ranks
+
+```{r}
+# ggplot using stars
+ggplot() +
+  geom_stars(data = ranks_st) +
+  geom_sf(data = world, fill = "gray90") + 
+  scale_fill_viridis_c(na.value = "black", option = "plasma") +
+  guides("fill" = guide_colorbar(title = "Percentile of Annual Warming Rate",
+                                 title.position = "top", 
+                                 title.hjust = 0.5,
+                                 barwidth = unit(4, "in"), 
+                                 frame.colour = "black", 
+                                 ticks.colour = "black")) +
+  map_theme +
+  coord_sf(expand = FALSE) +
+  labs(caption = str_c("Top ", percentile_cutoff, "% of Warming Rates Shown.",
+                       "\n Data from Years: 2006-2020"))
+  
+```
+
+### 1982-2020 {.tabset}
+
+```{r}
+####  Data Prep  ####
+
+
+# 1982-2020
+rates_stack_all <- stack(str_c(rates_path, "1982to2020.nc"), 
+                         varname = "annual_warming_rate")
+ranks_stack_all <- stack(str_c(rates_path, "1982to2020.nc"), 
+                         varname = "rate_percentile")
+
+rates_prepped <- reclassify_to_discrete(rates_stack = rates_stack_all, 
+                                        ranks_stack = ranks_stack_all,
+                                        percentile_cutoff = percentile_cutoff)
+
+rates_st <- rates_prepped$rates
+rates_raw_st <- rates_prepped$rates_raw
+ranks_st <- rates_prepped$ranks
+
+
+
+```
+
+
+
+#### Global Rates
+
+
+```{r}
+
+####  Plot Setup  ####
+
+# guide label
+guide_lab <- expression("Annual Warming Rate - "~degree~C)
+
+# ggplot using stars
+ggplot() +
+  geom_stars(data = rates_st) +
+  #geom_stars(data = rates_raw_st) +
+  geom_sf(data = world, fill = "gray90") + 
+  scale_fill_viridis_c(na.value = "black", option = "plasma") +
+  guides("fill" = guide_colorbar(title = guide_lab,
+                                 title.position = "top", 
+                                 title.hjust = 0.5,
+                                 barwidth = unit(4, "in"), 
+                                 frame.colour = "black", 
+                                 ticks.colour = "black")) +
+  map_theme +
+  coord_sf(expand = FALSE) +
+  labs(caption = str_c("Top ", percentile_cutoff, "% of Warming Rates Shown.",
+                       "\n Data from Years: 1982-2020"))
+  
+```
+
+#### Global Ranks
+
+```{r}
+
+# ggplot using stars
+ggplot() +
+  geom_stars(data = ranks_st) +
+  geom_sf(data = world, fill = "gray90") + 
+  scale_fill_viridis_c(na.value = "black", option = "plasma") +
+  guides("fill" = guide_colorbar(title = "Percentile of Annual Warming Rate",
+                                 title.position = "top", 
+                                 title.hjust = 0.5,
+                                 barwidth = unit(4, "in"), 
+                                 frame.colour = "black", 
+                                 ticks.colour = "black")) +
+  map_theme +
+  coord_sf(expand = FALSE) +
+  labs(caption = str_c("Top ", percentile_cutoff, "% of Warming Rates Shown.",
+                       "\n Data from Years: 1982-2020"))
+  
+```
+
+
+## Shifting Baselines
+
+In 2021 NOAA is transitioning standard climatologies from the 30-year period of 1982-2011 to a new period spanning 1992-2020.
+
+```{r, eval = FALSE}
+
+
+# Load the climatology difference
+clim_diff <- stack(str_c(oisst_path, "daily_climatologies/clim_shift_82to91baselines.nc"))
+
+
+# Convert wgs84 raster to stars array
+clim_shift_st <- st_as_stars(rotate(clim_diff))
+
+
+# Set palette limits to center it on 0 with scale_fill_distiller
+limit <- max(abs(clim_shift_st[[1]]), na.rm = T) * c(-1,1)
+
+# Plot global map
+ggplot() +
+  geom_stars(data = clim_shift_st) +
+  geom_sf(data = world, fill = "gray90") +
+  scale_fill_distiller(palette = "RdYlBu", na.value = "transparent", limit = limit) +
+  labs(subtitle = "Shift in Mean Annual Climate")
+```
+
+
+
+`r insert_gmri_footer()`

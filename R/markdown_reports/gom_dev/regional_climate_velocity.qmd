@@ -1,0 +1,209 @@
+---
+title: "Gulf of Maine Current Year SST Report"
+author: 
+    first_name: "Adam"
+    last_name: "Kemberling"
+    url: https://github.com/adamkemberling
+    affiliation: Gulf of Maine Research Institute
+    affiliation_url: https://www.gmri.org
+description: | 
+  Temperature tracking for the Gulf of Maine
+date: "Updated on: `r Sys.Date()`"
+format: 
+  html:
+    code-fold: true
+    code-tools: true
+    toc: true
+    toc-depth: 2
+    df-print: kable
+    self-contained: true
+---
+
+
+```{r}
+#| label: setup
+#| include: false
+#| echo: false
+
+# Packages
+library(lubridate) # date support
+library(rts) # raster time series
+library(raster)  # raster support
+library(rnaturalearth) # coastline polygons
+library(sf) # simple feature support
+library(stars) # raster plotting with ggplot
+library(gmRi) # styling for GMRI
+library(scales) # axis labels
+library(here) # project navigation
+library(patchwork) # multiplot arrangement
+library(tidyverse) # data wrangling and plotting
+library(climetrics)
+
+
+
+
+# Support Functions
+
+# File Paths
+mills_path <- cs_path("mills")
+oisst_path <- cs_path("res", "OISST/oisst_mainstays")
+
+
+# Polygons for mapping
+new_england <- ne_states("united states of america", returnclass = "sf")
+canada      <- ne_states("canada", returnclass = "sf")
+world       <- ne_countries(returnclass = "sf")
+greenland   <- ne_states(country = "greenland", returnclass = "sf")
+```
+
+# Climate Velocity Vectors
+
+How do rates of SST warming change over space? Are there corridors and chokepoints in our area that would align with the expectations of species movements?
+
+
+## Purpose
+
+This document looks into applying the [climetrics R package](https://github.com/shirintaheri/climetrics) to regional sea surface temperatures in the Gulf of Maine. This is an exploratory analysis using open-source software and public data resources. Huge credit to the authors of the climetrics package.
+
+
+Climetrics is an extensible and reproducible R package to spatially quantify and explore multiple dimensions of climate change. Six widely known metrics of climate change are implemented in the package including:
+
+ 1. Standardized local anomalies (sed);   
+ 2. Changes in probability of local climate extremes (localExtreme);   
+ 3. Change in area of analogous climates (aaClimate);   
+ 4. Change in the distance to analogous climates (daClimate),   
+ 5. Novel climates (novelClimate);   
+ 6. Climate Change Velocity (ve; dVelocity; gVelocity).   
+
+This Report will focus on **6. Climate Change Velocity (ve; dVelocity; gVelocity).**
+
+```{r}
+# Load annual Data
+annual_sst <- raster::stack(
+  str_c(oisst_path, "yearly_averages/annual_sst_1982to2021.nc"), 
+  .varName = "sst")
+
+
+# Crop it to a manageable area
+crop_x <- c(-76, -62)
+crop_y <- c(37, 46)
+```
+
+
+```{r}
+# Expanded area as bbox
+crop_area <- structure(
+    c(crop_x[[1]], crop_y[[1]], crop_x[[2]], crop_y[[2]]),  
+    class = "bbox",
+  crs = 4326) %>% 
+  st_as_sfc() %>% 
+  st_as_sf()
+
+# Crop the sst
+sst_crop <- mask_nc(ras_obj = annual_sst, mask_shape = crop_area, rotate = T)
+
+
+plot(sst_crop$X1982)
+
+```
+
+
+```{r}
+# Make a raster time series
+date_vec <- names(sst_crop) %>% str_remove_all("X") %>% str_c("-01-01") %>% as.Date()
+
+# use rts function in the rts package to make a raster time series:
+
+# Average SST
+sst_ts <- rts(sst_crop, date_vec) 
+
+# Minimum SST
+
+# Maximum SST
+
+```
+
+
+
+### Distance Based Climate Velocity
+
+This method is a distance-based velocity that can be quantified based on one or multiple climate variables:
+
+
+From Burrows et al. 2011:
+ > The velocity of climate change (in km/year) was calculated as the ratio of the long-term temperature trend (in C/year) to the 2-dimensional spatial gradient in temperature (in C/km, calculated over a 3 deg x 3 deg grid), oriented along the spatial gradient...
+
+```{r}
+dv <- dVelocity(sst_ts , 
+                t1='2000/2009',
+                t2='2010/2019')
+plot(dv,col = hcl.colors(100), 
+     main='Distance-based Velocity of Climate Change for SST\nPeriods 2000-2009 to 2010 to 2019')
+```
+
+Velocities are measured in km/decade or km/time
+
+
+### Compare to Warming Rates
+
+```{r}
+rates_path <- paste0(oisst_path, "warming_rates/annual_warming_rates")
+rates_stack <- stack(str_c(rates_path, "1982to2022.nc"), 
+                     varname = "annual_warming_rate")
+
+# Crop Stack
+rates_crop <- mask_nc(rates_stack, mask_shape = crop_area)
+plot(rates_crop, main = "Annual Warming Rate - 1982 to 2022")
+```
+
+
+### Map Mean SST for Periods
+
+```{r}
+mean(subset(sst_ts,"2000/2009")@raster) %>% plot(main = "2000-2009 Average SST")
+```
+
+```{r}
+mean(subset(sst_ts,"2010/2019")@raster) %>% plot(main = "2010-2019 Average SST")
+```
+
+
+
+### Distance Based Climate Velocity: Multiple Metrics
+
+```{r}
+
+```
+
+
+### Distance to Analagous Climate
+
+This runs on multiple variables, maybe save for later
+
+```{r}
+
+da <- daClimate(
+  precip = sst_ts, 
+  tmin = tmin.t, 
+  tmax = tmax.t, 
+  tmean = tmean.t, 
+  t1='1991/2000',t2='2010/2020')
+
+cl <- colorRampPalette(c("MidnightBlue","blue","Turquoise","lightblue","gray","yellow","red"))
+
+plot(da,col=cl(100),main='Changes in Distance to Analogous Climate')
+
+```
+
+# Compare to Warming Rates
+
+```{r}
+# # 1. Warming Rates and Rankings
+rates_path <- str_c(oisst_path, "warming_rates/annual_warming_rates1982to2022.nc")
+rates_nc <- stack(rates_path, varname = "annual_warming_rate")
+
+
+
+
+```
+
