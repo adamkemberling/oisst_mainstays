@@ -724,7 +724,7 @@ map_study_area <- function(region_extent,
   
   #
   # Add the bottom contours:
-  bathy <- raster("~/Documents/Repositories/Points_and_contours/NEShelf_Etopo1_bathy.tiff")
+  bathy <- raster(str_c(cs_path("res","Bathy/"), "ETOPO1/NEShelf_Etopo1_bathy.tiff")) 
   
   # Contours for geom_contour()
   bathy_df <- as.data.frame(raster::coordinates(bathy))
@@ -852,7 +852,7 @@ map_study_area_color <- function(region_extent,
     
     #
     # Add the bottom contours:
-    bathy <- raster("~/Documents/Repositories/Points_and_contours/NEShelf_Etopo1_bathy.tiff")
+    bathy <- raster(str_c(cs_path("res","Bathy/"), "ETOPO1/NEShelf_Etopo1_bathy.tiff")) 
     
     
     # Add the bottom contours as color
@@ -1951,8 +1951,19 @@ anom_horizon_plot <- function(grid_data,
 #' @export
 #'
 #' @examples
-monthly_sst_map <- function(month_avg_layer, month_id, plot_yr, temp_lim = 8, depth_contours = 200, convert_to_f = TRUE){
+monthly_sst_map <- function(month_avg_layer, month_id, plot_yr, temp_lim = 8, depth_contours = 200, convert_to_f = TRUE, elev_terra){
   
+  # if(is.null(bathy)){
+  #   # Add the bottom contours:
+  #   bathy <- raster(str_c(cs_path("res","Bathy/"), "ETOPO1/NEShelf_Etopo1_bathy.tiff")) }
+  # 
+  # bathy <- raster(str_c(cs_path("res","Bathy/"), "ETOPO1/NEShelf_Etopo1_bathy.tiff"))
+  # 
+  # # Contours for geom_contour()
+  # bathy_df <- as.data.frame(raster::coordinates(bathy))
+  # rm(bathy)
+  # bathy_df$depth <- raster::extract(bathy, bathy_df)
+  # bathy_df$depth <- bathy_df$depth * -1
   
   # Set up text label  
   month_yr <- plot_yr
@@ -1975,22 +1986,31 @@ monthly_sst_map <- function(month_avg_layer, month_id, plot_yr, temp_lim = 8, de
     geom_sf(data = new_england, fill = "gray90", linewidth = .25) +
     geom_sf(data = canada, fill = "gray90", linewidth = .25) +
     geom_sf(data = greenland, fill = "gray90", linewidth = .25) +
-    geom_contour(data = bathy_df, aes(x, y, z = depth),
-                 breaks = depth_contours,
-                 color = "gray20", 
-                 linewidth = 0.25) +
+    # geom_contour(
+    #   data = bathy_df, 
+    #   aes(x, y, z = depth),
+    #   breaks = depth_contours,
+    #   color = "gray20", 
+    #   linewidth = 0.25) +
+    tidyterra::geom_spatraster_contour(
+      data = elev_terra,
+      breaks = depth_contours,
+      alpha = 0.75,
+      linewidth = 0.25,
+      color = "gray20") +
     geom_sf(data = region_extent, 
             color = "black", 
             linetype = 2, 
             linewidth = 0.5,
             fill = "transparent") +
     scale_y_continuous(breaks = seq(30, 50, by = 2)) +
-    scale_fill_distiller(palette = "RdBu", 
-                         na.value = "transparent", 
-                         limit = temp_limits,
-                         oob = scales::squish,
-                         breaks = temp_breaks, 
-                         labels = temp_labels) +
+    scale_fill_distiller(
+      palette = "RdBu", 
+      na.value = "transparent", 
+      limit = temp_limits,
+      oob = scales::squish,
+      breaks = temp_breaks, 
+      labels = temp_labels) +
     map_theme(
       text = element_text(family = "Avenir"),
       title = element_text(hjust = 0.5, size = 8),

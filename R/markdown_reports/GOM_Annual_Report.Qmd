@@ -72,7 +72,7 @@ region_paths <- get_timeseries_paths(
   box_location = "cloudstorage")
 
 # Folder for Comms Team Update
-comm_folder <- cs_path("root", "Program Communications/Climate Center — Program Communications/Warming Updates/Visuals/")
+comm_folder <- cs_path("root", "Program Communications/Climate Center Comms/Warming Updates/Visuals/")
 
 # Folder based on year
 save_location <- str_c(comm_folder, "Annual ", params$report_year,"/")

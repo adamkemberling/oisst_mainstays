@@ -22,7 +22,7 @@ params:
   season: "Spring"
   seas: "spring"
   save_data: FALSE
-  save_figures: FALSE
+  save_figures: TRUE
 ---
 
 ```{r}
@@ -83,10 +83,8 @@ region_extent <- st_read(poly_path, quiet = TRUE)
 
 # Load bathymetry for the bottom contours:
 # Bathymetric Contour Data
-bathy <- raster(str_c(cs_path("res","Bathy/"), "ETOPO1/NEShelf_Etopo1_bathy.tiff")) 
+elev_terra <- terra::rast(str_c(cs_path("res","Bathy/"), "ETOPO1/NEShelf_Etopo1_bathy.tiff")) 
 
-# Make a terra copyfor ggplot using tidyterra
-elev_terra <- terra::rast(bathy)
 
 ```
 
@@ -918,71 +916,107 @@ hw_temp_p <- ggplot(year_hw_dat) +
 
 
 
-# Weird behavior for winter
-if(params$season == "Winter"){
-  hw_temp_p <- hw_temp_p +
-    # 
-    geom_textpath(
-      aes(x = time, y = {{hw_thresh_col}}), 
-      color = "gray10", label = "90th Percentile", 
-      hjust = 0.5, lty = 1, vjust = 0, family = "Avenir") + 
-    geom_textpath(
-      aes(x = time, y = {{clim_col}}), 
-      color = "gray10", label = "Climatological Avg.", 
-      hjust = 0.5, lty = 1, vjust = 0, family = "Avenir") +
-    geom_textpath(
-      aes(x = time, y = {{cs_thresh_col}}), 
-      color = "gray10", label = "10th Percentile", 
-      hjust = 0.5, lty = 1, vjust = .9, straight = T, family = "Avenir") +
-    # This only works if there are heatwaves
-    # geom_bracket(
-    #   data = hw_events, 
-    #   aes(xmin = llim, xmax = rlim, y.position = ymax + 2, label = str_c(len, " Days")), 
-    #   family = "Avenir") +
-    scale_color_manual(values = color_vals) +
-    # # this is breaking for some reason with winter
-    scale_x_date(
-      # date_labels = "%b",
-      date_labels = "%b, %y", 
-      date_breaks = "1 month",
-      expand = expansion(add = c(0,0)),
-      # limits = hw_plot_lims
-      )
-}
 
 
+# Don't use textpath, make a label df
+clim_labels <- year_hw_dat %>% 
+  filter(time == max(time)) %>% 
+  mutate(time = time+3) %>% 
+  select(time, {{hw_thresh_col}}, {{clim_col}}, {{cs_thresh_col}}) %>% 
+  pivot_longer(cols = -time, names_to = "clim_thresh", values_to = "temp_vals") %>% 
+  mutate(labs = case_when(
+    str_detect(clim_thresh, "mhw") ~ "- 90th Percentile",
+    str_detect(clim_thresh, "cs") ~ "- 10th Percentile",
+    str_detect(clim_thresh, "seas") ~ "- Climatological Average"
+  ))
 
-
-
-
-# Weird behavior for winter
-if(params$season != "Winter"){
-  hw_temp_p <- hw_temp_p +
-    geom_textpath(
-      aes(x = time, y = {{hw_thresh_col}}), 
-      color = "gray10", label = "90th Percentile", 
-      hjust = 1.35, lty = 1, vjust = 0, family = "Avenir") + 
-    geom_textpath(
-      aes(x = time, y = {{clim_col}}), 
-      color = "gray10", label = "Climatological Avg.", 
-      hjust = 1.33, lty = 1, family = "Avenir") +
-    geom_textpath(
-      aes(x = time, y = {{cs_thresh_col}}), 
-      color = "gray10", label = "10th Percentile", 
-      hjust = 1, lty = 1, vjust = .9, straight = T, family = "Avenir") +
+# Plot
+hw_temp_p <- hw_temp_p +
+    geom_line(aes(x = time, y = {{hw_thresh_col}}), color = "gray10", lty = 1) + 
+    geom_line(aes(x = time, y = {{clim_col}}), color = "gray10", lty = 1) +
+    geom_line(aes(x = time, y = {{cs_thresh_col}}), color = "gray10", lty = 1) +
     # This only works if there are heatwaves
     geom_bracket(
       data = hw_events,
       aes(xmin = llim, xmax = rlim, y.position = ymax + 2, label = str_c(len, " Days")),
       family = "Avenir") +
+    geom_text(
+      data = clim_labels, 
+      aes(time, temp_vals, label = labs), family = "Avenir", hjust = 0) +
     scale_color_manual(values = color_vals) +
     # this is breaking for some reason with winter
     scale_x_date(
       date_labels = "%b",
       date_breaks = "1 month",
-      expand = expansion(add = c(0,60)))
-      #limits = hw_plot_lims)
-}
+      expand = expansion(add = c(0,65)))
+
+
+
+# #=-------- Winter
+# 
+# # Weird behavior for winter
+# if(params$season == "Winter"){
+#   hw_temp_p <- hw_temp_p +
+#     # 
+#     geom_textpath(
+#       aes(x = time, y = {{hw_thresh_col}}), 
+#       color = "gray10", label = "90th Percentile", 
+#       hjust = 0.5, lty = 1, vjust = 0, family = "Avenir") + 
+#     geom_textpath(
+#       aes(x = time, y = {{clim_col}}), 
+#       color = "gray10", label = "Climatological Avg.", 
+#       hjust = 0.5, lty = 1, vjust = 0, family = "Avenir") +
+#     geom_textpath(
+#       aes(x = time, y = {{cs_thresh_col}}), 
+#       color = "gray10", label = "10th Percentile", 
+#       hjust = 0.5, lty = 1, vjust = .9, straight = T, family = "Avenir") +
+#     # This only works if there are heatwaves
+#     # geom_bracket(
+#     #   data = hw_events, 
+#     #   aes(xmin = llim, xmax = rlim, y.position = ymax + 2, label = str_c(len, " Days")), 
+#     #   family = "Avenir") +
+#     scale_color_manual(values = color_vals) +
+#     # # this is breaking for some reason with winter
+#     scale_x_date(
+#       # date_labels = "%b",
+#       date_labels = "%b, %y", 
+#       date_breaks = "1 month",
+#       expand = expansion(add = c(0,0)),
+#       # limits = hw_plot_lims
+#       )
+# }
+
+
+# # ------- Not Winter
+# 
+# # Weird behavior for winter - other months plot
+# if(params$season != "Winter"){
+#   hw_temp_p <- hw_temp_p +
+#     geom_textpath(
+#       aes(x = time, y = {{hw_thresh_col}}), 
+#       color = "gray10", label = "90th Percentile", 
+#       hjust = 1.35, lty = 1, vjust = 0, family = "Avenir") + 
+#     geom_textpath(
+#       aes(x = time, y = {{clim_col}}), 
+#       color = "gray10", label = "Climatological Avg.", 
+#       hjust = 1.33, lty = 1, family = "Avenir") +
+#     geom_textpath(
+#       aes(x = time, y = {{cs_thresh_col}}), 
+#       color = "gray10", label = "10th Percentile", 
+#       hjust = 1, lty = 1, vjust = .9, straight = T, family = "Avenir") +
+#     # This only works if there are heatwaves
+#     geom_bracket(
+#       data = hw_events,
+#       aes(xmin = llim, xmax = rlim, y.position = ymax + 2, label = str_c(len, " Days")),
+#       family = "Avenir") +
+#     scale_color_manual(values = color_vals) +
+#     # this is breaking for some reason with winter
+#     scale_x_date(
+#       date_labels = "%b",
+#       date_breaks = "1 month",
+#       expand = expansion(add = c(0,60)))
+#       #limits = hw_plot_lims)
+# }
 
 
 # Show plot
@@ -1104,6 +1138,7 @@ heatmap_p
 ```{r}
 #| label: fig-seasonal-anom-stack
 
+
 # Set time limits
 season_dates <- c(min(this_season_data$time), max(this_season_data$time))
 
@@ -1148,13 +1183,9 @@ season_anoms_f <- as_fahrenheit(season_anoms_c, data_type = "anomalies")
 # Calculate the average for the season
 season_mean <- mean(season_anoms_f, na.rm = T)
 
-
-
-
 # Get the Maximum Daily Temperature Value
 max_daily_actual  <- max(values(season_anoms_f), na.rm = T)
 max_daily  <- round(max(values(season_anoms_f), na.rm = T), 2)
-
 
 
 # Where was it seasonally the highest:
@@ -1234,18 +1265,18 @@ season_map <- ggplot() +
           linetype = 2, 
           linewidth = 1,
           fill = "transparent") +
-  geom_point(
-    data = drop_na(peak_temp_df),
-    aes(lon, lat), color = "black", shape = 22, fill = "transparent", size = 5) +
-  geom_mark_ellipse(
-    data = peak_temp_df,
-    aes(lon, lat, 
-        filter = do_circle == T,
-        label = max_val, description = descr), 
-    label.family = "Avenir",
-    color = "black", 
-    #label.fill = "#FAFAFA90") +
-    label.fill = "#E9E9E990") +
+  # geom_point(
+  #   data = drop_na(peak_temp_df),
+  #   aes(lon, lat), color = "black", shape = 22, fill = "transparent", size = 5) +
+  # geom_mark_ellipse(
+  #   data = peak_temp_df,
+  #   aes(lon, lat, 
+  #       filter = do_circle == T,
+  #       label = max_val, description = descr), 
+  #   label.family = "Avenir",
+  #   color = "black", 
+  #   #label.fill = "#FAFAFA90") +
+  #   label.fill = "#E9E9E990") +
   scale_y_continuous(breaks = seq(30, 50, by = 2)) +
   scale_fill_distiller(
     palette = "RdBu", 
@@ -1300,9 +1331,8 @@ month_names    <- month.name[as.numeric(season_nums)]
 display_months <- map(season_nums, function(month_idx){
   
   which_dates <- which(str_sub(names(season_anoms_f), 7,8) == month_idx)
-  month_mean <- mean(season_anoms_f[[which_dates]], na.rm = T)
-  }) %>% setNames(month_names)
-
+  month_mean <- mean(season_anoms_f[[which_dates]], na.rm = T)}) %>% 
+  setNames(month_names)
 
 
 # Perform masking
@@ -1313,10 +1343,11 @@ months_masked <- map(
   rotate = FALSE)
 
 
+#------- make plots
+
 # Set contours to show
 # Show less contours b/c smaller map
-contours_make <- c(200)
-
+contours_make <- c(-200)
 
 
 # Make plots for each
@@ -1329,7 +1360,8 @@ month_plots <- imap(
       plot_yr = params$year,
       depth_contours = contours_make, 
       temp_lim = 6,
-      convert_to_f = FALSE)
+      convert_to_f = FALSE,
+      elev_terra =  elev_terra)
   }
 ) 
   
@@ -1352,19 +1384,18 @@ monthly_maps <- (
 
 # Add a caption
 monthly_maps + plot_annotation(caption = NULL)
+
 ```
 
 ## About the Updates:
 
-Over the past decade, scientists have led a body of research that highlights the rapid pace of warming in the Gulf of Maine. To help keep you informed, we share seasonal and annual updates about conditions in the Gulf of Maine.
-
-Read on for an inside look at what we've learned in our `r params$seas` 2023 Gulf of Maine warming update.
-
+Over the past decade, scientists have led a body of research that highlights the rapid pace of warming in the Gulf of Maine. To help keep you informed, we share seasonal and annual updates about conditions in the Gulf of Maine. For a full compilation of all of GMRI’s seasonal and annual Gulf of Maine warming updates, visit: https://gmri.org/warmingupdates/.
 
 
 ## The Gulf of Maine Region
 
-For analyses like these, it is important to be clear about the spatial extent that "defines" the Gulf of Maine (@fig-map), as different borders could produce different results. The spatial domain we use as the "Gulf of Maine" is displayed below. This area is consistent with previous seasonal and annual reports that scientists at GMRI have produced.
+For analyses like these, it is important to be clear about the spatial extent that “defines” the Gulf of Maine (@fig-map), as different borders could produce different results. The spatial domain we use as the “Gulf of Maine” is outlined with the dashed line below. This area is consistent with previous seasonal and annual SST reports that scientists at GMRI have produced.
+
 
 
 
@@ -1374,6 +1405,8 @@ For analyses like these, it is important to be clear about the spatial extent th
 #| fig.height: 6
 #| fig.cap: "Spatial domain used for Gulf of Maine SST analyses. Depth contours are colored at 100 m intervals up to 600 m; deeper blues indicate deeper water depths"
 #| fig.alt: "An overhead view of the Gulf of Maine region. Landmasses and political boundaries for the United States and Canada are displayed. A blue dotted line outlining a box with a transparent blue fill is shown to demark where satellite data for the analysis has been used."
+
+
 
 # Map the Gulf of Maine with Bathymetry
 gom_extent_p <- map_study_area_color(
@@ -1419,7 +1452,7 @@ The figures in this report are created using remotely-sensed satellite data as p
 
 # Folder for Comms Team Update
 comm_folder <- cs_path(
-  "root", "Program Communications/Climate Center — Program Communications/Warming Updates/Visuals/")
+  "root", "Program Communications/Climate Center Comms/Warming Updates/Visuals/")
 update_folder <- str_c(comm_folder, params$season, " ", params$year, "/")
 
 # # For testing locally
