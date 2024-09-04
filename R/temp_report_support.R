@@ -1196,8 +1196,8 @@ global_rate_comparison <- function(
   # Line color formatting, to match equations
   line_colors <- setNames(
     as.character(c(
-      gmri_cols("gmri blue"), 
-      gmri_cols("gmri green"))),  
+      gmri_cols("warm yellow"), 
+      gmri_cols("gmri blue"))),  
     c(eq_all, eq_global))
   
   # Single Line Plot

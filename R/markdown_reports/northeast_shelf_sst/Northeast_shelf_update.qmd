@@ -155,6 +155,9 @@ Satellite sea surface temperature data used was obtained from the National Cente
 Whenever discussing the `r tidy_name` in this report, we refer to the following spatial extent displayed below. The coordinates of this bounding box are the same coordinates used to clip the sea surface temperature data.
 
 ```{r}
+#| eval: false
+
+
 # Load the bounding box for Northeast Shelf
 timeseries_path     <- region_paths[[params$region]][["timeseries_path"]]
 poly_path     <- region_paths[[params$region]][["shape_path"]]
@@ -363,17 +366,17 @@ temp_simplified <- global_rate_comparison(
   coord_cartesian(clip = "off") +
   geom_logo(x_npc = 0.115, y_npc = -0.175, logo_height = 1, height_units = "cm")
 
-
+# print it
 temp_simplified
 
 
 # # Prevents tiny fonts when saving
-# showtext::showtext_opts(dpi=300) 
+# showtext::showtext_opts(dpi=300)
 # 
 # # Save location is local
 # save_location <- here::here("local_data", "COCA_report_figs/")
-# 
-# # Gom VS Global - annual trends w/ brackets
+
+# # Ne Shelf VS Global - annual trends 
 # ggsave(
 #   plot = temp_simplified, 
 #   filename = str_c(save_location, "COCA_NEShelf_sst_rates.jpeg"),
@@ -382,6 +385,15 @@ temp_simplified
 #   dpi = "retina", 
 #   bg = "white", 
 #   scale = 2)
+
+# # Prevents tiny fonts when saving
+# showtext::showtext_opts(dpi=300)
+# save_location <- here::here("local_data", "NE_shelf_plots/")
+# ggsave(filename = str_c(save_location, "ne_shelf_rates.svg"), 
+#        plot = temp_simplified, 
+#        width = 7, 
+#        height = 5, 
+#        units = "in")
 
 ```
 
