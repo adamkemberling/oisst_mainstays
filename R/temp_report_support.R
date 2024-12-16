@@ -788,15 +788,16 @@ map_study_area <- function(region_extent,
 #' @export
 #'
 #' @examples
-map_study_area_color <- function(region_extent,
-                                 x_buffer =  c(-2.25, 2.25),
-                                 y_buffer = c(-0.75, 0.75),
-                                 new_england_sf = NULL,
-                                 canada_sf = NULL,
-                                 greenland_sf = NULL,
-                                 plot_title = NULL,
-                                 area_labs = NULL,
-                                 shape_linetype = 2){
+map_study_area_color <- function(
+    region_extent,
+    x_buffer =  c(-2.25, 2.25),
+    y_buffer = c(-0.75, 0.75),
+    new_england_sf = NULL,
+    canada_sf = NULL,
+    greenland_sf = NULL,
+    plot_title = NULL,
+    area_labs = NULL,
+    shape_linetype = 2){
   
   
   
@@ -820,24 +821,9 @@ map_study_area_color <- function(region_extent,
                     "Northeast\nChannel",
                     "Scotian\nShelf",
                     "Mid-Atlantic\nBight"),
-        "lat"   = c(41.3, 
-                    43.5, 
-                    42.275, 
-                    42.25,
-                    43.7,
-                    39.8),
-        "lon"   = c(-67.7, 
-                    -67.5, 
-                    -69.2, 
-                    -66.1,
-                    -63.5,
-                    -72.8),
-        "angle" = c(0, 
-                    0, 
-                    0, 
-                    0, #315,
-                    0,
-                    0)
+        "lat"   = c(41.3, 43.5, 42.275, 42.25, 43.7, 39.8),
+        "lon"   = c(-67.7, -67.5, -69.2, -66.1, -63.5, -72.8),
+        "angle" = c(0, 0, 0, 0, 0, 0)
       )
     }
     
@@ -855,53 +841,78 @@ map_study_area_color <- function(region_extent,
     bathy <- raster(str_c(cs_path("res","Bathy/"), "ETOPO1/NEShelf_Etopo1_bathy.tiff")) 
     
     
-    # Add the bottom contours as color
-    # Reclassify to discrete
-    bathy_reclass <- reclassify_bathy(bathy, 
-                                      depth_increments = -100, 
-                                      min_elev = -600, 
-                                      max_elev = 0)
-    reclass_ras <- bathy_reclass$ras
-    reclass_labs  <- bathy_reclass$labs
+    # # Add the bottom contours as color
+    # # Reclassify to discrete
+    # bathy_reclass <- reclassify_bathy(
+    #   bathy, 
+    #   depth_increments = -100, 
+    #   min_elev = -600, 
+    #   max_elev = 0)
+    # reclass_ras <- bathy_reclass$ras
+    # reclass_labs  <- bathy_reclass$labs
+    # 
+    # # Convert to DF, add labels from reclassification 
+    # bathy_rclass_df <- rasterdf(reclass_ras) %>% 
+    #   select(x, y, bin_num = value) %>% 
+    #   left_join(reclass_labs, by = "bin_num")
+    # 
+    # 
+    # # Full map of GOM
+    # gom_extent_p <- ggplot() +
+    #   geom_raster(
+    #     data = bathy_rclass_df, 
+    #     aes(x,y, fill = bin_labs), 
+    #     alpha = 0.9) +
     
     
-    # Convert to DF, add labels from reclassification ey
-    bathy_rclass_df <- rasterdf(reclass_ras) %>% 
-      select(x, y, bin_num = value) %>% 
-      left_join(reclass_labs, by = "bin_num")
     
     
     
+  
     # Full map of GOM
     gom_extent_p <- ggplot() +
-      geom_raster(data = bathy_rclass_df, aes(x,y, fill = bin_labs), alpha = 0.9) +
-      scale_fill_brewer(palette = "Blues", 
-                        # To remove NA's from legend:
-                        # na.translate = FALSE, 
-                        # To set their color for NA
-                        # Get fill from brewer: RColorBrewer::brewer.pal(n = 6, "Blues")[6]
-                        na.value = "#08519C",
-                        labels = c(levels(bathy_rclass_df$bin_labs), "Greater than -600"),
-                        name = "Depth")  +
-      geom_sf(data = new_england, 
-              fill = "gray90", 
-              linewidth = .25) +
-      geom_sf(data = canada, 
-              fill = "gray90", 
-              linewidth = .25) +
-      geom_sf(data = greenland, 
-              fill = "gray90", 
-              linewidth = .25) +
-      geom_text(data = area_labs, aes(lon, lat, label = label, angle = angle), 
-                size = 4, color = "black", family = "Avenir") +
-      geom_sf(data = region_extent, 
-              color = "gray10", 
-              fill = "transparent", alpha = 0.2, 
-              linetype = shape_linetype, 
-              linewidth = 0.5) +
-      coord_sf(xlim = crop_x, 
-               ylim = crop_y, 
-               expand = T) +
+      # Put a rectangle Below
+      tidyterra::geom_spatraster_contour_filled(
+        data = terra::rast(bathy),
+        breaks = c(seq(0,-600,-100),-10000),
+        alpha = 0.9, 
+        linewidth = 0.1,
+        color = "gray20") +
+      scale_fill_brewer(
+        palette = "Blues", 
+        # To remove NA's from legend:
+        # na.translate = FALSE, 
+        # To set their color for NA
+        # Get fill from brewer: RColorBrewer::brewer.pal(n = 6, "Blues")[6]
+        na.value = "#08519C",
+        # labels = c(levels(bathy_rclass_df$bin_labs), "Greater than -600"),
+        name = "Depth")  +
+      geom_sf(
+        data = new_england, 
+        fill = "gray90", 
+        linewidth = .25) +
+      geom_sf(
+        data = canada, 
+        fill = "gray90", 
+        linewidth = .25) +
+      geom_sf(
+        data = greenland, 
+        fill = "gray90", 
+        linewidth = .25) +
+      geom_text(
+        data = area_labs, 
+        aes(lon, lat, label = label, angle = angle), 
+        size = 4, color = "black", family = "Avenir") +
+      geom_sf(
+        data = region_extent, 
+        color = "gray10", 
+        fill = "transparent", alpha = 0.2, 
+        linetype = shape_linetype, 
+        linewidth = 0.5) +
+      coord_sf(
+        xlim = crop_x, 
+        ylim = crop_y, 
+        expand = T) +
       map_theme(legend.position = "none") +
       labs(title = plot_title,
            caption = "Depth contours colored at 100m intervals to a maximum of 600m")

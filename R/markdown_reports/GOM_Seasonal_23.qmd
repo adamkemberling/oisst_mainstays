@@ -19,8 +19,8 @@ execute:
   fig.align: center
 params: 
   year: 2024
-  season: "Summer"
-  seas: "summer"
+  season: "Fall"
+  seas: "fall"
   save_data: FALSE
   save_figures: FALSE
 ---
@@ -560,9 +560,12 @@ monthly_avgs <- monthly_avgs %>% left_join(
 
 @tbl-monthly-temps shows monthly average SST for `r params$seas` `r params$year`. December SSTs were slightly below the 1991-2020 CRP, but the average SST anomalies for January and February were near or more than 1°F  below the 1991-2020 CRP.
 
-February showed the largest deviation from the long-term climatological average, with an average SST anomaly of -1.08 °F, making it the 34th warmest February on record. Said another way, it was the 10th coldest February in the satellite era. January averaged –0.94 °F below the 1991-2020 climatology, making it the 25th warmest (19th coldest) January since 1982.
+```{r}
+#| eval: false
 
-December was more mild, recording a monthly average SST that was 0.13 °F below the long-term average, respectively. This made December the 19th warmest (24th coldest) since 1982.
+week_data
+
+```
 
 
 ```{r}
@@ -603,6 +606,7 @@ month_summ_table <- monthly_avgs %>%
 month_summ_table
 
 ```
+
 
 ## How Does this `r params$season` Compare to the Past?
 
@@ -1135,6 +1139,60 @@ heatmap_p <- grid_dat %>%
 heatmap_p
 ```
 
+
+```{r}
+#| eval: false
+#| label: playing with seasonal alpha
+
+
+# hw_dat <- grid_dat %>% 
+#   mutate(season_alpha = if_else(
+#     between(flat_date, as.Date("2000-05-30"), as.Date("2000-09-01")),
+#     1,
+#     0.8)) 
+# 
+# 
+# 
+# 
+# ggplot(hw_dat, aes(x = flat_date, y = year)) +
+#     # background box fill for missing dates
+#     geom_rect(xmin = base_date, 
+#               xmax = base_date + 365, 
+#               ymin = min(hw_dat$year) - .5, 
+#               ymax = max(hw_dat$year) + .5, 
+#               fill = "gray75", color = "transparent") +
+#     # tile for sst colors
+#     geom_tile(aes(fill = {{ anom_col }}, alpha = I(season_alpha)), 
+#               color = "transparent") +
+#     # points for heatwave events
+#     geom_point(data = filter(hw_dat, mhw_event == TRUE),
+#                aes(x = flat_date, y = year), size = .25)  +
+#     scale_fill_distiller(palette = "RdBu", 
+#                            na.value = "transparent", 
+#                            limit = temp_limits, 
+#                            oob = scales::squish,
+#                            breaks = temp_breaks, 
+#                            labels = temp_labels) +
+#     scale_x_date(date_labels = "%b", date_breaks = "1 month", expand = expansion(add = c(0,0))) +
+#     scale_y_continuous(limits = c(start_yr + .5, end_yr + .5), expand = expansion(add = c(0,0))) +
+#     #5 inches is default rmarkdown height for barheight
+#     guides("fill" = guide_colorbar(title = "Sea Surface Temperature Anomaly", 
+#                                    title.position = "right", 
+#                                    title.hjust = 0.5,
+#                                    barheight = unit(3.5, "inches"), 
+#                                    frame.colour = "black", 
+#                                    ticks.colour = "black")) +  
+#     theme(legend.title = element_text(angle = 90)) +
+#     labs(
+#       title = "Gulf of Maine Heatwave Record",
+#       y = "Year",
+#       x = "Month",
+#       caption = "Heatwave event dates have been overlayed with black points for distinction.")
+  
+
+```
+
+
 ## Spatial Distribution of Seasonal Anomalies
 
 ```{r}
@@ -1400,11 +1458,65 @@ Over the past decade, scientists have led a body of research that highlights the
 For analyses like these, it is important to be clear about the spatial extent that “defines” the Gulf of Maine (@fig-map), as different borders could produce different results. The spatial domain we use as the “Gulf of Maine” is outlined with the dashed line below. This area is consistent with previous seasonal and annual SST reports that scientists at GMRI have produced.
 
 
+```{r}
+#| eval: false
+
+# Add the bottom contours:
+bathy <- raster(str_c(cs_path("res","Bathy/"), "ETOPO1/NEShelf_Etopo1_bathy.tiff")) 
+    
+  
+
+# Full map of GOM
+ggplot() +
+  # Put a rectangle Below
+  tidyterra::geom_spatraster_contour_filled(
+    data = terra::rast(bathy),
+    breaks = c(seq(0,-600,-100),-10000),
+    alpha = 0.9, 
+    linewidth = 0.1,
+    color = "gray20") +
+  scale_fill_brewer(
+    palette = "Blues", 
+    # To remove NA's from legend:
+    # na.translate = FALSE, 
+    # To set their color for NA
+    # Get fill from brewer: RColorBrewer::brewer.pal(n = 6, "Blues")[6]
+    na.value = "#08519C",
+    #labels = c(levels(bathy_rclass_df$bin_labs), "Greater than -600"),
+    name = "Depth")  +
+  geom_sf(
+    data = new_england, 
+    fill = "gray90", 
+    linewidth = .25) +
+  geom_sf(
+    data = canada, 
+    fill = "gray90", 
+    linewidth = .25) +
+  geom_sf(
+    data = greenland, 
+    fill = "gray90", 
+    linewidth = .25) +
+  geom_sf(
+    data = region_extent, 
+    color = "gray10", 
+    fill = "transparent", alpha = 0.2, 
+    linetype = 1, 
+    linewidth = 0.5) +
+  coord_sf(
+    xlim = crop_x, 
+    ylim = crop_y, 
+    expand = T) +
+  map_theme(legend.position = "none") +
+  labs(title = plot_title,
+       caption = "Depth contours colored at 100m intervals to a maximum of 600m")
+    
+```
+
 
 
 ```{r}
 #| label: fig-map
-#| eval: false
+#| eval: true
 #| fig.width: 6
 #| fig.height: 6
 #| fig.cap: "Spatial domain used for Gulf of Maine SST analyses. Depth contours are colored at 100 m intervals up to 600 m; deeper blues indicate deeper water depths"
@@ -1471,27 +1583,27 @@ if(params$save_figures){
   
   # Gom Extent Map
   ggsave(
-    plot = gom_extent_p, 
-    filename = str_c(update_folder, "GOM_Extent.png"), 
+    plot = gom_extent_p,
+    filename = str_c(update_folder, "GOM_Extent.png"),
     height = unit(3.2, "in"),
     width = unit(3.2, "in"),
-    dpi = "retina", 
-    bg = "transparent", 
+    dpi = "retina",
+    bg = "transparent",
     scale = 2.5)
   
   
   # Weekly Report Table
-  gtsave(data = week_summ_table %>% 
+  gtsave(data = week_summ_table %>%
     opt_table_font(
-      font = list(google_font(name = "Avenir"))), 
+      font = list(google_font(name = "Avenir"))),
     filename = str_c(update_folder, "weekly_summary_table.png"),
     vwidth = 800,
     vheight = 400)
-  
+
   # Monthly Report Table
   gtsave(
-    data = month_summ_table %>% 
-      opt_table_font(font = list(google_font(name = "Avenir"))), 
+    data = month_summ_table %>%
+      opt_table_font(font = list(google_font(name = "Avenir"))),
     filename = str_c(update_folder, "monthly_summary_table.png"),
     vwidth = 800,
     vheight = 100)
@@ -1501,14 +1613,14 @@ if(params$save_figures){
   
   # Weekly Report Table html
   gtsave(
-    data = week_summ_table %>% 
-      opt_table_font(font = list(google_font(name = "Avenir"))), 
+    data = week_summ_table %>%
+      opt_table_font(font = list(google_font(name = "Avenir"))),
     filename = str_c(update_folder, "weekly_summary_table.html"))
-  
+
   # Monthly Report Table html
   gtsave(
-    data = month_summ_table %>% 
-      opt_table_font(font = list(google_font(name = "Avenir"))), 
+    data = month_summ_table %>%
+      opt_table_font(font = list(google_font(name = "Avenir"))),
     filename = str_c(update_folder, "monthly_summary_table.html"))
     
   
@@ -1527,7 +1639,7 @@ if(params$save_figures){
     height = unit(2, "in"),
     width = unit(3.2, "in"),
     dpi = "retina", 
-    bg = "transparent", 
+    bg = "white", 
     scale = 2.5)
   
   
@@ -1538,7 +1650,7 @@ if(params$save_figures){
     height = unit(2.4, "in"),
     width = unit(3.2, "in"),
     dpi = "retina", 
-    bg = "transparent", 
+    bg = "white", 
     scale = 2.5)
 
   
@@ -1549,7 +1661,7 @@ if(params$save_figures){
     height = unit(2, "in"),
     width = unit(3.2, "in"),
     dpi = "retina", 
-    bg = "transparent", 
+    bg = "white", 
     scale = 2.5)
   
   
@@ -1560,7 +1672,7 @@ if(params$save_figures){
     height = unit(2, "in"),
     width = unit(3.2, "in"),
     dpi = "retina", 
-    bg = "transparent", 
+    bg = "white", 
     scale = 2.5)
   
   # heatwave heatmap
@@ -1570,7 +1682,7 @@ if(params$save_figures){
     height = unit(3.2, "in"),
     width = unit(3.2, "in"),
     dpi = "retina", 
-    bg = "transparent", 
+    bg = "white", 
     scale = 2.5)
   
   
@@ -1581,7 +1693,7 @@ if(params$save_figures){
     height = unit(3.2, "in"),
     width = unit(3.2, "in"),
     dpi = "retina", 
-    bg = "transparent", 
+    bg = "white", 
     scale = 2.5)
   
   # monthly maps
@@ -1591,10 +1703,8 @@ if(params$save_figures){
     height = unit(2, "in"),
     width = unit(3.2, "in"),
     dpi = "retina", 
-    bg = "transparent", 
+    bg = "white", 
     scale = 2.5)
-  
-  
   
   
 }
