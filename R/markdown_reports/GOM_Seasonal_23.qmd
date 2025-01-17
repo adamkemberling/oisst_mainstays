@@ -21,8 +21,8 @@ params:
   year: 2024
   season: "Fall"
   seas: "fall"
-  save_data: FALSE
-  save_figures: FALSE
+  save_data: TRUE
+  save_figures: TRUE
 ---
 
 ```{r}
@@ -594,7 +594,7 @@ month_summ_table <- monthly_avgs %>%
   rows = everything(),
   md_engine = c("markdown", "commonmark")) %>% 
   cols_label( # Change the column names to the units
-    rank = md("Rank (1982-2023)"),
+    rank = md("Rank (1982-2024)"),
     temp = md("Observed Temperature"),
     clim = md("Climatological Average"),
     anom = md("Temperature Anomaly")) %>% 

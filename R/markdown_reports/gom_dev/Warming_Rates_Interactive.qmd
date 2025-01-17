@@ -67,7 +67,7 @@ gom_poly <- read_sf(region_paths[["apershing_gulf_of_maine"]][["shape_path"]])
 # Warming Rates Raster
 # Warming Ranks Raster
 # # 1. Warming Rates and Rankings
-rates_path <- str_c(oisst_path, "warming_rates/annual_warming_rates1982to2023.nc")
+rates_path <- str_c(oisst_path, "warming_rates/annual_warming_rates1982to2024.nc")
 rates_nc <- raster(rates_path, varname= "annual_warming_rate") 
 ranks_nc <- raster(rates_path, varname = "rate_percentile") 
 
@@ -124,6 +124,7 @@ global_rates_zoom <- ggplot() +
 # Norttheast/Global View
 global_rates <- ggplot() +
   geom_stars(data = world_rate_stars) +
+  geom_sf(data = world_sf, fill = "gray30", color = "white", size = 1) +
   geom_sf(
     data = new_england, 
     color = "white", fill = "gray30", size = .1) +
@@ -313,7 +314,177 @@ ranks_global_figure
 grid::grid.raster(lab_logo, x = 0.05, y = 0.03, just = c('left', 'bottom'), width = unit(0.8, 'inches'))
 ```
 
+### Ranks top 5%
 
+```{r}
+
+# Reclassify raster into 10% Bins
+world_top_ranks <- world_rank_stars %>% 
+  mutate(
+    rank = Annual.Sea.Surface.Temperature.Warming.Rate.Rank,
+    top_rank = if_else(rank < 0.95, NA, rank),
+    rank_bin = cut(rank, breaks = seq(0.95, 1, by = 0.01))) %>% 
+  dplyr::select(-c(rank, Annual.Sea.Surface.Temperature.Warming.Rate.Rank))
+
+
+
+# Plot the Atlantic Ocean
+ggplot() +
+  geom_stars(data = world_top_ranks, aes(fill = rank_bin)) +
+  geom_sf(data = world_sf, color = "white", fill = "gray30", size = .1) +
+  scale_fill_brewer(palette = "RdYlBu", 
+                    direction = -1, 
+                    na.value = "transparent") +
+  # scale_fill_viridis_d(option = "viridis", direction = 1, na.value = "transparent", na.translate = FALSE) +
+  map_theme(
+    axis.text.x = element_blank(),
+    axis.ticks.x = element_blank()) +
+  coord_sf(
+    xlim = c(-100, 60), 
+    ylim = c(-70,70),
+    expand = F) +
+  scale_y_continuous(breaks = seq(-90, 90, by = 30)) +
+  guides("fill" = guide_colorsteps(
+    title = "Warming Rate Percentile: 1982-2022",
+    title.position = "top", 
+    title.hjust = 0.5,
+    barwidth = unit(5, "in"),
+    frame.colour = "black",
+    ticks.colour = "black"))  +
+  theme(legend.position = "bottom") &
+  guides("fill" = guide_colorsteps(
+    title = "Top 5% Warming Rates: 1982-2022",
+    title.position = "top", 
+    title.hjust = 0.5,
+    barwidth = unit(5, "in"),
+    frame.colour = "black",
+    ticks.colour = "black")) 
+
+
+
+
+```
+
+### Ranks Top 1%
+
+```{r}
+
+# Reclassify raster into 10% Bins
+world_top_ranks <- world_rank_stars %>% 
+  mutate(
+    rank = Annual.Sea.Surface.Temperature.Warming.Rate.Rank,
+    top_rank = if_else(rank < 0.99, NA, rank),
+    rank_bin = cut(rank, breaks = seq(0.99, 1, by = 0.001))) %>% 
+  dplyr::select(-c(rank, Annual.Sea.Surface.Temperature.Warming.Rate.Rank))
+
+
+# Global Map
+ggplot() +
+  geom_sf(data = world_sf, color = "white", fill = "gray80", size = .1) +
+  geom_stars(data = world_top_ranks, aes(fill = rank_bin)) +
+  
+  scale_fill_brewer(palette = "RdYlBu", 
+                    direction = -1, 
+                    na.value = "transparent") +
+  # scale_fill_viridis_d(option = "viridis", direction = 1, na.value = "transparent", na.translate = FALSE) +
+  map_theme(
+    axis.text.x = element_blank(),
+    axis.ticks.x = element_blank()) +
+  coord_sf(
+    #xlim = c(-85, -42), 
+    #ylim = c(34,62),
+    expand = F) +
+  scale_y_continuous(breaks = seq(-90, 90, by = 5)) +
+  scale_x_continuous(breaks = seq(-180, 180, by = 5)) +
+  guides("fill" = guide_colorsteps(
+    title = "Warming Rate Percentile: 1982-2022",
+    title.position = "top", 
+    title.hjust = 0.5,
+    barwidth = unit(5, "in"),
+    frame.colour = "black",
+    ticks.colour = "black"))  +
+  theme(legend.position = "top") &
+  guides("fill" = guide_colorsteps(
+    title = "Top 1% Warming Rate Areas: 1982-2024",
+    title.position = "top", 
+    title.hjust = 0.5,
+    barwidth = unit(5, "in"),
+    frame.colour = "black",
+    ticks.colour = "black")) 
+
+
+
+# NW Atlantic Zoom
+atl_zoom <- ggplot() +
+  geom_sf(data = world_sf, color = "white", fill = "gray80", size = .1) +
+  geom_stars(data = world_top_ranks, aes(fill = rank_bin)) +
+  
+  scale_fill_brewer(palette = "RdYlBu", 
+                    direction = -1, 
+                    na.value = "transparent") +
+  # scale_fill_viridis_d(option = "viridis", direction = 1, na.value = "transparent", na.translate = FALSE) +
+  map_theme(
+    axis.text.x = element_blank(),
+    axis.ticks.x = element_blank()) +
+  coord_sf(
+    xlim = c(-85, -42), 
+    ylim = c(34,62),
+    expand = F) +
+  scale_y_continuous(breaks = seq(-90, 90, by = 5)) +
+  scale_x_continuous(breaks = seq(-180, 180, by = 5)) +
+  guides("fill" = guide_colorsteps(
+    title = "Warming Rate Percentile: 1982-2022",
+    title.position = "top", 
+    title.hjust = 0.5,
+    barwidth = unit(5, "in"),
+    frame.colour = "black",
+    ticks.colour = "black"))  +
+  theme(legend.position = "top") &
+  guides("fill" = guide_colorsteps(
+    title = "Top 1% Warming Rate Areas: 1982-2024",
+    title.position = "top", 
+    title.hjust = 0.5,
+    barwidth = unit(5, "in"),
+    frame.colour = "black",
+    ticks.colour = "black")) 
+
+
+# Kuroshio current Zoom
+kuroshio_zoom <- ggplot() +
+  geom_sf(data = world_sf, color = "white", fill = "gray80", size = .1) +
+  geom_stars(data = world_top_ranks, aes(fill = rank_bin)) +
+  
+  scale_fill_brewer(palette = "RdYlBu", 
+                    direction = -1, 
+                    na.value = "transparent") +
+  # scale_fill_viridis_d(option = "viridis", direction = 1, na.value = "transparent", na.translate = FALSE) +
+  map_theme(
+    axis.text.x = element_blank(),
+    axis.ticks.x = element_blank()) +
+  coord_sf(
+    xlim = c(130, 180), 
+    ylim = c(30,50),
+    expand = F) +
+  scale_y_continuous(breaks = seq(-90, 90, by = 5)) +
+  guides("fill" = guide_colorsteps(
+    title = "Warming Rate Percentile: 1982-2022",
+    title.position = "top", 
+    title.hjust = 0.5,
+    barwidth = unit(5, "in"),
+    frame.colour = "black",
+    ticks.colour = "black"))  +
+  theme(legend.position = "top") &
+  guides("fill" = guide_colorsteps(
+    title = "Top 1% Warming Rate Areas: 1982-2024",
+    title.position = "top", 
+    title.hjust = 0.5,
+    barwidth = unit(5, "in"),
+    frame.colour = "black",
+    ticks.colour = "black")) 
+
+
+(atl_zoom | kuroshio_zoom) + plot_layout(guides = "collect") & theme(legend.position = "top") 
+```
 
 
 ### Warming Ranks Projected/Warped
@@ -697,7 +868,8 @@ warp_cols <- world_warp %>%
       percentile < 0.90 ~ "#FC9272",
       percentile < 0.95 ~ "#FB6A4A",
       percentile < 0.99 ~ "#EF3B2C",
-      percentile < 1    ~ "#CB181D"))
+      #percentile < 1    ~ "#CB181D"
+      percentile < 1 ~ "darkred"))
 
 
 # Here is the map
@@ -723,7 +895,8 @@ fil_rects <- tribble(
   "#FC9272", 0.85,      0.9, 
   "#FB6A4A", 0.9,       0.95, 
   "#EF3B2C", 0.95,      0.99, 
-  "#CB181D", 0.99,       1 
+  #"#CB181D", 0.99,       1 
+  "darkred", 0.99, 1
 )
 fil_labs <- data.frame(
   x = c(0, 0.5, 0.75, 0.85, 0.9, 0.95, 0.99, 1),
@@ -731,10 +904,16 @@ fil_labs <- data.frame(
   mutate(labs = str_c(x*100, "%"))
 
 dumb_legend <- ggplot() +
-  geom_rect(data = fil_rects, aes(xmin = llim, xmax = rlim, ymin = 0, ymax = 1, fill = I(fill)),
-            color = "white", linewidth = 0.5) +
-  geom_rect(aes(xmin = 0, xmax = 1, ymin = 0, ymax = 1), color = "darkgray", fill = "transparent") +
-  geom_text(data = fil_labs, aes(x, y, label = labs), size = 2.5) +
+  geom_rect(
+    data = fil_rects, 
+    aes(xmin = llim, xmax = rlim, 
+        ymin = 0, ymax = 1, fill = I(fill)),
+    color = "white", linewidth = 0.5) +
+  geom_rect(
+    aes(xmin = 0, xmax = 1, ymin = 0, ymax = 1), 
+    color = "darkgray", fill = "transparent") +
+  geom_text(
+    data = fil_labs, aes(x, y, label = labs), size = 2.5) +
   theme_void() +
   theme(plot.title = element_text(hjust = 0.1, face = "bold"),
         plot.subtitle = element_text(hjust = 0.075),
@@ -753,29 +932,257 @@ dumb_map / dumb_legend + plot_layout(heights = c(5, 1))
 
 
 
+
+```{r}
+# Tilting it down
+
+# Define the orthographic projection
+# Choose lat_0 with -90 <= lat_0 <= 90 and lon_0 with -180 <= lon_0 <= 180
+lat <- 35
+lon <- -70
+ortho <- paste0('+proj=ortho +lat_0=', lat, ' +lon_0=', lon, ' +x_0=0 +y_0=0 +a=6371000 +b=6371000 +units=m +no_defs')
+
+# Set what projection to use
+proj_crs <- ortho
+
+# 2. Warp  Raster so we can map it
+
+# This code was instrumental:
+# https://gist.github.com/fzenoni/ef23faf6d1ada5e4a91c9ef23b0ba2c1
+# Define a circle polygon that will help you finding the "blade"
+# to split what lies within and without your projection
+ortho_circle <-  st_point(x = c(0,0)) %>% 
+  st_buffer(dist = 6371000) %>% 
+  st_sfc(crs = ortho)
+
+# Make Projection Grid from Hemisphere Circle in output crs
+projection_grid <- ortho_circle %>% st_as_stars()
+
+# C. Warp the raster to projection grid 
+# (don't ask me why I have to do all this)
+world_warp <- world_rank_stars %>% 
+  st_warp(projection_grid, 
+          use_gdal = T, 
+          no_data_value = 999)
+
+# Can now be plotted as intended
+
+# nat geo color scale
+reds <- RColorBrewer::brewer.pal(9, name = "Reds")
+reds_asym <- c("white", "white", "#FFF5F0", "#FEE0D2", "#FCBBA1", reds[4],  reds[8])
+
+
+# Manually force colors using I()
+warp_cols <- world_warp %>% 
+  setNames("percentile") %>% 
+  mutate(
+    col = case_when(
+      percentile < 0.5  ~ "white",
+      percentile < 0.75 ~ "#FEE0D2",
+      percentile < 0.85 ~ "#FCBBA1",
+      percentile < 0.90 ~ "#FC9272",
+      percentile < 0.95 ~ "#FB6A4A",
+      percentile < 0.99 ~ "#EF3B2C",
+      #percentile < 1    ~ "#CB181D"
+      percentile < 1 ~ "darkred"))
+
+
+# Here is the map
+dumb_map <- ggplot() +
+  geom_stars(data = warp_cols, aes(fill = I(col)), alpha = 0.8) +
+  geom_sf(data = ortho_circle, fill = "transparent", color = "gray30") +
+  geom_sf(
+    data = world_sf,
+    fill = "white", 
+    color = "gray30", size = .1) +
+  theme_void() +
+  coord_sf(
+    expand = T, 
+    crs = proj_crs) 
+
+
+# Make the stupid legend
+fil_rects <- tribble(
+  ~"fill",  ~"llim",  ~"rlim",
+  "white",   0,         0.5, 
+  "#FEE0D2", 0.5,       0.75, 
+  "#FCBBA1", 0.75,      0.85, 
+  "#FC9272", 0.85,      0.9, 
+  "#FB6A4A", 0.9,       0.95, 
+  "#EF3B2C", 0.95,      0.99, 
+  #"#CB181D", 0.99,       1 
+  "darkred", 0.99, 1
+)
+fil_labs <- data.frame(
+  x = c(0, 0.5, 0.75, 0.85, 0.9, 0.95, 0.99, 1),
+  y = 1.05) %>% 
+  mutate(labs = str_c(x*100, "%"))
+
+dumb_legend <- ggplot() +
+  geom_rect(
+    data = fil_rects, 
+    aes(xmin = llim, xmax = rlim, 
+        ymin = 0, ymax = 1, fill = I(fill)),
+    color = "white", linewidth = 0.5) +
+  geom_rect(
+    aes(xmin = 0, xmax = 1, ymin = 0, ymax = 1), 
+    color = "darkgray", fill = "transparent") +
+  geom_text(
+    data = fil_labs, aes(x, y, label = labs), size = 2.5) +
+  theme_void() +
+  theme(plot.title = element_text(hjust = 0.1, face = "bold"),
+        plot.subtitle = element_text(hjust = 0.075),
+        plot.margin = margin(0,0,0,0)) +
+  labs(
+    title = "Sea Surface Temperature Warming (1982-2023)",
+    subtitle = "Represented as a percentile",
+    x = NULL, y = NULL)
+
+
+
+dumb_map / dumb_legend + plot_layout(heights = c(5, 1))
+
+
+```
+
+
+```{r}
+# Do the same thing but use the other hemisphere?
+
+
+# Define the orthographic projection
+# Choose lat_0 with -90 <= lat_0 <= 90 and lon_0 with -180 <= lon_0 <= 180
+lat <- 35
+lon <- -160
+ortho <- paste0('+proj=ortho +lat_0=', lat, ' +lon_0=', lon, ' +x_0=0 +y_0=0 +a=6371000 +b=6371000 +units=m +no_defs')
+
+# Set what projection to use
+proj_crs <- ortho
+
+# 2. Warp  Raster so we can map it
+
+# This code was instrumental:
+# https://gist.github.com/fzenoni/ef23faf6d1ada5e4a91c9ef23b0ba2c1
+# Define a circle polygon that will help you finding the "blade"
+# to split what lies within and without your projection
+ortho_circle <-  st_point(x = c(0,0)) %>% 
+  st_buffer(dist = 6371000) %>% 
+  st_sfc(crs = ortho)
+
+# Make Projection Grid from Hemisphere Circle in output crs
+projection_grid <- ortho_circle %>% st_as_stars()
+
+# C. Warp the raster to projection grid 
+# (don't ask me why I have to do all this)
+world_warp <- world_rank_stars %>% 
+  st_warp(projection_grid, 
+          use_gdal = T, 
+          no_data_value = 999)
+
+# Can now be plotted as intended
+
+# nat geo color scale
+reds <- RColorBrewer::brewer.pal(9, name = "Reds")
+reds_asym <- c("white", "white", "#FFF5F0", "#FEE0D2", "#FCBBA1", reds[4],  reds[8])
+
+
+# Manually force colors using I()
+warp_cols <- world_warp %>% 
+  setNames("percentile") %>% 
+  mutate(
+    col = case_when(
+      percentile < 0.5  ~ "white",
+      percentile < 0.75 ~ "#FEE0D2",
+      percentile < 0.85 ~ "#FCBBA1",
+      percentile < 0.90 ~ "#FC9272",
+      percentile < 0.95 ~ "#FB6A4A",
+      percentile < 0.99 ~ "#EF3B2C",
+      #percentile < 1    ~ "#CB181D"
+      percentile < 1 ~ "darkred"))
+
+
+# Here is the map
+dumb_map <- ggplot() +
+  geom_stars(data = warp_cols, aes(fill = I(col)), alpha = 0.8) +
+  geom_sf(data = ortho_circle, fill = "transparent", color = "gray30") +
+  geom_sf(
+    data = world_sf,
+    fill = "white", 
+    color = "gray30", size = .1) +
+  theme_void() +
+  coord_sf(
+    expand = T, 
+    crs = proj_crs) 
+
+
+# Make the stupid legend
+fil_rects <- tribble(
+  ~"fill",  ~"llim",  ~"rlim",
+  "white",   0,         0.5, 
+  "#FEE0D2", 0.5,       0.75, 
+  "#FCBBA1", 0.75,      0.85, 
+  "#FC9272", 0.85,      0.9, 
+  "#FB6A4A", 0.9,       0.95, 
+  "#EF3B2C", 0.95,      0.99, 
+  #"#CB181D", 0.99,       1 
+  "darkred", 0.99, 1
+)
+fil_labs <- data.frame(
+  x = c(0, 0.5, 0.75, 0.85, 0.9, 0.95, 0.99, 1),
+  y = 1.05) %>% 
+  mutate(labs = str_c(x*100, "%"))
+
+dumb_legend <- ggplot() +
+  geom_rect(
+    data = fil_rects, 
+    aes(xmin = llim, xmax = rlim, 
+        ymin = 0, ymax = 1, fill = I(fill)),
+    color = "white", linewidth = 0.5) +
+  geom_rect(
+    aes(xmin = 0, xmax = 1, ymin = 0, ymax = 1), 
+    color = "darkgray", fill = "transparent") +
+  geom_text(
+    data = fil_labs, aes(x, y, label = labs), size = 2.5) +
+  theme_void() +
+  theme(plot.title = element_text(hjust = 0.1, face = "bold"),
+        plot.subtitle = element_text(hjust = 0.075),
+        plot.margin = margin(0,0,0,0)) +
+  labs(
+    title = "Sea Surface Temperature Warming (1982-2023)",
+    subtitle = "Represented as a percentile",
+    x = NULL, y = NULL)
+
+
+
+dumb_map / dumb_legend + plot_layout(heights = c(5, 1))
+
+
+```
+
+
 ## Warming Rates Interactive 
 
 ```{r}
 
-# Project raster:
-r1 <- projectRaster(from = rates_nc, crs = CRS("+init=EPSG:3857"))
-r1 <- rates_nc
-#crs(r1) <- CRS("+init=EPSG:4326")
-
-pal <- colorNumeric(
-  c("#0C2C84", "#41B6C4", "#FFFFCC"), 
-  values(r1),
-  na.color = "transparent")
-
-
-# Make the map
-leaflet() %>% 
-  addTiles() %>%
-  addRasterImage(r1, colors = pal, opacity = 0.8) %>%
-  addLegend(
-    pal = pal, 
-    values = values(r1),
-    title = "Surface Temperature Warming Rate")
+# # Project raster:
+# r1 <- projectRaster(from = rates_nc, crs = CRS("+init=EPSG:3857"))
+# r1 <- rates_nc
+# #crs(r1) <- CRS("+init=EPSG:4326")
+# 
+# pal <- colorNumeric(
+#   c("#0C2C84", "#41B6C4", "#FFFFCC"), 
+#   values(r1),
+#   na.color = "transparent")
+# 
+# 
+# # Make the map
+# leaflet() %>% 
+#   addTiles() %>%
+#   addRasterImage(r1, colors = pal, opacity = 0.8) %>%
+#   addLegend(
+#     pal = pal, 
+#     values = values(r1),
+#     title = "Surface Temperature Warming Rate")
 
 ```
 

@@ -17,16 +17,10 @@ execute:
   message: false
   comment: ""
   fig.align: center
+editor: 
+  markdown: 
+    wrap: 72
 ---
-
-# Objectives:
-
-Look at what kind of seasonality changes we can track for Casco Bay.
-  
-  
-  
-## Load Packages
-
 
 ```{r}
 #| label: packages
@@ -43,8 +37,6 @@ library(scales)
 library(stars)
 library(sf)
 library(heatwaveR)
-library(gt)
-library(gtExtras)
 library(patchwork)
 library(showtext)
 library(gmRi)
@@ -61,9 +53,9 @@ oisst_path <- cs_path("res", "OISST/oisst_mainstays")
 # Polygons for mapping
 new_england <- ne_states("united states of america", returnclass = "sf")
 
+
+
 ```
-
-
 
 ```{r}
 #| label: style-sheet
@@ -73,9 +65,6 @@ new_england <- ne_states("united states of america", returnclass = "sf")
 use_gmri_style_rmd()
 
 ```
-
-
-
 
 ```{r}
 #| label: fonts-config
@@ -100,95 +89,105 @@ showtext::showtext_auto()
 
 
 ```
-  
-## Read in the data
 
+# Objectives:
 
+Look at what kind of seasonality changes we can track for Casco Bay,
+either from buoys/moorings/models.
 
-```{r}
-# Want the data in grid form
+-   National Data Buoy Center Database & the Portland NOAA Tide Gauge
+    Station
+-   FVCOM Hindcast?
 
-# Set time limits
-sst_dates <- as.Date(c("2020-01-01", "2020-12-31"))
+## Notes from the 2023 ecosystem report:
 
-# Spatial Extent Info
-crop_x <- c("xmin" = -70.340, "xmax" = -69.806)
-crop_y <- c("ymin" = 43.583, "ymax" = 43.869 )
+The Casco Bay ecosystem is changing as a result of ocean warming. In 10
+years of monitoring, we have caught 50 unique species in our beach
+seine.
 
+1.  Our eight most common catches are green crab, Atlantic silverside,
+    winter flounder, mummichog, alewife, Atlantic herring, Atlantic
+    tomcod, and American sand lance.
+2.  In colder years, Atlantic herring is the most commonly caught fish,
+    followed by Atlantic silverside. This relationship flips in warmer
+    years.
+3.  There is clear evidence that warming ocean temperatures in the Gulf
+    of Maine are adversely affecting cold-adapted native species,
+    particularly Atlantic tomcod and Atlantic herring.
+4.  We are tracking the recent appearance and increase in abundance of
+    permit, crevalle jack, white mullet, and summer flounder in Casco
+    Bay. 5. These species are more commonly found in warmer regions to
+    the South, but are now appearing in Casco Bay.
+5.  Fishermen observations play a key role in our understanding of Casco
+    Bay ecosystem changes (see the On the Water section of this report).
 
-# Make data window for season
-data_window <- data.frame(
-  lon = crop_x,
-  lat = crop_y,
-  time = sst_dates)
+## Water Temperatures in Casco Bay
 
-# Load data - Temperatures
-sst_nc <- oisst_window_load(
-  data_window = data_window,
-  anomalies = F,
-  climate_ref = "1991-2020",
-  box_location = "cloudstorage")
-```
-
-
-### SST Coverage Map
-
-Not looking good...
-
-```{r}
-ggplot() +
-  geom_stars(data = st_as_stars(sst_nc[["2020"]][[2]])) +
-  geom_sf(data = new_england) +
-  scale_fill_distiller(na.value = "transparent") +
-  coord_sf(xlim = crop_x, ylim = crop_y) +
-  labs(title = "OISSTv2-2.1", subtitle = "Casco Bay")
-```
-
-
-### National Data Buoy Center
+#### National Data Buoy Center:
 
 This data was downloaded from here:
-https://www.ndbc.noaa.gov/download_data.php?filename=casm1h2022.txt.gz&dir=data/historical/stdmet/ 
+https://www.ndbc.noaa.gov/to_station.shtml and entering Portland's
+station ID: CASM1
 
-But can also be obtained from here: If the portal worked
+Which will take you here:
+https://www.ndbc.noaa.gov/station_history.php?station=casm1
+
+But data can also be filtered and obtained from here if we want other
+pieces of information
 https://tidesandcurrents.noaa.gov/stationhome.html?id=8418150
 
-Or could use {noaaoceans}
+Or we could use {noaaoceans}
 
 ```{r}
-# Read yearly tables
-bdat <- list.files(here::here("local_data/portland_buoy"), full.names = T) %>%
+#| label: noaaoceans fail
+#| eval: false
+
+# # Load the noaaoceans
+# # Wont work for me because of install issues b/c python conflicts
+# library(noaaoceans)
+# 
+# # Get a list of all the stations.
+# station_df <- list_coops_stations()
+# 
+# # Filter to stations in Washington with Water Temp Sensor
+# station_df %>% 
+#     filter(station_state == 'ME', station_names == "Portland")
+# 
+# # Create an empty storage data frame. 
+# water_temp <- data.frame()
+# 
+# # Call the API for the Portland station
+# water_temp <- query_coops_data(
+#   station_id = "8418150",
+#   start_date = '20181201',
+#   end_date = '20181231',
+#   data_product = 'water_temperature',
+#   interval = 'h') # hourly readings
+#     
+
+```
+
+```{r}
+# Read yearly tables - from ndbc station history archive
+portland_buoy <- list.files(here::here("local_data/portland_buoy"), full.names = T, pattern = ".txt") %>%
   map_dfr(~read_table(
     .x , 
     col_types = cols(
-      `#YY` = col_character(),
-      MM    = col_character(),
-      DD    = col_character(),
-      hh    = col_character(),
-      mm    = col_character(),
-      WDIR  = col_character(),
-      WSPD  = col_character(),
-      GST   = col_character(),
-      WVHT  = col_character(),
-      DPD   = col_character(),
-      APD   = col_character(),
-      MWD   = col_character(),
-      PRES  = col_character(),
-      ATMP  = col_character(),
-      WTMP  = col_character(),
-      DEWP  = col_character(),
-      VIS   = col_character(),
-      TIDE  = col_character()
-)))
+      `#YY` = col_character(), MM    = col_character(), DD    = col_character(),
+      hh    = col_character(), mm    = col_character(), WDIR  = col_character(),
+      WSPD  = col_character(), GST   = col_character(), WVHT  = col_character(),
+      DPD   = col_character(), APD   = col_character(), MWD   = col_character(),
+      PRES  = col_character(), ATMP  = col_character(), WTMP  = col_character(),
+      DEWP  = col_character(), VIS   = col_character(), TIDE  = col_character())))
 
 
 
 # Clean up the inconsistent column names
-bdat <- bdat %>%
+portland_buoy <- portland_buoy %>%
   mutate(
     `#YY` = as.character(`#YY`),
-    PRES = as.character(PRES),
-    WDIR = as.character(WDIR)) %>%
+    PRES  = as.character(PRES),
+    WDIR  = as.character(WDIR)) %>%
   mutate(
     YYYY = ifelse(is.na(YYYY) & !is.na(`#YY`),`#YY`, YYYY),
     BAR = ifelse(is.na(BAR) & !is.na(PRES),PRES, BAR),
@@ -226,70 +225,89 @@ bdat <- bdat %>%
     VIS   = ifelse(VIS == 99, NA, VIS),
     TIDE  = ifelse(TIDE == 99, NA, TIDE))
 
+# Load 2024 Since its needed to be downloaded elsewhere
+portland_buoy_24 <- list.files(here::here("local_data/portland_buoy/tidesandcurrents_portal"), full.names = T, pattern = ".csv") %>%
+  map_dfr(~read_csv(.x)) %>% 
+  select(date = `Date`,
+         WTMP = `Water Temp (°C)`) %>% 
+  mutate(YYYY = 2024,
+         MM = str_pad(lubridate::month(date), side = "left", pad = "0", width = 2),
+         DD = str_pad(lubridate::day(date), side = "left", pad = "0", width = 2))
 
+# Combine
+portland_buoy <- bind_rows(portland_buoy, portland_buoy_24)
 
+# # Plot the Seasonal Cycle w/ Hourly Data
+# ggplot(portland_buoy) +
+#   geom_line(aes(date, WTMP))
 ```
 
 ### Water Temperature in Portland Harbor
 
 ```{r}
-# Seasonal Cycle
-ggplot(bdat) +
-  geom_line(aes(date, WTMP))
-
-
-# Distibution of temperatures
-bdat %>% 
-  filter(YYYY > 2013) %>% 
-ggplot() +
-  geom_boxplot(aes(WTMP, YYYY, group = YYYY))
-
-# Changes to min/max
-bdat %>% 
-  group_by(YYYY) %>% 
-  summarise(
-    min_temp = min(WTMP, na.rm = T),
-    max_temp = max(WTMP, na.rm = T),
-    mu_temp = mean(WTMP, na.rm = T)
-  )
+# Distibution of temperatures for the period we have CBASS data
+portland_buoy %>% 
+  # filter(YYYY > 2013) %>% 
+  ggplot() +
+  geom_boxplot(aes(YYYY, WTMP, group = YYYY)) +
+  scale_x_continuous(breaks = seq(1990,2026, 2))
 ```
 
-# Sampling Period
-May - September CBASS study period
-Usually second week in June, but sometimes in late may
+# Summer Sampling Period Temperatures
 
+May - September CBASS study period Usually second week in June, but
+sometimes in late may
 
-## Baseline Things we Should have a handle on:
+```{r}
+library(mgcv)
+seasonal_mod <- gam()
+```
 
- - Herring Population Trends
- - Lobster
- - Stratification Trends
- - Maine Coastal Current Behavior
+```{r}
+# Plot where 2024 sits on the CBASS Months
+portland_buoy %>% 
+  filter(!(YYYY==2011 & MM == "06")) %>% 
+  group_by(YYYY, MM) %>% 
+  summarise(
+    min = min(WTMP, na.rm = T),
+    max = max(WTMP, na.rm = T),
+    mean  = mean(WTMP, na.rm = T), 
+    .groups= "drop") %>% 
+  pivot_longer(
+    cols = -c(YYYY, MM), 
+    names_to = "metric", 
+    values_to = "temp") %>% 
+  mutate(date = as.Date(
+    str_c(YYYY, MM, "15", sep = "-"))) %>% 
+  dplyr::filter(
+    YYYY >= 2013,
+    MM %in% c("04", "05", "06", "07", "08")) %>% 
+  ggplot() +
+  geom_line(aes(date, temp, color = metric), linewidth = 1) +
+  facet_wrap(~MM) +
+  scale_color_gmri()
+```
 
- 
+## Current (2023) Baseline
 
-8 most frequent species in CBASS
-herring, alewife, green crab, 
+-   Herring Population Trends
+-   Lobster
+-   Stratification Trends
+-   Maine Coastal Current Behavior
+
+8 most frequent species in CBASS herring, alewife, green crab,
 silverside, mummichog, winter flounder
-
 
 ## How to help Katie
 
-Could do some feature engineering of water temperature information to make it species specific:
- - Growth degree days
- - days within species preferred, days outside
- - 
- 
- 
-# MURSST
+Could do some feature engineering of water temperature information to
+make it species specific: - Growth degree days - days within species
+preferred, days outside -
 
-If we can get data inside casco bay:
- - define the seasonal cycle
- - characterize any regions that are warming faster or holding heat
- - Identify cases when this might impact phenology
- 
+```{r}
+
+```
+
 # FVCOM
 
-
-
-
+Don't have FVCOM through 2024 so we can't really use it here.
