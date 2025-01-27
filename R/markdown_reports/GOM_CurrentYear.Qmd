@@ -561,6 +561,76 @@ ggplot(data = annual_summary, aes(yr_as_dtime, area_wtd_anom)) +
 ```
 
 
+
+# INSERTED to SAVE
+
+```{r}
+#| label: fig-cold-days
+#| fig-height: 5
+#| eval: false
+#| fig-cap: "The total number of days below mean climatological average SST (dark blue) and days with SSTs below the 10th percentile (light blue) from the 1991-2020 climatological baseline."
+
+# Days beneath the mean
+cold_summary <- region_hw %>% 
+  group_by(yr) %>% 
+  mutate(under_avg = sst < seas) %>% 
+  summarise(
+    below_avg = sum(under_avg),
+    `Cold Spell` = sum(mcs_event, na.rm = T)) %>% 
+  mutate(
+    `Below Average SST` =  below_avg - `Cold Spell`,
+    col = ifelse(yr == params$report_year, "black", "transparent"),
+    size = ifelse(yr == params$report_year, 1.2,0)) %>% 
+  pivot_longer(
+    c(`Cold Spell`, `Below Average SST`), 
+    values_to = "day_num", 
+    names_to = "day_type") 
+
+
+
+# And make a plot
+cold_days_plot <- cold_summary %>% 
+  ggplot(aes(yr)) +
+  geom_col(aes(y = day_num, fill = day_type, color = I(col), linewidth = I(size)), position = "stack") +
+  map(
+    .x = list(100, 200, 300), 
+    ~geom_hline(yintercept = .x, color = "white", linetype = 1)) +
+  scale_fill_manual(values = c(gmri_cols("gmri blue"), "lightblue")) +
+  scale_x_continuous(
+    expand = expansion(add = c(2, 5)),
+    breaks = sort(c(seq(1980, 2020, 4), params$report_year))) +
+  annotate(
+    'curve',
+    x = 2022, # Play around with the coordinates until you're satisfied
+    y = 180,
+    yend = 120,
+    xend = params$report_year,
+    linewidth = 0.5,
+    curvature = -0.15,
+    color = "black",
+    arrow = arrow(length = unit(0.5, 'cm'))) +
+  geom_text(
+    data = filter(cold_summary, yr == 2024) %>%  
+              summarise(day_num = sum(day_num)),
+    aes(x = 2021.5, y = 200, label = str_c(day_num, " Days Below Average")), family = "Avenir", size = 3.5) +
+  theme(legend.position = c(0.85, 0.85)) +
+  labs(
+    x = "Year", 
+    y  = "Days Below Long-Term Average", 
+    title = "Falling Number of Below-Average SST Days", fill = "") +
+  coord_cartesian(clip = "off") +
+  geom_logo(x_npc = 0.85, y_npc = -.15, logo_height = 1, height_units = "cm")
+
+
+cold_days_plot
+
+```
+
+
+
+
+
+
 **Shift in Regional Ocean Circulation**
 
 Beginning around 2008, temperature in the region swung upward, and since 2010 most yearly temperatures have been over 1 degree above the hematological average of the previous 30-years. With some years experiencing temperatures more than 2 degrees C above that average.
