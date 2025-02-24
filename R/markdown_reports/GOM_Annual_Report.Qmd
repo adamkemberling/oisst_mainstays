@@ -22,7 +22,7 @@ params:
   in_celsius: FALSE
   save_figures: 
     label: "Save Figures?" 
-    value: FALSE
+    value: TRUE
 ---
 
 
@@ -55,6 +55,7 @@ params:
   library(ggHoriPlot)
   library(sysfonts)
   library(gtable)
+  library(shadowtext)
   
 }
 
@@ -375,6 +376,7 @@ temp_simplified <- global_rate_comparison(
 temp_simplified 
 
 
+
 ```
 
 
@@ -528,7 +530,7 @@ month_summ_table <- monthly_avgs %>%
   rows = everything(),
   md_engine = c("markdown", "commonmark")) %>% 
   cols_label( # Change the column names to the units
-    rank = md("Rank (1982-2024)"),
+    rank = md("Warm to Cold Ranking (1982-2024)"),
     temp = md("Observed Temperature"),
     clim = md("Climatological Average"),
     anom = md("Temperature Anomaly")) %>% 
@@ -747,7 +749,7 @@ hw_anom_p <- year_hw_dat %>%
       aes(x = time, y = 0), 
       color = "gray10", 
       label = "Climatological Avg. +/-\n10th-90th Percentile Range", 
-      hjust = 0.5, lty = 1, family = "Avenir", vjust = 1.2, size = 5) +
+      hjust = 0.5, lty = 1, family = "Avenir", vjust = 1.2, size = 4) +
     geom_bracket(
       data = hw_events, 
       aes(xmin = llim, xmax = rlim, y.position = max_anom + 1, label = str_c(len, " Days")), 
@@ -809,10 +811,96 @@ heatmap_p <- region_hw %>%
     frame.colour = "black", 
     ticks.colour = "black")) +
   coord_cartesian(clip = "off") +
-  geom_logo(x_npc = 0.9, y_npc = 1.05, logo_height = 1, height_units = "cm")
+  geom_logo(x_npc = 0.875, y_npc = 1.05, logo_height = 1, height_units = "cm")
 
 heatmap_p + labs(caption = "")
 ```
+
+
+```{r}
+#| label: Heatmap + MHW
+#| fig.height: 8
+
+
+reverse2_trans <- function() {
+  trans_new(
+    "reverse2",
+    function(x) -1 * as.numeric(x), # Force values to be numeric for Date objects
+    function(x) -1 * as.numeric(x)
+  )
+}
+
+# Turn it on its side, use a line instead of points
+heatmap_horizontal <- region_hw %>% 
+  mutate(hw_date = if_else(mhw_event, flat_date, NA)) %>% 
+  ggplot(aes(yr, flat_date)) +
+  geom_tile(aes(fill = anom_f)) +
+  scale_fill_distiller(
+    palette = "RdBu", 
+    limits = c(-5,5),
+    labels = label_number(suffix = deg_f), oob = oob_squish) +
+  geom_line(aes(x = yr, y = hw_date, group = str_c(mhw_event_no, yr)), 
+            color = "white", linewidth = 1)+
+  geom_line(aes(x = yr, y = hw_date, group = str_c(mhw_event_no, yr)), 
+            color = "black", linewidth = 0.6) + 
+  scale_x_continuous(limits = c(1982 + .5, params$report_year + .5), expand = expansion(add = c(0,0))) +
+  scale_y_continuous(
+    trans = c("date", "reverse2"),
+    labels = label_date(format = "%b"),
+    breaks = seq.Date(from = min(region_hw$flat_date), max(region_hw$flat_date), by = "1 month"), 
+    expand = expansion(add = c(0,0))) +
+  # scale_y_date(date_labels = "%b", date_breaks = "1 month", expand = expansion(add = c(0,0))) +
+  guides(
+    "fill" = guide_colorbar(
+      title = "Sea Surface Temperature Anomaly", 
+      title.position = "top", 
+      title.hjust = 0.5,
+      barwidth = unit(3.5, "inches"), 
+      frame.colour = "black", 
+      ticks.colour = "black")) +  
+  theme(legend.position = "bottom") +
+  labs(
+    title = "Gulf of Maine SST Anomalies and Marine Heatwave Record",
+    x = "Year",
+    y = "Month")
+  
+
+# Now below that, plot the MHW Days and separate events
+events_plot <- region_hw %>%
+  filter(yr >= 1982) %>% 
+  group_by(yr, mhw_event_no, mcs_event_no) %>% 
+  summarise(
+    mean_anom = mean(anom_f, na.rm = T),
+    hwdays = sum(mhw_event|mcs_event, na.rm = T)) %>% 
+  
+  ggplot() +
+  geom_col(aes(yr, hwdays, fill = mean_anom), 
+           color = "white", position = "stack", show.legend = F) +
+  scale_fill_distiller(
+    palette = "RdBu", 
+    limits = c(-5,5),
+    labels = label_number(suffix = deg_f), oob = oob_squish) +
+  # guides(
+  #   "fill" = guide_colorbar(
+  #     title = "Average Event Surface Temperature Anomaly", 
+  #     title.position = "top", 
+  #     title.hjust = 0.5,
+  #     barwidth = unit(3.5, "inches"), 
+  #     frame.colour = "black", 
+  #     ticks.colour = "black")) +  
+  scale_y_continuous(expand = expansion(mult = c(0,0.1))) +
+  scale_x_continuous(limits = c(1982 + .5, params$report_year + .5), expand = expansion(add = c(0,0))) +
+  labs(x = "Year", y = "Extreme Event Days", title= "Heatwave and Cold Spell Events")
+
+
+
+(
+  (heatmap_horizontal + theme(plot.margin = margin(1,1,2,1)))/ 
+    (events_plot + theme(plot.margin = margin(2,1,1,1)))
+  )  + plot_layout(heights = c(3,1))
+
+```
+
 
 
 
@@ -841,6 +929,8 @@ season_summary <- region_timeseries %>%
   group_by(yr, month_groups) %>% 
   temperature_summaries()
 
+
+# Do the same for global temperatures
 global_season_summary <- global_anoms %>% 
   mutate(
     month_groups = case_when(
@@ -862,6 +952,7 @@ season_avgs <- bind_rows(
   .id = "Region") %>% 
   mutate(month_groups = factor(month_groups,
     levels = c("January - March", "April - June", "July - September", "October - December")))
+
 
 
 # Decadal Rates Function
@@ -899,10 +990,13 @@ season_panels <- season_avgs %>%
         alpha = 0.8,
         se = FALSE) +
       facet_wrap(~month_groups, ncol = 2) +
-      scale_color_manual(values = c(gmri_cols("blue economy teal"), gmri_cols("gmri blue"))) +
+      scale_color_manual(values = c(
+        gmri_cols("gmri blue"), 
+        gmri_cols("lv orange"))) +
       scale_y_continuous(labels = number_format(suffix = deg_f)) +
       theme(
-        legend.position = "bottom", legend.direction = "vertical",
+        legend.position = "bottom",
+      legend.direction = "vertical",
         legend.background = element_rect(color = "black", fill = "white")) +
       guides(color = guide_legend(title.position = "top", title.hjust = 0.5)) +
       labs(
@@ -1125,13 +1219,12 @@ grid::grid.raster(lab_logo, x = 0.08, y = 0.04, just = c('left', 'bottom'), heig
 
 
 
-## SSTs Across the North Atlantic
+## North Atlantic Record SSTs
 
 
 In a departure from the now-familiar pattern of regionally concentrated warming, much of the attention this year was on large areas in the eastern Atlantic experiencing a large-scale MHW event. This summer scientists sounded the alarm over record setting temperatures for much of the Eastern Atlantic impacting population centers along the European coast and contributing to sweltering temperatures on land.
 
-Beginning in March, the North Atlantic as a whole began experience day-after-day of record warm sea surface temperatures, particularly in the east near Europe. By June and July, the separation between the region's SSTs and the previous records had widened by over a degree, creating a dramatic and alarming figure that was shared widely on social media. @fig-natl-timeseries captures how profoundly and consistently hot this year's temperatures were across the North Atlantic. SST in the North Atlantic set daily record highs for a total of **301 days** this year (82%!). Every single day beginning on March 5th has set a new record daily SST values, with margins exceeding 1F. These facts have drawn increased attention, elevated concerns, and a renewed sense of urgency for understanding the causes behind the rapidly changing ocean environment.
-
+By June and July, the separation between the region's SSTs and the previous records had widened by over a degree, creating a dramatic and alarming figure that was shared widely on social media. @fig-natl-timeseries captures how profoundly and consistently hot this year's temperatures were across the North Atlantic. 
 
 
 
@@ -1153,13 +1246,6 @@ north_atl_box <- make_cropbox(xlims = c(-80, 0), ylims = c(0, 60)) %>%
 
 
 n_atl_inset_plot <- ggplot() +
-  # geom_sf(
-  #     data = north_atl_box,
-  #     color = "transparent", 
-  #     #fill = "orange", 
-  #     fill = gmri_cols("gmri blue"), 
-  #     alpha = 0.2, 
-  #     linewidth = 0.8) +
   geom_sf(
     data = st_crop(
       world_sf, 
@@ -1239,6 +1325,7 @@ natl_24 <- filter(natl_record_yrs, yr == 2024)
 
 
 
+
 # Make the plot
 north_atl_plot <- natl_23 %>% 
   ggplot(aes(flat_date, anom_f)) +
@@ -1252,15 +1339,30 @@ north_atl_plot <- natl_23 %>%
   # Plot the data for years that set record daily temperatures
   geom_line(
     data = natl_record_yrs,
-    aes(group = yr, color = factor(yr), linewidth = I(record_temp_lw), alpha = I(record_temp_alpha)), 
+    aes(group = yr, color = factor(yr),
+        linewidth = I(record_temp_lw),
+        alpha = I(record_temp_alpha)),
     show.legend = F) +
+  # Try to fix how blocky ggplot lines are
+  # geom_line(
+  #   data = mutate(natl_record_yrs, anom_f = if_else(is_record, anom_f, NA)),
+  #   aes(group = yr, color = factor(yr), 
+  #       alpha = I(record_temp_alpha)), 
+  #   linewidth = 1,
+  #   show.legend = F) +
+  # geom_line(
+  #   data = mutate(natl_record_yrs, anom_f = if_else(is_record, NA, anom_f)),
+  #   aes(group = yr, color = factor(yr), 
+  #       alpha = I(record_temp_alpha)), 
+  #   linewidth = 0.5,
+  #   show.legend = F) +
   geom_text(
     data = natl_23 %>% slice(yday(max(natl_ts$time))-110),
-    label = "2023", vjust = -1, size = 4,
+    label = "2023", vjust = -0.8, size = 4,
     fontface = "bold", color = gmri_cols("gmri blue"), family = "Avenir") +
   geom_text(
     data = natl_24 %>% slice(yday(max(natl_ts$time))-210),
-    label = "2024", vjust = -1, size = 4,
+    label = "2024", vjust = -0.8, size = 4,
     fontface = "bold", color = gmri_cols("lv orange"), family = "Avenir") +
 scale_color_gmri() +
   scale_x_date(
@@ -1268,12 +1370,12 @@ scale_color_gmri() +
     expand = expansion(add = c(0,0))) +
   scale_y_continuous(labels = number_format(suffix = deg_f)) +
   labs(x = "Day of Year", y = "Sea Surface Temperature Anomaly",
-       title = str_c("2024 Set Record Warm Daily SSTs on ", sum(natl_24$is_record)," Days in North Atlantic"),
+       title = str_c("Record Warm Daily SSTs on ", sum(natl_24$is_record)," Days in North Atlantic"),
        subtitle = "(0-60N, 0-80W)")  +
   coord_cartesian(clip = "off") +
   
   theme(text = element_text(family = "Avenir")) +
-  geom_logo(x_npc = 0.875, y_npc = -.15, logo_height = 1, height_units = "cm")
+  geom_logo(x_npc = 0.85, y_npc = -.175, logo_height = 1, height_units = "cm")
 
 
 
@@ -1941,50 +2043,64 @@ Bottom temperatures are less directly impacted by local weather systems and can 
 ### Bottom Temperatures from Buoys
 
 ```{r}
-# Package to interface with erddap
-library(rerddap)
+#| label: download buoy M
 
-## NOAA IOOS NERACOOS - old URL
-url <- "http://www.neracoos.org/erddap/"
-
-
-# Buoy M - 50meter, from data.neracoos.org - new URL (in development)
-# Catalog: https://data.neracoos.org/erddap/tabledap/index.html?page=1&itemsPerPage=1000
-buoy_m_250m <- tabledap(
- x = "M01_ocean_250m", 
-  url = url, 
-  fields = c("station", "time", "longitude", "latitude", "depth", "temperature"))
-
-buoy_m_250m <- as_tibble(buoy_m_250m) %>% 
-  mutate(time = as.Date(time),
-         yr = year(time),
-         mnth = month(time),
-         temperature = as.numeric(as.character(temperature))) %>% 
-  filter(time < "2024-11-18")
-
-# Plot daily
-buoy_date_range <- c(min(buoy_m_250m$time), max(buoy_m_250m$time))
-all_buoy_dates <- data.frame("time" = seq.Date(from = buoy_date_range[1], to = buoy_date_range[2], by = 1))
-
-# Fill Gaps
-all_buoy_dates %>% 
-  left_join(buoy_m_250m) %>% 
-  ggplot() +
-  geom_line(aes(time, temperature, group = 1)) +
-  labs(title = "Guess When Buoy M was Shipstruck")
+# # Package to interface with erddap
+# library(rerddap)
+# 
+# ## NOAA IOOS NERACOOS - old URL
+# url <- "http://www.neracoos.org/erddap/"
+# 
+# 
+# # Buoy M - 50meter, from data.neracoos.org - new URL (in development)
+# # Catalog: https://data.neracoos.org/erddap/tabledap/index.html?page=1&itemsPerPage=1000
+# buoy_m_250m <- tabledap(
+#  x = "M01_ocean_250m", 
+#   url = url, 
+#   fields = c("station", "time", "longitude", "latitude", "depth", "temperature"))
+# 
+# buoy_m_250m <- as_tibble(buoy_m_250m) %>% 
+#   mutate(time = as.Date(time),
+#          yr = year(time),
+#          mnth = month(time),
+#          temperature = as.numeric(as.character(temperature))) %>% 
+#   filter(time < "2024-11-18")
+# 
+# # Plot daily
+# buoy_date_range <- c(min(buoy_m_250m$time), max(buoy_m_250m$time))
+# all_buoy_dates <- data.frame("time" = seq.Date(from = buoy_date_range[1], to = buoy_date_range[2], by = 1))
+# 
+# # Fill Gaps
+# all_buoy_dates %>% 
+#   left_join(buoy_m_250m) %>% 
+#   ggplot() +
+#   geom_line(aes(time, temperature, group = 1)) +
+#   labs(title = "Guess When Buoy M was Shipstruck")
 
 # all_buoy_dates %>% 
 #   left_join(buoy_m_250m) %>% 
 #   write_csv(file = here::here("local_data/buoy_m_250m.csv"))
+```
+
+
+
+```{r}
+#| label: Load Buoy M timeseries
+
+# Read the data we downloaded from erddap
+buoy_m <- read_csv(here::here("local_data/buoy_m_250m.csv")) %>% 
+  mutate(temperature = as_fahrenheit(temperature))
+
 
 # Monthly averages and climatology
-bm_month_clim <-  buoy_m_250m  %>% 
+bm_month_clim <-  buoy_m  %>% 
   group_by(station, depth, mnth) %>% 
   summarise(
     mean_temp = mean(temperature, na.rm = T),
     .groups = "drop")
 
-bm_monthly <- buoy_m_250m  %>% 
+# Get Anomalies
+bm_monthly <- buoy_m  %>% 
   group_by(station, depth, yr, mnth) %>% 
   summarise(
     temperature = mean(temperature, na.rm = T),
@@ -1997,14 +2113,175 @@ bm_monthly <- buoy_m_250m  %>%
   mutate(temp_anom = temperature - mean_temp,
          is_pos = if_else(temp_anom < 0, F, T))
 
+# Add the monthly Gaps in explicitly
+buoy_month_range <- c(min(bm_monthly$time, na.rm = T), max(bm_monthly$time, na.rm = T))
+all_buoy_months <- data.frame(
+  "time" = seq.Date(
+    from = buoy_month_range[1], 
+    to = buoy_month_range[2], 
+    by = "month"))
+
+# Fill Gaps
+bm_monthly <- all_buoy_months %>%
+  left_join(bm_monthly) %>% 
+  mutate(anom_col = if_else(is_pos, "#B2182B", "#2166AC"))
 
 
-# Plot monthly
-bm_monthly %>% 
-  mutate(anom_col = if_else(is_pos, "#B2182B", "#2166AC")) %>% 
-  ggplot() +
-  geom_col(aes(time, temp_anom, color  = I(anom_col), fill = I(anom_col)))
+# Get Monthly SST
+sst_monthly <- region_hw %>% 
+  group_by(yr, month = month(time)) %>% 
+  summarise(
+    across(c(sst_f, seas_f, anom_f), \(x)mean(x, na.rm = T)), 
+    .groups = "drop") %>% 
+  mutate(time = as.Date(
+    str_c(
+      yr, 
+      str_pad(month, pad = "0", side = "left", width = 2),
+      "01", sep = "-")),
+    anom_col = if_else(anom_f > 0, "#B2182B", "#2166AC"))
 ```
+
+
+```{r}
+#| label: buoy M inset map
+
+
+# Buoy Locations
+buoy_locations <- tribble(
+  ~"Buoy", ~"lat", ~"lon", 
+  # "B",     43.18,  -70.42,
+  # "E",     43.71,  -69.35,
+  # "F",     44.05,  -68.99,
+  # "I",     44.10,  -68.10,
+  # "N",     42.33,  -65.90,
+  "NERACOOS Buoy M",     43.49,  -67.87) %>% 
+  mutate(label_lon = lon + .12, label_lat = lat - .14) %>% 
+  st_as_sf(coords = c("lon", "lat"), crs = 4326, remove = FALSE)
+
+
+# Annotations
+ocean_labs<- tribble(
+~"label",             ~"lat",~"lon",~"angle",~"size",
+"Georges\nBank",        41.15,  -67.75, 0, 4,
+# "Jordan\nBasin",       43.5,   -67.5,  0, 4,      
+# "Wilkinson\nBasin",    42.29,  -69.2,  0, 4,   
+# "Northeast\nChannel",    42.385, -66.2,  0,  4,
+"Scotian\nShelf",      43.675, -63.2,  0, 4,
+"Mid-Atlantic\nBight", 40,     -72.6,  0,  4,
+"Grand\nBanks",      45,     -51,   0, 4#,
+# "Laurentian Channel",  46.3,   -58.2,  310, 4#,
+#"Nantucket\nShoals",      41.5,   -68.5, 0, 4
+)
+
+
+####  sf contours  ####
+buoy_map <- 
+  ggplot() +
+  geom_sf(data = new_england, fill = "gray90", linewidth = .25) +
+  geom_sf(data = canada, fill = "gray90", linewidth = .25) +
+  tidyterra::geom_spatraster_contour_filled(
+    data = terra::rast(bathy), 
+    breaks = c(seq(0,-600,-100),-10000),
+    alpha = 0.6, 
+    linewidth = 0.1,
+    color = "gray20") +
+  # tidyterra::geom_spatraster_contour(
+  #   data = terra::rast(bathy), 
+  #   breaks = c(-600),
+  #   alpha = 1, 
+  #   linewidth = 1,
+  #   color = "black", linetype = 1) +
+  scale_fill_brewer(
+    palette = "Blues",
+    na.value = "#08519C")  +
+  geom_point(
+    data = buoy_locations, 
+    aes(label_lon, label_lat), 
+    shape = 21, fill = "orange", size = 2) +
+  # ggforce::geom_mark_ellipse(
+  #   data = buoy_locations,
+  #   aes(label_lon, label_lat, label = Buoy, description = "Jordan Basin"),
+  #   colour = "black", label.family = "Avenir", 
+  #   label.fontsize = 16, 
+  #   label.buffer = unit(1.5, "cm")) +
+  geom_mark_ellipse(
+    data = buoy_locations,
+    aes(label_lon, label_lat),
+    colour = "black") +
+  geom_shadowtext(
+    data = ocean_labs, 
+    aes(lon, lat, label = label, angle = angle), 
+    size = 3, fontfamily = "Avenir", color = "black", bg.colour = "white", lineheight = 0.75) +
+  # coord_sf(xlim = c(-78, -56.5), ylim = c(37.8, 48)) + # annual map view
+  coord_sf(xlim = c(-74.5, -49.5), ylim = c(37, 48)) + # full zoom out to TGB
+  theme(
+    plot.margin = margin(t = 1, r = 2, b = 1, l = 1),
+    legend.position = "none",
+    panel.grid.major = element_line(colour = "transparent")) +
+  labs(
+    x = "Longitude", y = "Latitude", 
+    title = "Deep Water Oceanographic Buoy",
+    subtitle = "Buoy M, Jordan Basin")
+
+
+```
+
+
+
+```{r}
+#| fig-height: 8
+#| fig-width: 8
+#| label: buoy timeseries and map
+
+
+# three levels: map, sst monthly, bt monthly, aligned x axis
+
+
+
+
+# Plot the Surface Temperature Anomalies on Monthly Scale
+monthly_sst_plot <- sst_monthly %>% 
+  ggplot() +
+  geom_line(aes(time, 0, group = 1)) +
+  geom_line(aes(time, anom_f, color = I(anom_col), group = 1)) +
+  geom_segment(
+    aes(time, 0, xend = time, yend = anom_f, group = 1, color = I(anom_col)), alpha = 0.3) +
+  geom_line(aes(time, anom_f, color = I(anom_col), group = 1)) +
+  scale_y_continuous(labels = label_number(suffix = deg_f)) +
+  theme(plot.margin = margin(t = 1,r = 1,l = 2,b = 1))+
+  labs(
+    y = "Temperature Anomaly",
+    x = "Date",
+    title = "Sea Surface Temperature",
+    subtitle = "NOAA OISSTv2 Sea Surface Temperature")
+
+
+
+# Plot monthly as a line, and color it on whether its abov/below monthly mean
+buoy_anoms_plot <- sst_monthly %>% 
+  distinct(time) %>% 
+  left_join(bm_monthly) %>% 
+  ggplot() +
+  geom_line(aes(time, 0, group = 1)) +
+  geom_line(aes(time, temp_anom, color = I(anom_col), group = 1)) +
+  geom_segment(
+    aes(time, 0, xend = time, yend = temp_anom, group = 1, color = I(anom_col)), alpha = 0.3) +
+  geom_line(aes(time, temp_anom, color = I(anom_col), group = 1)) +
+  scale_y_continuous(labels = label_number(suffix = deg_f)) +
+  theme(plot.margin = margin(t = 1,r = 1,l = 2,b = 1))+
+  labs(
+    y = "Temperature Anomaly",
+    x = "Date",
+    title = "Deep-Water Temperature",
+    subtitle = "NERACOOS Buoy M: 250m Temperature Sensor")
+
+# Make the plot
+buoy_triple <- (buoy_map) | 
+  (( buoy_anoms_plot / monthly_sst_plot) + plot_layout(axes = "collect"))
+buoy_triple
+
+```
+
 
 
 
@@ -2036,72 +2313,38 @@ glorys_bot_mhw <- pull_heatwave_events(
   rename(bt_anom = sst_anom,
          bt = sst,
          bt_f = sst_f) %>% 
-  mutate(var = "Surface Temperature")
+  mutate(var = "Bottom Temperature")
 
 
 
 
-# Bottom Temperature Anomalies
+# Bottom Temperatures
 glorys_bot_mhw %>% 
   mutate(
     cs_thresh_f = as_fahrenheit(mcs_thresh),
     mhw_event_txt = if_else(mhw_event, "Marine Heatwave", "Non-Heatwave")) %>% 
-  #filter(time > as.Date("2008-01-01")) %>% 
+  # filter(time > as.Date("2000-01-01")) %>% 
   ggplot() +
   geom_ribbon(
     aes(time, ymin = cs_thresh_f, ymax = mhw_thresh_f),
     fill = "lightgray", alpha = 0.4) +     
+  geom_path(
+    aes(x = time, y = bt_f, color = mhw_event_txt, group = 1), 
+    linewidth = 0.8, key_glyph = "timeseries") +
   scale_color_manual(values = color_vals) +
   scale_y_continuous(
     labels =  number_format(suffix = temp_ops$temp_suff),
     expand = expansion(mult = c(0.05, .2))) +   
   scale_x_date(expand = expansion(add = c(0,0))) +
-  geom_path(aes(x = time, y = bt_f, color = mhw_event_txt, group = 1), 
-            linewidth = 0.8, key_glyph = "timeseries") +
   theme(legend.position = "bottom", legend.title.position = "top") +
   labs(title = "Gulf of Maine Bottom Temperature",
        x = "Date",
-       y = "Bottom Temperature Anomalies",
-       color = "Bottom Temperature Anomalies and Heatwave Status",
+       y = "Bottom Temperature",
+       color = "Bottom Temperature and Heatwave Status",
        caption = "Bottom Temperature from GLORYS Ocean Reanalysis by Copernicus Marine Service")
 
 
-```
 
-
-```{r}
-#| label: Glorys gulf of maine bt anom timeseries
-#| eval: true 
-#| fig-height: 5
-
-# Prepare MHW and climatology assesment for surface and bottom temperatures
-glorys_bot_mhw <- pull_heatwave_events(
-  temperature_timeseries = as.data.frame(glorys_ts), 
-  threshold = 90, 
-  clim_ref_period = c("1993-01-01", "2022-12-31"), 
-  temp_col = "bottom_temp",
-  date_col = "time") %>% 
-  supplement_hw_data() %>% 
-  filter(doy != 366) %>% 
-  rename(bt_anom = sst_anom,
-         bt = sst) %>% 
-  mutate(var = "Surface Temperature")
-
-# # Flag heatwave Events:
-# glorys_hw_events <- glorys_bot_mhw  %>% 
-#   filter(mhw_event == T) %>% 
-#   group_split(mhw_event_no) %>% 
-#   map_dfr(function(x){
-#     data.frame(
-#       id = unique(x$mhw_event_no),
-#       llim = min(x$time),
-#       rlim = max(x$time),
-#       ymax = max(x$sst_f),
-#       min_anom = min(x$anom_f),
-#       max_anom = max(x$anom_f),
-#       mean_anom = mean(x$anom_f),
-#       len  = nrow(x))
-#   })
 
 
 # Bottom Temperature Anomalies
@@ -2118,11 +2361,7 @@ glorys_bot_mhw %>%
       aes(x = time, y = 0), 
       color = "gray10", 
       label = "Climatological Avg. +/-\n10th-90th Percentile Range", 
-      hjust = 0.85, lty = 1, family = "Avenir", vjust = 1.2, size = 5) +
-  # geom_bracket(
-  #     data = glorys_hw_events,
-  #     aes(xmin = llim, xmax = rlim, y.position = max_anom + 1, label = str_c(len, " Days")),
-  #     family = "Avenir") +
+      hjust = 0.85, lty = 1, family = "Avenir", vjust = 1.2, size = 4) +
   scale_color_manual(values = color_vals) +
   scale_y_continuous(
     labels =  number_format(suffix = temp_ops$temp_suff),
@@ -2136,8 +2375,62 @@ glorys_bot_mhw %>%
        y = "Bottom Temperature Anomalies",
        color = "Bottom Temperature Anomalies and Heatwave Status",
        caption = "Bottom Temperature from GLORYS Ocean Reanalysis by Copernicus Marine Service")
+
+
+
+
 ```
 
+
+```{r}
+#| label: Glorys gulf of maine sst anom timeseries
+#| eval: false 
+#| fig-height: 5
+
+# # Prepare MHW and climatology assesment for surface and bottom temperatures
+# glorys_surf_mhw <- pull_heatwave_events(
+#   temperature_timeseries = as.data.frame(glorys_ts), 
+#   threshold = 90, 
+#   clim_ref_period = c("1993-01-01", "2022-12-31"), 
+#   temp_col = "surface_temp",
+#   date_col = "time") %>% 
+#   supplement_hw_data() %>% 
+#   filter(doy != 366) %>% 
+#   rename(bt_anom = sst_anom,
+#          bt = sst) %>% 
+#   mutate(var = "Surface Temperature")
+# 
+# glorys_surf_mhw %>% 
+#   mutate(
+#     cs_thresh_f = as_fahrenheit(mcs_thresh),
+#     mhw_event_txt = if_else(mhw_event, "Marine Heatwave", "Non-Heatwave")) %>% 
+#   # filter(time > as.Date("2000-01-01")) %>% 
+#   ggplot() +
+#   geom_ribbon(
+#     aes(time, ymin = cs_thresh_f-seas_f, ymax = mhw_thresh_f-seas_f),
+#     fill = "lightgray", alpha = 0.4) +     
+#   geom_textpath(
+#       aes(x = time, y = 0), 
+#       color = "gray10", 
+#       label = "Climatological Avg. +/-\n10th-90th Percentile Range", 
+#       hjust = 0.85, lty = 1, family = "Avenir", vjust = 1.2, size = 5) +
+#   scale_color_manual(values = color_vals) +
+#   scale_y_continuous(
+#     labels =  number_format(suffix = temp_ops$temp_suff),
+#     expand = expansion(mult = c(0.05, .2))) +   
+#   scale_x_date(expand = expansion(add = c(0,0))) +
+#   geom_path(aes(x = time, y = anom_f, color = mhw_event_txt, group = 1), 
+#             linewidth = 0.8, key_glyph = "timeseries") +
+#   theme(legend.position = "bottom", legend.title.position = "top") +
+#   labs(title = "Gulf of Maine Surface Temperature Anomalies",
+#        x = "Date",
+#        y = "Surface Temperature",
+#        color = "Surface Temperature Anomalies and Heatwave Status",
+#        caption = "Surface Temperature from GLORYS Ocean Reanalysis by Copernicus Marine Service")
+
+
+
+```
 
 ### Regional Bottom Temperature Maps
 
@@ -2211,7 +2504,7 @@ temp_labels <- str_c(c(str_c("< ", temp_limits[1]), temp_limits[1]/2, 0, temp_li
 #### 2. Map the anomalies
 
 # 2023:
-ggplot() +
+bt_23_quarter_map <- ggplot() +
   geom_stars(data = bt_anom_quarters_23) +
   facet_wrap(~quarter) +
   geom_sf(data = new_england, fill = "gray90", linewidth = .15) +
@@ -2229,7 +2522,7 @@ ggplot() +
     oob = scales::oob_squish) +
   coord_sf(xlim = c(-78, -56.5), ylim = c(37.8, 48)) +
   labs(title = str_c("2023: Average Temperature Anomalies"),
-       caption = "Anomalies calculated using 1991-2020 climatology.\n100m & 200m contours overlaid to show bathymetric details.") +
+       caption = "Anomalies calculated using 1993-2022 climatology.\n100m & 200m contours overlaid to show bathymetric details.") +
   map_theme(
     legend.position = "bottom",
     legend.title = element_text(angle = 0, face = "bold", family = "Avenir"))+
@@ -2240,6 +2533,9 @@ ggplot() +
     barwidth = unit(3, "in"),
     frame.colour = "black",
     ticks.colour = "black"))
+
+
+bt_23_quarter_map
 ```
 
 
@@ -2252,7 +2548,7 @@ Sea bottom temperature anomalies during 2024 reveal that the below-average tempe
 
 
 # 2024
-ggplot() +
+bt_24_quarter_map <-ggplot() +
   geom_stars(data = bt_anom_quarters_24) +
   facet_wrap(~quarter) +
   geom_sf(data = new_england, fill = "gray90", linewidth = .15) +
@@ -2270,7 +2566,7 @@ ggplot() +
     oob = scales::oob_squish) +
   coord_sf(xlim = c(-78, -56.5), ylim = c(37.8, 48)) +
   labs(title = str_c(report_yr, ": Average Temperature Anomalies"),
-       caption = "Anomalies calculated using 1991-2020 climatology.\n100m & 200m contours overlaid to show bathymetric details.") +
+       caption = "Anomalies calculated using 1993-2022 climatology.\n100m & 200m contours overlaid to show bathymetric details.") +
   map_theme(
     legend.position = "bottom",
     legend.title = element_text(angle = 0, face = "bold", family = "Avenir"))+
@@ -2283,7 +2579,7 @@ ggplot() +
     ticks.colour = "black"))
 
 
-
+bt_24_quarter_map
 ```
 
 The difference in bottom temperatures between these two years shows us that sea bottom temperatures fell broadly, and for many areas this difference was several degrees (C).
@@ -2368,29 +2664,43 @@ ggplot() +
 # gs_pos <- read_usn(what = "ordered")
 # gstream::
 
+# Obtained the data directly from Ben Tupper
+# Load the North wall position from the Navy's Data
 navy_gsi <- list.files("~/Documents/Repositories/gstream_data/usn/ordered", full.names = T) %>% 
   map_dfr(read_sf)
   
 navy_gsi %>% 
-  mutate(yr = year(date),
-         is_22 = if_else(yr == 2022, T, F),
-         is_23 = if_else(yr == 2023, T, F),
-         is_24 = if_else(yr == 2024, T, F),
-         flag_col = case_when(
-           is_24 ~ gmri_cols("gmri blue"),
-           is_23 ~ gmri_cols("lv orange"),
-           TRUE ~ "gray50"),
-         flag_alpha = case_when(
-           is_24 ~ 0.8,
-           is_23 ~ 0.8,
-           TRUE ~ 0.5)) %>% 
-  filter(wall == "north") %>% 
+  mutate(
+    yr = factor(year(date)),
+    is_22 = if_else(yr == 2022, T, F),
+    is_23 = if_else(yr == 2023, T, F),
+    is_24 = if_else(yr == 2024, T, F),
+    flag_alpha = case_when(
+      is_24 ~ 0.8,
+      is_23 ~ 0.8,
+      TRUE ~ 0.5)) %>% 
+  filter(
+    wall == "north",
+    is_23 | is_24) %>% 
   ggplot() +
   geom_sf(data = new_england) +
   geom_sf(data = canada) +
-  geom_sf(aes(color = I(flag_col), alpha = I(flag_alpha))) +
-  coord_sf(xlim = c(-79, -56.5), ylim = c(35, 48)) +
+  tidyterra::geom_spatraster_contour_filled(
+    data = terra::rast(bathy), 
+    breaks = c(seq(0,-600,-100),-10000),
+    alpha = 0.6, 
+    linewidth = 0.1,
+    color = "gray20", show.legend = F) +
+  scale_fill_brewer(
+    palette = "Blues",
+    na.value = "#08519C")  +
+  geom_sf(aes(color = yr, alpha = I(flag_alpha))) +
+  scale_color_manual(values = c("gray80", "gray20")) +
+  #coord_sf(xlim = c(-79, -56.5), ylim = c(35, 48)) +
+  coord_sf(xlim = c(-74.5, -49.5), ylim = c(37, 48)) + # full zoom out
+  theme(legend.position = "bottom", legend.title.position = "top") +
   labs(title = "Gulf Stream North Wall Position")
+
 ```
 
 ```{r}
@@ -2400,11 +2710,12 @@ navy_gsi %>%
 nwall <- navy_gsi %>% 
   mutate(yr = year(date),
          mnt = month(date)) %>% 
-  filter(wall == "north")
+  filter(wall == "north",
+         yr >= 2023)
 
 
 # Define the number of points for interpolation (e.g., 100 points per line)
-n_points <- 150
+n_points <- 75
 
 # Function to resample a line to `n_points` evenly spaced points
 resample_line <- function(line, n_points, projected_crs = 32619) {
@@ -2415,16 +2726,29 @@ resample_line <- function(line, n_points, projected_crs = 32619) {
 }
 
 
+# # Testing:
+# resample_line(line = nwall[1,], n_points = 200) %>% 
+#     st_as_sf(crs = 32619) %>% 
+#     rename(geometry = x) %>% 
+#     st_cast("POINT") %>%
+#     mutate(point_id = row_number())
+# nwall %>% filter(st_is_empty(nwall) == T)
+# nwall %>% filter()
+
 # Interpolate each daily line into `n_points`
 # Group  by point id
 resampled_points <- nwall %>%
+  filter(st_is_empty(nwall) == F) %>% 
   split(.$date) %>% 
-  map_dfr(~resample_line(.x, n_points = n_points) %>% 
-        st_as_sf(crs = projected_crs) %>% 
-        rename(geometry = x) %>% 
-        st_cast("POINT") %>%
-        mutate(point_id = row_number()), # ID for each resampled point
-      .id = "date")  %>% 
+  map_dfr(
+    ~resample_line(
+      line = .x, 
+      n_points = n_points) %>% 
+    st_as_sf(crs = 32619) %>% 
+    rename(geometry = x) %>% 
+    st_cast("POINT") %>%
+    mutate(point_id = row_number()), # ID for each resampled point
+  .id = "date")  %>% 
   mutate(yr = year(date),
          mnth = month(date))
 
@@ -2444,13 +2768,15 @@ average_points <- resampled_points %>%
 monthly_avg_points <- st_as_sf(
   average_points,
   coords = c("avg_X", "avg_Y"),
-  crs = st_crs(projected_crs)
+  crs = st_crs(32619)
 ) %>% st_transform(crs=st_crs(4326))
 
 # Reconstruct average lines for each month
 monthly_avg_lines <- monthly_avg_points %>%
   group_by(yr, mnth) %>%
-  summarize(do_union = FALSE) %>%
+  summarize(
+    do_union = FALSE,
+    .groups = "drop") %>%
   st_cast("LINESTRING") %>% 
   mutate(date = as.Date(
     str_c(yr, 
@@ -2464,7 +2790,8 @@ monthly_avg_lines %>%
   ggplot() +
   geom_sf(data = new_england) +
   geom_sf(data = canada) +
-  geom_sf(aes(color = factor(yr)), alpha = 0.8, linewidth = 0.8) +
+  geom_sf(alpha = 0.8, linewidth = 0.8) +
+  facet_grid(mnth~yr) +
   coord_sf(xlim = c(-78, -56.5), ylim = c(35.8, 48))
 
 
@@ -2569,15 +2896,7 @@ if(params$save_figures){
     bg = "white", 
     scale = 2)
   
-  # Northeast Record Temperatures
-  ggsave(
-    plot = north_atl_plot, 
-    filename = str_c(save_location, "north_atlantic_record_temps.jpeg"),
-    height = unit(2.5, "in"),
-    width = unit(4, "in"),
-    dpi = "retina", 
-    bg = "white", 
-    scale = 2)
+  
   
   # Ranking of warmest years
   ggsave(
@@ -2588,40 +2907,6 @@ if(params$save_figures){
     dpi = "retina", 
     bg = "white", 
     scale = 2)
-  
-  
-  
-  # Record daily temperatures plot
-  ggsave(
-    plot = gom_23_record_ts,
-    filename = str_c(save_location, report_yr, "_gom_records_temps.jpeg"),
-    height = unit(2.5, "in"),
-    width = unit(4, "in"),
-    dpi = "retina",
-    bg = "white", 
-    scale = 2)
-  
-  # Below Average Days
-  ggsave(
-    plot = cold_days_plot,
-    filename = str_c(save_location, report_yr, "_gom_cold_temps.jpeg"),
-    height = unit(2.5, "in"),
-    width = unit(4, "in"),
-    dpi = "retina",
-    bg = "white", 
-    scale = 2)
-  
-  
-  # Percentage of months that set record temperatures bars
-  ggsave(
-    plot = fig_percents,
-    filename = str_c(save_location, report_yr, "_percent_record_bars.jpeg"),
-    height = unit(2.5, "in"),
-    width = unit(4, "in"),
-    dpi = "retina", 
-    bg = "white", 
-    scale = 2)
-  
   
   
   # Full Year Temperature Timeseries
@@ -2646,18 +2931,6 @@ if(params$save_figures){
     bg = "white", 
     scale = 2)
   
-
-  
-  # Gulf of Maine Daily Anomalies
-   ggsave(
-    plot = hw_anom_p, 
-    filename = str_c(save_location, "gom_daily_sst_anomalies_ts.jpeg"),
-    height = unit(2.5, "in"),
-    width = unit(4, "in"),
-    dpi = "retina", 
-    bg = "white", 
-    scale = 2)
-  
   
   # GOM vs Global - quarterly trends
   ggsave(
@@ -2668,7 +2941,6 @@ if(params$save_figures){
     dpi = "retina", 
     bg = "white", 
     scale = 2)
-  
   
   
   # Annual Temperature Anomalies Map(s)
@@ -2691,8 +2963,15 @@ if(params$save_figures){
     bg = "white", 
     scale = 2)
   
-  
-  
+  # Northeast Record Temperatures
+  ggsave(
+    plot = north_atl_plot, 
+    filename = str_c(save_location, "north_atlantic_record_temps.jpeg"),
+    height = unit(2.5, "in"),
+    width = unit(4, "in"),
+    dpi = "retina", 
+    bg = "white", 
+    scale = 2)
   
   
   # Global Anomaly Map
@@ -2705,28 +2984,15 @@ if(params$save_figures){
     bg = "white", 
     scale = 2)
   
-  
-   # Global Ranks Map
+  # Buoy Temperatures Trio
   ggsave(
-    plot = ranks_map,
-    filename = str_c(save_location, "global_warming_ranks_map.jpeg"),
+    plot = buoy_triple, 
+    filename = str_c(save_location, "deepwater_temperatures_plot.jpeg"),
     height = unit(2.5, "in"),
     width = unit(4, "in"),
     dpi = "retina", 
     bg = "white", 
-    scale = 2)
-  
-
-   # Hurricane Lee Map
-  ggsave(
-    plot = lee_map, 
-    filename = str_c(save_location, "lee_traversal_map.jpeg"),
-    height = unit(4, "in"),
-    width = unit(4, "in"),
-    dpi = "retina",
-    bg = "white", 
-    scale = 2)
-
+    scale = 1.8)
 
 
   # Monthly Average Table
@@ -2735,6 +3001,9 @@ if(params$save_figures){
     opt_table_font(
       font = list(google_font(name = "Avenir"))), 
     filename = str_c(save_location, "monthly_summary_table.png"))
+  
+  
+  
   
 }
 

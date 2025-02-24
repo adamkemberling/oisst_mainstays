@@ -864,10 +864,7 @@ map_study_area_color <- function(
     #     aes(x,y, fill = bin_labs), 
     #     alpha = 0.9) +
     
-    
-    
-    
-    
+  
   
     # Full map of GOM
     gom_extent_p <- ggplot() +
@@ -899,10 +896,14 @@ map_study_area_color <- function(
         data = greenland, 
         fill = "gray90", 
         linewidth = .25) +
-      geom_text(
+      # geom_text(
+      #   data = area_labs, 
+      #   aes(lon, lat, label = label, angle = angle), 
+      #   size = 4, color = "black", family = "Avenir") +
+      shadowtext::geom_shadowtext(
         data = area_labs, 
         aes(lon, lat, label = label, angle = angle), 
-        size = 4, color = "black", family = "Avenir") +
+        size = 4, fontfamily = "Avenir", color = "black", bg.colour = "white") +
       geom_sf(
         data = region_extent, 
         color = "gray10", 
@@ -1207,7 +1208,9 @@ global_rate_comparison <- function(
   # Line color formatting, to match equations
   line_colors <- setNames(
     as.character(c(
-      gmri_cols("warm yellow"), 
+      #gmri_cols("warm yellow"), 
+      gmri_cols("lv orange"),
+      #gmri_cols("kelp green"), 
       gmri_cols("gmri blue"))),  
     c(eq_all, eq_global))
   
