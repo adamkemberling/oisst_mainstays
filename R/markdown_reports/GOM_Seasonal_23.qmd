@@ -18,11 +18,11 @@ execute:
   comment: ""
   fig.align: center
 params: 
-  year: 2024
-  season: "Fall"
-  seas: "fall"
-  save_data: TRUE
-  save_figures: TRUE
+  year: 2025
+  season: "Winter"
+  seas: "winter"
+  save_data: FALSE
+  save_figures: FALSE
 ---
 
 ```{r}
@@ -826,6 +826,7 @@ year_hw_dat <- mutate(
   cs_thresh_f = as_fahrenheit(mcs_thresh),
   mhw_event_txt = if_else(mhw_event, "Marine Heatwave", "Non-Heatwave"))
 
+
 # Number of consecutive days above largest (or closest) integer anomaly
 max_int <- max(floor(this_season_data$anom_f))
   
@@ -929,7 +930,10 @@ clim_labels <- year_hw_dat %>%
   filter(time == max(time)) %>% 
   mutate(time = time+3) %>% 
   select(time, {{hw_thresh_col}}, {{clim_col}}, {{cs_thresh_col}}) %>% 
-  pivot_longer(cols = -time, names_to = "clim_thresh", values_to = "temp_vals") %>% 
+  pivot_longer(
+    cols = -time, 
+    names_to = "clim_thresh", 
+    values_to = "temp_vals") %>% 
   mutate(labs = case_when(
     str_detect(clim_thresh, "mhw") ~ "- 90th Percentile",
     str_detect(clim_thresh, "cs") ~ "- 10th Percentile",
@@ -941,11 +945,11 @@ hw_temp_p <- hw_temp_p +
     geom_line(aes(x = time, y = {{hw_thresh_col}}), color = "gray10", lty = 1) + 
     geom_line(aes(x = time, y = {{clim_col}}), color = "gray10", lty = 1) +
     geom_line(aes(x = time, y = {{cs_thresh_col}}), color = "gray10", lty = 1) +
-    # This only works if there are heatwaves
-    geom_bracket(
-      data = hw_events,
-      aes(xmin = llim, xmax = rlim, y.position = ymax + 2, label = str_c(len, " Days")),
-      family = "Avenir") +
+    # # This only works if there are heatwaves
+    # geom_bracket(
+    #   data = hw_events,
+    #   aes(xmin = llim, xmax = rlim, y.position = ymax + 2, label = str_c(len, " Days")),
+    #   family = "Avenir") +
     geom_text(
       data = clim_labels, 
       aes(time, temp_vals, label = labs), family = "Avenir", hjust = 0) +
@@ -956,6 +960,14 @@ hw_temp_p <- hw_temp_p +
       date_breaks = "1 month",
       expand = expansion(add = c(0,110)))
 
+
+hw_temp_p
+```
+
+
+```{r}
+#| eval: false
+#| label: some old plot code
 
 
 # #=-------- Winter
@@ -1060,11 +1072,11 @@ hw_anom_p <- year_hw_dat %>%
       label = "Climatological Avg. & \n 10th-90th Percentile Range",
       vjust = 1.5,
       hjust = .9, lty = 1, family = "Avenir") +
-  # Only Works if there are heatwaves
-    geom_bracket(
-      data = hw_events,
-      aes(xmin = llim, xmax = rlim, y.position = max_anom + 1, label = str_c(len, " Days")),
-      family = "Avenir", ) +
+    # # Only Works if there are heatwaves
+    # geom_bracket(
+    #   data = hw_events,
+    #   aes(xmin = llim, xmax = rlim, y.position = max_anom + 1, label = str_c(len, " Days")),
+    #   family = "Avenir", ) +
     scale_color_manual(values = color_vals) +
     scale_x_date(
       # date_labels = "%b", 
