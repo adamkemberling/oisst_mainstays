@@ -383,12 +383,11 @@ def build_annual_from_cache(update_yr, last_month, this_month, workspace = "loca
     for folder in month_folders:
       for file in os.listdir(f"{_cache_root}update_caches/{update_yr}{folder}"):
         if file.endswith(".nc"):
-          daily_files.append(f"{_cache_root}update_caches/{update_yr}{folder}/{file}")
+          daily_files.append(os.path.abspath(f"{_cache_root}update_caches/{update_yr}{folder}/{file}"))
     
     # Use open_mfdataset to access all the new downloads as one file
     oisst_update = xr.open_mfdataset(daily_files, combine = "by_coords")     
             
-    
     
     ####  Clean up Dataset structure  ####
     
@@ -409,10 +408,6 @@ def build_annual_from_cache(update_yr, last_month, this_month, workspace = "loca
       
     #### Last check, again for duplicates to remove
     oisst_combined = oisst_combined.sel(time = ~oisst_combined.get_index("time").duplicated())
-    
-    # # Checking duplicates
-    # import numpy as np
-    # np.unique(temp_21.get_index("time").date)
     
     
     ####  Add Attributes Back  ####
@@ -443,7 +438,7 @@ def export_annual_update(cache_root, update_yr, oisst_update):
   # Build out destination folder:
   out_folder       = f"{cache_root}annual_observations/"
   naming_structure = f"sst.day.mean.{update_yr}.v2.nc"
-  out_path         = f"{out_folder}{naming_structure}"
+  out_path         = os.path.abspath(f"{out_folder}{naming_structure}")
   
   # Set the Time encodings
   oisst_update.time.encoding = {"units" : "days since '1800-01-01'"}
