@@ -386,6 +386,11 @@ supplement_hw_data <- function(region_hw_data){
       anom_f       = as_fahrenheit(sst_anom, "anomalies"),
       hwe_f        = as_fahrenheit(hwe, "temperature"),
       mhw_thresh_f = as_fahrenheit(mhw_thresh, "temperature"),
+      mcs_thresh_f = as_fahrenheit(mcs_thresh, "temperature"),
+      mhw_event_txt = case_when(
+        mhw_event == T ~ "Marine Heatwave", 
+        mcs_event == T ~ "Marine Coldspell", 
+        TRUE ~ "SST"),
       time         = as.Date(time),
       yr           = year(time),
       month_num    = month(time),
@@ -841,30 +846,6 @@ map_study_area_color <- function(
     bathy <- raster(str_c(cs_path("res","Bathy/"), "ETOPO1/NEShelf_Etopo1_bathy.tiff")) 
     
     
-    # # Add the bottom contours as color
-    # # Reclassify to discrete
-    # bathy_reclass <- reclassify_bathy(
-    #   bathy, 
-    #   depth_increments = -100, 
-    #   min_elev = -600, 
-    #   max_elev = 0)
-    # reclass_ras <- bathy_reclass$ras
-    # reclass_labs  <- bathy_reclass$labs
-    # 
-    # # Convert to DF, add labels from reclassification 
-    # bathy_rclass_df <- rasterdf(reclass_ras) %>% 
-    #   select(x, y, bin_num = value) %>% 
-    #   left_join(reclass_labs, by = "bin_num")
-    # 
-    # 
-    # # Full map of GOM
-    # gom_extent_p <- ggplot() +
-    #   geom_raster(
-    #     data = bathy_rclass_df, 
-    #     aes(x,y, fill = bin_labs), 
-    #     alpha = 0.9) +
-    
-  
   
     # Full map of GOM
     gom_extent_p <- ggplot() +
@@ -881,9 +862,7 @@ map_study_area_color <- function(
         # na.translate = FALSE, 
         # To set their color for NA
         # Get fill from brewer: RColorBrewer::brewer.pal(n = 6, "Blues")[6]
-        na.value = "#08519C",
-        # labels = c(levels(bathy_rclass_df$bin_labs), "Greater than -600"),
-        name = "Depth")  +
+        na.value = "#08519C", name = "Depth")  +
       geom_sf(
         data = new_england, 
         fill = "gray90", 
@@ -900,16 +879,16 @@ map_study_area_color <- function(
       #   data = area_labs, 
       #   aes(lon, lat, label = label, angle = angle), 
       #   size = 4, color = "black", family = "Avenir") +
-      shadowtext::geom_shadowtext(
-        data = area_labs, 
-        aes(lon, lat, label = label, angle = angle), 
-        size = 4, fontfamily = "Avenir", color = "black", bg.colour = "white") +
       geom_sf(
         data = region_extent, 
         color = "gray10", 
         fill = "transparent", alpha = 0.2, 
         linetype = shape_linetype, 
         linewidth = 0.5) +
+      shadowtext::geom_shadowtext(
+        data = area_labs, 
+        aes(lon, lat, label = label, angle = angle), 
+        size = 4, fontfamily = "Avenir", color = "black", bg.colour = "white") +
       coord_sf(
         xlim = crop_x, 
         ylim = crop_y, 
@@ -1967,20 +1946,10 @@ anom_horizon_plot <- function(grid_data,
 #' @examples
 monthly_sst_map <- function(month_avg_layer, month_id, plot_yr, temp_lim = 8, depth_contours = 200, convert_to_f = TRUE, elev_terra){
   
-  # if(is.null(bathy)){
-  #   # Add the bottom contours:
-  #   bathy <- raster(str_c(cs_path("res","Bathy/"), "ETOPO1/NEShelf_Etopo1_bathy.tiff")) }
-  # 
-  # bathy <- raster(str_c(cs_path("res","Bathy/"), "ETOPO1/NEShelf_Etopo1_bathy.tiff"))
-  # 
-  # # Contours for geom_contour()
-  # bathy_df <- as.data.frame(raster::coordinates(bathy))
-  # rm(bathy)
-  # bathy_df$depth <- raster::extract(bathy, bathy_df)
-  # bathy_df$depth <- bathy_df$depth * -1
   
   # Set up text label  
   month_yr <- plot_yr
+  if(month_id == "December"){ month_yr <- month_yr-1 }
   month_label <- str_c(month_id, " ", month_yr)
   
   # Convert to F
@@ -2000,23 +1969,18 @@ monthly_sst_map <- function(month_avg_layer, month_id, plot_yr, temp_lim = 8, de
     geom_sf(data = new_england, fill = "gray90", linewidth = .25) +
     geom_sf(data = canada, fill = "gray90", linewidth = .25) +
     geom_sf(data = greenland, fill = "gray90", linewidth = .25) +
-    # geom_contour(
-    #   data = bathy_df, 
-    #   aes(x, y, z = depth),
-    #   breaks = depth_contours,
-    #   color = "gray20", 
-    #   linewidth = 0.25) +
     tidyterra::geom_spatraster_contour(
       data = elev_terra,
       breaks = depth_contours,
       alpha = 0.75,
       linewidth = 0.25,
       color = "gray20") +
-    geom_sf(data = region_extent, 
-            color = "black", 
-            linetype = 2, 
-            linewidth = 0.5,
-            fill = "transparent") +
+    geom_sf(
+      data = region_extent, 
+      color = "black", 
+      linetype = 2, 
+      linewidth = 0.5,
+      fill = "transparent") +
     scale_y_continuous(breaks = seq(30, 50, by = 2)) +
     scale_fill_distiller(
       palette = "RdBu", 
