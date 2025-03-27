@@ -751,7 +751,7 @@ global_rate_plot <- ggplot(glob_plot_dat) +
   labs(title = str_c(params$season, " SST Warming Rates"),
        x = "Year",
        y = str_c("Sea Surface Temperature Anomalies\n(", season_range, ")"),
-       color = "1982-2024 Warming Rates")  +
+       color = "1982-2025 Warming Rates")  +
   coord_cartesian(clip = "off") +
   geom_logo(x_npc = 0.85, y_npc = 1.1, logo_height = 1, height_units = "cm")
 
@@ -778,9 +778,11 @@ year_hw_dat <- region_hw %>%
 
 # Get number of heatwave events and total heatwave days for this year
 num_hw_days <- sum(year_hw_dat$mhw_event, na.rm = T)
+num_cs_days <- sum(year_hw_dat$mcs_event, na.rm = T)
 
 # Fraction of year in hw?
 hw_frac <- round(sum(this_season_data$mhw_event)/nrow(this_season_data) * 100, 2) 
+cs_frac <- round(sum(this_season_data$mcs_event)/nrow(this_season_data) * 100, 2) 
 
 
 # Flag heatwave Events:
@@ -987,9 +989,14 @@ hw_temp_p
 Looking at the full record of daily SST anomalies in the Gulf of Maine (@fig-mhw-heatmap), the distinct thermal regime shift beginning around 2010 is evident. 
 
 
+If we use the standard MHW definition, where heatwaves and coldspells are determined using a static 30-year baseline we get the following record of these extreme events:
+
 ```{r}
 #| eval: true
-#| label: heatmap with lines
+#| fig.height: 8
+#| fig.width: 8
+#| label: fig-static-baseline-heatmap
+#| fig-cap: "Heat map of daily SST anomalies from a 30-year 1991-2020 climatological baseline. Marine heatwave events (red lines) and marine coldspell events (blue lines) using the standard Hobday et al. method have been overlaid."
 
 # Does it look different with the season highlighted
 hw_dat <- grid_dat %>%
@@ -1062,7 +1069,10 @@ fixed_hw <- hw_dat %>%
       fill = "Sea Surface Temperature Anomaly")
   
 
+fixed_hw
 ```
+
+If instead, we adopt an approach which removes the long-term warming trend we get the following figure.
 
 
 
@@ -1070,8 +1080,8 @@ fixed_hw <- hw_dat %>%
 ```{r}
 #| fig.height: 8
 #| fig.width: 8
-#| label: fig-mhw-heatmap
-#| fig-cap: "Heat map of daily SST anomalies from the beginning of 1982 through March 2024. Not only do more large warm anomalies (darker reds) appear more frequently in recent years, but the frequency, duration, and intensity of marine heatwave events (black lines) in the Gulf of Maine has become more pronounced in the past decade."
+#| label: fig-shifting-baseline-heatmap
+#| fig-cap: "Heat map of daily SST anomalies from a 30-year 1991-2020 climatological baseline. Marine heatwave events (red lines) and marine coldspell events (blue lines) using a detrended timeseries have been overlaid."
 
 
 # De-trended heatwaves?
@@ -1148,15 +1158,31 @@ detrend_hw <- heatwaves_detrended %>%
       frame.colour = "black", 
       ticks.colour = "black")) +
     labs(
+      title = "Gulf of Maine Heatwave & Coldspell Record",
       subtitle = "Fixed Climatological Baseline (1991-2020)\nWarming Trend Removed",
       y = "Year",
       x = "Month",
       caption = "Heatwave (red) and Coldspell (blue) events have been overlayed with lines for distinction.",
       fill = "Sea Surface Temperature Anomaly")
 
+detrend_hw
+```
+
+There is debate on the merits of either approach, and further discussion on whether regional dynamics (e.g. the North Atlantic Oscillation, ENSO, Gulf Stream Position) should be accounted for when identifying marine heatwaves.
+
+A comparison of the two above approaches shows that the methodology choices will ultimately impact the MHW/MCS record for the region.
+
+
+```{r}
+#| fig.height: 8
+#| fig.width: 8
+#| label: fig-mhw-heatmap
+#| fig-cap: "Heat maps of daily SST anomalies from a 30-year 1991-2020 climatological baseline. Marine heatwave events (red lines) and marine coldspell events (blue lines) contrasting two competing methodologies have been overlaid."
+
 
 # Combine them
-heatmap_p <- (fixed_hw | detrend_hw) + plot_layout(guides = "collect") & theme(legend.position = "bottom") 
+heatmap_p <- (fixed_hw | (detrend_hw + labs(title = ""))
+              ) + plot_layout(guides = "collect") & theme(legend.position = "bottom") 
 heatmap_p 
 
 
@@ -1253,7 +1279,7 @@ peak_temp_df <- data.frame(
 ```
 
 
-From an aerial perspective, the Gulf of Maine experienced below-average SSTs during `r params$seas` of `r params$year`. 
+From an aerial perspective, the Gulf of Maine experienced below-average SST's during `r params$seas` of `r params$year`. Part of a broader regional pattern.
 
 
 
