@@ -285,7 +285,7 @@ seasonal_avgs <- region_hw %>%
   )
   
 # Ranking the hottest years - on seasonal temperature
-seasonal_ranks <- seasonal_avgs %>% 
+ranked_hotcold <- seasonal_avgs %>% 
   mutate(
     yr = factor(yr),
     year_rank = fct_reorder(
@@ -296,14 +296,34 @@ seasonal_ranks <- seasonal_avgs %>%
   arrange(year_rank) %>% 
   mutate(rank = row_number())
 
+# Ranking in reverse
+ranked_coldhot <- seasonal_avgs %>% 
+  mutate(
+    yr = factor(yr),
+    year_rank = fct_reorder(
+      .f = yr, 
+      .x = mean_temp, 
+      .fun = median, 
+      .desc = FALSE)) %>% 
+  arrange(year_rank) %>% 
+  mutate(rank = row_number())
+
+
 
 # Special Controls for Winter
 if(params$season == "Winter"){
-  seasonal_ranks <- seasonal_ranks %>% 
+  ranked_hotcold <- ranked_hotcold %>% 
     mutate(flag_year = ifelse(year_rank == params$year-1, "flag", "unflag"))
+  
+  ranked_coldhot <- ranked_coldhot %>% 
+    mutate(flag_year = ifelse(year_rank == params$year-1, "flag", "unflag"))
+  
 } else {
-  seasonal_ranks <- seasonal_ranks %>% mutate(
-    flag_year = ifelse(year_rank == params$year, "flag", "unflag"))
+  ranked_hotcold <- ranked_hotcold %>% 
+    mutate(flag_year = ifelse(year_rank == params$year, "flag", "unflag"))
+  
+  ranked_coldhot <- ranked_coldhot %>% 
+    mutate(flag_year = ifelse(year_rank == params$year, "flag", "unflag"))
 }
 
 
@@ -382,7 +402,10 @@ glob_plot_dat <- bind_rows(
 ```
 
 
+
 # `r params$season` `r params$year` Highlights
+
+
 
 ```{r}
 #| label: season-highlights
@@ -392,25 +415,33 @@ season_avg_temp <- round(mean(this_season_data$sst_f, na.rm = T), 2)
 season_avg_anom <- round(mean(this_season_data$anom_f, na.rm = T), 2)
 season_avg_clim <- round(mean(this_season_data$seas_f, na.rm = T), 2)
 
+
 # What rank are we this year?
 if(params$season == "Winter"){
-  current_rank <- seasonal_ranks %>% 
-    filter(yr == params$year-1) %>% 
-    pull(rank) } else{
-  current_rank <- seasonal_ranks %>% 
-    filter(yr == params$year) %>% 
+  hot_ranking <- filter(ranked_hotcold, yr == params$year-1) %>% 
+    pull(rank)
+  cold_ranking <- filter(ranked_coldhot, yr == params$year-1) %>% 
+    pull(rank)
+  
+  } else{
+
+  hot_ranking <- filter(ranked_hotcold, yr == params$year) %>% 
+    pull(rank)
+  cold_ranking <- filter(ranked_coldhot, yr == params$year) %>% 
     pull(rank)
 }
 
 
+# # Why are they not adding? ah, its a double count
+# filter(ranked_hotcold, rank <= hot_ranking) 
+# filter(ranked_coldhot, rank <= cold_ranking)
+pretty_numbers <- list("1" = "new","2" = "2nd","3" = "3rd","4" = "4th","5" = "5th", "6" = "6th","7" = "7th","8" = "8th","9" = "9th","10" = "10th", "11" = "11th", "12" = "12th", "13" = "13th", "14" = "14th", "15" = "15th", "16" = "16th", "17" = "17th", "18" = "18th", "19" = "19th", "20" = "20th", "21" = "21st", "22" = "22nd", "23" = "23rd", "24" = "24th", "25" = "25th", "26" = "26th")
+
+
 # In-Text friendly version
-rank_labs <- switch(current_rank,
-  "1" = "new","2" = "2nd","3" = "3rd","4" = "4th","5" = "5th",
-  "6" = "6th","7" = "7th","8" = "8th","9" = "9th","10" = "10th",
-  "11" = "11th", "12" = "12th", "13" = "13th", "14" = "14th", "15" = "15th",
-  "16" = "16th", "17" = "17th", "18" = "18th", "19" = "19th", "20" = "20th",
-  "21" = "21st", "22" = "22nd", "23" = "23rd", "24" = "24th", "25" = "25th"
-  )
+hot_rank_label <- pretty_numbers[[hot_ranking]]
+cold_rank_label <- pretty_numbers[[cold_ranking]]
+
 
 # Get max anom year and max anom
 max_anom_yr <- seasonal_avgs %>% 
@@ -493,6 +524,19 @@ week_summaries <- week_summaries %>%
 
 ```
 
+```{r}
+# week_data %>% 
+#   group_by(month(time)) %>% 
+#   summarise(
+#     temp_c = mean(sst),
+#     clim_c = mean(seas),
+#     anom_c = mean(sst_anom),
+#     .groups = "drop") %>%
+#   mutate(
+#     temp_f = as_fahrenheit(temp_c),
+#     clim_f = as_fahrenheit(clim_c),
+#     anom_f = as_fahrenheit(anom_c, data_type = "anomalies"))
+```
 
 
 ```{r}
@@ -509,7 +553,7 @@ week_summ_table <- week_summaries %>%
   select(Week, temp, clim, anom) %>%
    gt(rowname_col = "Week") %>% 
   tab_header(
-    title = md(paste0("Table 1. Weekly Average Sea Surface Temperatures - ", params$season)), 
+    title = md(paste0("Weekly Average Sea Surface Temperatures - ", params$season)), 
     subtitle = month_range) %>%
     tab_stubhead(label = md("One-Week Period")) %>% 
   fmt_markdown(
@@ -552,11 +596,6 @@ monthly_avgs <- this_season_data %>%
     .groups = "drop") %>% 
   mutate(across(c(temp_c:anom_f), \(x) signif(x, digits = 3))) 
 
-# Grab info on peak temps
-peak_month <- monthly_avgs %>% slice_max(order_by = abs(anom_f), n = 1)
-peak_month_full <- month.name[which(month.abb == peak_month$month)]
-
-
 # Do some benchmarking, where do they all rank by anomalies
 month_rankings <- region_hw %>% 
   group_by(yr = year(time), month) %>% 
@@ -575,6 +614,7 @@ monthly_avgs <- monthly_avgs %>% left_join(
   by = join_by(yr, month))
 
 ```
+
 
 @tbl-monthly-temps shows monthly average SST for `r params$seas` `r params$year`. Each month has been ranked against all previous years from warmest (1), to lowest based on average temperature. The long-term climatological average, and the difference between observed SST's and those averages are also reported.
 
@@ -598,7 +638,7 @@ month_summ_table <- monthly_avgs %>%
   select(month, rank, temp, clim, anom) %>%
    gt(rowname_col = "month") %>% 
   tab_header(
-    title = md(paste0("Table 2. Monthly Average Sea Surface Temperatures - ", params$season, "")), 
+    title = md(paste0("Monthly Average Sea Surface Temperatures - ", params$season, "")), 
     subtitle = month_range) %>%
     tab_stubhead(label = md("Month")) %>% 
   fmt_markdown(
@@ -622,7 +662,7 @@ month_summ_table
 
 ## How Does this `r params$season` Compare to the Past?
 
-`r params$year` was the **`r rank_labs`** warmest `r params$seas` season observed in the Gulf of Maine during the 42 years we have satellite data to analyze. Its position among years ranked more-highly is displayed below in @fig-season-rank.
+`r params$year` was the `r hot_rank_label` warmest (`r cold_rank_label` coldest) `r params$seas` season observed in the Gulf of Maine during the 42 years we have satellite data to analyze. Its position among years ranked more-highly is displayed below in @fig-season-rank.
 
 
 ```{r}
@@ -635,13 +675,13 @@ month_summ_table
 
 # How far to filter:
 rank_filter_depth <- ifelse(
-  current_rank <= 10,
+  hot_ranking <= 10,
   20,
-  DescTools::RoundTo(current_rank, multiple = 5, FUN = ceiling)
+  DescTools::RoundTo(hot_ranking, multiple = 5, FUN = ceiling)
 )
 
 # Do some data prep
-rank_plot_data <- seasonal_ranks %>% 
+rank_plot_data <- ranked_hotcold %>% 
   filter(rank <= rank_filter_depth) %>% 
   mutate(
     year_rank = fct_reorder(year_rank, rank, .desc = T),
@@ -751,7 +791,7 @@ global_rate_plot <- ggplot(glob_plot_dat) +
   labs(title = str_c(params$season, " SST Warming Rates"),
        x = "Year",
        y = str_c("Sea Surface Temperature Anomalies\n(", season_range, ")"),
-       color = "1982-2025 Warming Rates")  +
+       color = "1982-2024 Warming Rates")  +
   coord_cartesian(clip = "off") +
   geom_logo(x_npc = 0.85, y_npc = 1.1, logo_height = 1, height_units = "cm")
 
@@ -955,11 +995,11 @@ hw_temp_p <- hw_temp_p +
       data = clim_labels, 
       aes(time, temp_vals, label = labs), family = "Avenir", hjust = 0) +
     scale_color_manual(values = color_vals) +
-    # this is breaking for some reason with winter
     scale_x_date(
       date_labels = "%b",
       date_breaks = "1 month",
-      expand = expansion(add = c(0,110)))
+      # expand = expansion(add = c(0,110)))
+      expand = expansion(add = c(0,45)))
 
 
 
@@ -984,7 +1024,163 @@ hw_temp_p
 ```
 
 
-## Heatmap of Temperature Anomalies and Heatwave Events
+## Alternative Approaches for MHW Identification
+
+The way extreme events are identified has become a topic of discussion, and the merits of using a fixed climatological baseline under a changing climate are being questioned.
+
+With waters warming over time due to climate change, the use of a fixed climatological baseline can lead to a predictable pattern in hot and cold extreme events. Under warming, extreme cold events cluster at the beginning of timeseries, and extreme heat events cluster towards recent years.
+
+There is a tradeoff in choosing between these two approaches (fixed baselines vs. adaptive thresholds). Under the fixed baseline approach there is an importance that temperatures have moved away from long-term conditions.
+
+```{r}
+#| label: run detrended heatwaves
+
+# De-trended heatwaves?
+heatwaves_detrended <- pull_heatwave_events(
+    temperature_timeseries = region_timeseries,
+    threshold = 90, 
+    clim_ref_period = c("1991-01-01", "2020-12-31"), detrend = T) %>% 
+    supplement_hw_data() %>% 
+    filter(
+      doy != 366, 
+      time <= as.Date(str_c(params$year, season_right))) %>% 
+  mutate(
+    year = year(time),
+    yday = yday(time),
+    flat_date = as.Date(yday-1, origin = base_date),
+    yr_rev = factor(year),
+    yr_rev = fct_rev(yr_rev),
+    season_alpha = if_else(
+      between(flat_date, as.Date("2000-01-01"), as.Date("2000-02-28")) |
+       between(flat_date, as.Date("2000-12-01"), as.Date("2000-12-31")),
+      1,
+      0.4),
+    hwcs_event_alpha = if_else(mhw_event|mcs_event, 1, 0.6),
+    hw_date = if_else(mhw_event, flat_date, NA),  
+    cs_date = if_else(mcs_event, flat_date, NA))
+
+
+# Take annual average data, with baselines added
+static_annual <- region_hw %>% 
+  filter(between(yr, 1982,2024),
+         doy != 366) %>% 
+  group_by(yr) %>% 
+  summarise(
+    across(
+      .cols = c(sst_f, anom_f, seas_f, mhw_thresh_f, mcs_thresh_f), 
+      .fns = mean),
+    .groups = "drop") %>% 
+  mutate(
+    clim_yrs = if_else(between(yr, 1991, 2020), T, F),
+    clim_size = if_else(clim_yrs, 2, 0.8),
+    clim_color = if_else(clim_yrs, gmri_cols("gmri blue"), "gray20"),
+    mhw = if_else(sst_f > mhw_thresh_f, T, F),
+    clim_color = if_else(mhw, gmri_cols("lv orange"), clim_color),
+    clim_size = if_else(mhw, 3, clim_size),
+    mcs = if_else(sst_f < mcs_thresh_f, T, F),
+    clim_color = if_else(mcs, "#2166AC", clim_color),
+    clim_size = if_else(mcs, 3, clim_size))
+
+
+
+# Repeat for detrended, update the thresholds to include trend
+detrend_annual <- heatwaves_detrended %>% 
+  filter(between(yr, 1982,2024)) %>% 
+  group_by(yr) %>% 
+  mutate(
+    mhw_trend_thresh_f = mhw_thresh_f + trend_pred,
+    mcs_trend_thresh_f = mcs_thresh_f + trend_pred) %>%  
+  summarise(
+    across(
+      .cols = c(sst_f, anom_f, seas_f, mhw_thresh_f, mcs_thresh_f, mhw_trend_thresh_f, mcs_trend_thresh_f), 
+      .fns = mean))  %>% 
+  mutate(clim_yrs = if_else(between(yr, 1991, 2020), T, F))  %>% 
+  mutate(
+    clim_yrs = if_else(between(yr, 1991, 2020), T, F),
+    clim_size = if_else(clim_yrs, 2, 0.8),
+    clim_color = if_else(clim_yrs, gmri_cols("gmri blue"), "gray20"),
+    mhw = if_else(sst_f > mhw_trend_thresh_f, T, F),
+    clim_color = if_else(mhw, gmri_cols("lv orange"), clim_color),
+    clim_size = if_else(mhw, 3, clim_size),
+    mcs = if_else(sst_f < mcs_trend_thresh_f, T, F),
+    clim_color = if_else(mcs, "#2166AC", clim_color),
+    clim_size = if_else(mcs, 3, clim_size))
+
+
+```
+
+
+
+
+```{r}
+static_baseline_concept <- ggplot(static_annual) +
+  geom_ribbon(
+    aes(ymin = mcs_thresh_f, ymax = mhw_thresh_f, x = yr), 
+    fill = gmri_cols("gmri blue"), color = gmri_cols("gmri blue"), alpha = 0.15) +
+  geom_line(aes(yr, sst_f), linewidth = 0.6, alpha = 0.3, color = "gray20") +
+  geom_line(
+    data = filter(static_annual, clim_yrs),
+    aes(yr, sst_f), color = gmri_cols("gmri blue"), linewidth = 1) +
+  geom_point(
+    aes(yr, sst_f, size = I(clim_size), color = I(clim_color))) +
+  scale_color_manual(values = gmri_cols("gmri blue")) +
+  scale_x_continuous(expand = expansion(add = c(1,1))) +
+  scale_y_continuous(
+    expand = expansion(add = c(3,3)),
+    labels = label_number(suffix = deg_c)) +
+  theme(
+    legend.position = "none", 
+    plot.margin = margin(t = 1, b = 1, r = 3, l = 3)) +
+  labs(
+    x = "Year",
+    y = "SST",
+    color = "",
+    title = "Static Thresholds for Extreme Events",
+    subtitle = "Climatological Reference period determines thresholds for extreme events")
+```
+
+
+```{r}
+detrend_concept <- ggplot(detrend_annual) +
+  geom_ribbon(
+    aes(ymin = mcs_trend_thresh_f, ymax = mhw_trend_thresh_f, x = yr), 
+    fill = gmri_cols("warm yellow"), color = gmri_cols("warm yellow"), alpha = 0.15) +
+  geom_line(aes(yr, sst_f), linewidth = 0.6, alpha = 0.3, color = "gray20") +
+  geom_line(
+    data = filter(detrend_annual, clim_yrs),
+    aes(yr, sst_f), color = gmri_cols("gmri blue"), linewidth = 1) +
+  geom_point(
+    aes(yr, sst_f, size = I(clim_size), color = I(clim_color))) +
+  scale_color_manual(values = gmri_cols("gmri blue")) +
+  scale_x_continuous(expand = expansion(add = c(1,1))) +
+  scale_y_continuous(
+    expand = expansion(add = c(3,3)),
+    labels = label_number(suffix = deg_c)) +
+  theme(
+    legend.position = "none", 
+    plot.margin = margin(t = 1, b = 1, r = 3, l = 3)) +
+  labs(
+    x = "Year",
+    y = "SST",
+    color = "",
+    title = "Adaptive Thresholds for Extreme Events",
+    subtitle = "Extreme event thresholds are adjusted for long-term warming trend")
+```
+
+
+```{r}
+#| fig.height: 5
+
+concept_p <- static_baseline_concept | detrend_concept
+
+(static_baseline_concept + labs(x = "")) / detrend_concept
+
+```
+
+
+
+
+## Temperature Anomalies and Extreme Events
 
 Looking at the full record of daily SST anomalies in the Gulf of Maine (@fig-mhw-heatmap), the distinct thermal regime shift beginning around 2010 is evident. 
 
@@ -993,8 +1189,7 @@ If we use the standard MHW definition, where heatwaves and coldspells are determ
 
 ```{r}
 #| eval: true
-#| fig.height: 8
-#| fig.width: 8
+#| fig.height: 9
 #| label: fig-static-baseline-heatmap
 #| fig-cap: "Heat map of daily SST anomalies from a 30-year 1991-2020 climatological baseline. Marine heatwave events (red lines) and marine coldspell events (blue lines) using the standard Hobday et al. method have been overlaid."
 
@@ -1055,7 +1250,7 @@ fixed_hw <- hw_dat %>%
     theme(
       legend.position = "bottom",
       legend.title = element_text(angle = 0, size = 11, face = "bold"),
-      plot.margin = margin(b = 0, t = 20, l = 3, r = 3),
+      plot.margin = margin(b = 0, t = 1, l = 3, r = 3),
       axis.text.x = element_text(size = 10)) +
     guides(fill = guide_colorbar(
       title = "Sea Surface Temperature Anomaly",
@@ -1072,47 +1267,20 @@ fixed_hw <- hw_dat %>%
       fill = "Sea Surface Temperature Anomaly")
   
 
-fixed_hw
+(static_baseline_concept / fixed_hw) + plot_layout(heights = c(2,5))
 ```
 
 If instead, we adopt an approach which removes the long-term warming trend we get the following figure.
 
 
 
-
 ```{r}
-#| fig.height: 8
-#| fig.width: 8
+#| fig.height: 9
 #| label: fig-shifting-baseline-heatmap
 #| fig-cap: "Heat map of daily SST anomalies from a 30-year 1991-2020 climatological baseline. Marine heatwave events (red lines) and marine coldspell events (blue lines) using a detrended timeseries have been overlaid."
 
 
-# De-trended heatwaves?
-heatwaves_detrended <- pull_heatwave_events(
-    temperature_timeseries = region_timeseries,
-    threshold = 90, 
-    clim_ref_period = c("1991-01-01", "2020-12-31"), detrend = T) %>% 
-    supplement_hw_data() %>% 
-    filter(
-      doy != 366, 
-      time <= as.Date(str_c(params$year, season_right))) %>% 
-  mutate(
-    year = year(time),
-    yday = yday(time),
-    flat_date = as.Date(yday-1, origin = base_date),
-    yr_rev = factor(year),
-    yr_rev = fct_rev(yr_rev),
-    season_alpha = if_else(
-      between(flat_date, as.Date("2000-01-01"), as.Date("2000-02-28")) |
-       between(flat_date, as.Date("2000-12-01"), as.Date("2000-12-31")),
-      1,
-      0.4),
-    hwcs_event_alpha = if_else(mhw_event|mcs_event, 1, 0.6),
-    hw_date = if_else(mhw_event, flat_date, NA),  
-    cs_date = if_else(mcs_event, flat_date, NA))
-
-
-# 
+# Plot the detrended heatwaves
 detrend_hw <- heatwaves_detrended %>% 
    ggplot(aes(x = flat_date, y = year)) +
     # tile for sst colors
@@ -1151,7 +1319,7 @@ detrend_hw <- heatwaves_detrended %>%
     theme(
       legend.position = "bottom",
       legend.title = element_text(angle = 0, size = 11, face = "bold"),
-      plot.margin = margin(b = 0, t = 20, l = 3, r = 3),
+      plot.margin = margin(b = 0, t = 1, l = 3, r = 3),
       axis.text.x = element_text(size = 10)) +
     guides(fill = guide_colorbar(
       title = "Sea Surface Temperature Anomaly",
@@ -1168,7 +1336,7 @@ detrend_hw <- heatwaves_detrended %>%
       caption = "Heatwave (red) and Coldspell (blue) events have been overlayed with lines for distinction.",
       fill = "Sea Surface Temperature Anomaly")
 
-detrend_hw
+(detrend_concept / detrend_hw) + plot_layout(heights = c(2,5))
 ```
 
 There is debate on the merits of either approach, and further discussion on whether regional dynamics (e.g. the North Atlantic Oscillation, ENSO, Gulf Stream Position) should be accounted for when identifying marine heatwaves.
@@ -1177,19 +1345,28 @@ A comparison of the two above approaches shows that the methodology choices will
 
 
 ```{r}
-#| fig.height: 8
+#| fig.height: 11
 #| fig.width: 8
 #| label: fig-mhw-heatmap
 #| fig-cap: "Heat maps of daily SST anomalies from a 30-year 1991-2020 climatological baseline. Marine heatwave events (red lines) and marine coldspell events (blue lines) contrasting two competing methodologies have been overlaid."
 
 
 # Combine them
-heatmap_p <- (fixed_hw | (detrend_hw + labs(title = ""))
-              ) + plot_layout(guides = "collect") & theme(legend.position = "bottom") 
-heatmap_p 
+heatmap_p <- (
+  (fixed_hw) | 
+    (detrend_hw + labs(title = "", caption = ""))) + 
+  plot_layout(guides = "collect") & theme(legend.position = "bottom") 
+
+# # Without guides
+# heatmap_p
+
+# With conceptual guides
+(heatmap_p / concept_p) + plot_layout(heights = c(5,3))
 
 
 ```
+
+
 
 
 
@@ -1606,7 +1783,7 @@ if(params$save_figures){
   
   # # Heatwave Anomaly Plot
   # ggsave(
-  #   plot = hw_anom_p, 
+  #   plot = hw_temp_p, 
   #   filename = str_c(update_folder, "Heatwave_anom_plot.png"), 
   #   height = unit(2, "in"),
   #   width = unit(3.2, "in"),
@@ -1616,7 +1793,7 @@ if(params$save_figures){
   
   # heatwave heatmap
   ggsave(
-    plot = heatmap_p, 
+    plot = (fixed_hw + theme(plot.subtitle = element_blank())), 
     filename = str_c(update_folder, "Heatwave_Heatmap.png"), 
     height = unit(3.2, "in"),
     width = unit(3.2, "in"),

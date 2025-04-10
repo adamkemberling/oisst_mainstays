@@ -1,0 +1,54 @@
+---
+title: "RERDDAP + NERACOOS Buoys"
+format: html
+editor: visual
+---
+
+## NERACOOS Buoys
+
+Neracoos buoy data can be found at the NERACOOS ERDDAP server [http://www.neracoos.org/erddap/tabledap/index.html](http://www.neracoos.org/erddap/tabledap/index.html?page=1&itemsPerPage=1000)
+
+```{r}
+# Package to interface with erddap
+library(rerddap)
+
+## NOAA IOOS NERACOOS - old URL
+url <- "http://www.neracoos.org/erddap/"
+
+# Buoy E
+# Catalog: http://www.neracoos.org/erddap/tabledap/index.html
+
+# check variables in dataset
+info("E01_sbe37_all", url = url)$variables
+
+# pull data
+buoy_e <- tabledap(
+  x = "E01_sbe37_all", 
+  url = url, 
+  fields = c("station", "time","depth", "temperature", "temperature_qc"))
+
+buoy_e %>% 
+  filter(temperature_qc == 0) %>% 
+  ggplot(aes(time, temperature)) +
+  geom_line(linewidth = 0.5, color = "gray60") +
+  facet_wrap(~depth)
+
+```
+
+They are migrating to a newer server atm, which can be found here:\
+<https://data.neracoos.org/erddap/index.html>
+
+```{r}
+
+# Buoy M - 50meter, from data.neracoos.org - new URL (in development)
+# Catalog: https://data.neracoos.org/erddap/index.html
+url <- "http://data.neracoos.org/erddap/"
+buoy_m_50m <- tabledap(
+  x = "M01_ocean_050m", 
+  url = url, 
+  fields = c("station", "time", "longitude", "latitude", "depth", "temperature"))
+
+# Plot
+ggplot(buoy_m_50m, aes(time, temperature)) +
+  geom_line(linewidth = 0.5, color = "gray60")
+```
