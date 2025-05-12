@@ -1188,6 +1188,41 @@ Looking at the full record of daily SST anomalies in the Gulf of Maine (@fig-mhw
 If we use the standard MHW definition, where heatwaves and coldspells are determined using a static 30-year baseline we get the following record of these extreme events:
 
 ```{r}
+#| eval: false
+
+# Pulling out yearly summary of MHWs for tv graphic
+
+
+# events_summ <- hw_dat %>% #glimpse()
+#   filter(yr < 2025) %>% #glimpse()
+#   mutate(
+#     mhw_event_no = if_else(mhw_event_no == "NA", NA, mhw_event_no),
+#     mcs_event_no = if_else(mcs_event_no == "NA", NA, mcs_event_no)) %>% 
+#   group_by(yr) %>% 
+#   summarise(
+#     hw_count = n_distinct(mhw_event_no, na.rm = T),
+#     hw_day_total = sum(mhw_event, na.rm = T)#,
+#     # cs_count = n_distinct(mcs_event_no, na.rm = T),
+#     # cs_day_total = sum(mcs_event, na.rm = T)
+#   )
+# 
+# write_csv(events_summ, here::here("local_data/gom_mhw_summary_WMTW.csv"))
+# 
+# 
+# ggplot(events_summ, aes(yr, hw_count)) +
+#   geom_point(aes(size = hw_day_total)) +
+#   scale_x_continuous(breaks = seq(1980, 2025,5)) +
+#   scale_y_continuous(breaks = c(0:10)) +
+#   theme(legend.position = "inside",
+#         legend.position.inside = c(0.3, 0.7)) +
+#   labs(x = "Year", y = "Number of MHW's", size = "Days of MHW Conditions")
+
+
+```
+
+
+
+```{r}
 #| eval: true
 #| fig.height: 9
 #| label: fig-static-baseline-heatmap
@@ -1618,6 +1653,53 @@ monthly_maps <- (
 monthly_maps + plot_annotation(caption = NULL)
 
 ```
+
+
+### Checking Bottom Temperatures
+
+There is a growing understanding that local oceanographic dynamics in the Gulf of Maine are influenced by the relative mixtures of water masses entering the Gulf of Maine. 
+
+There are two primary deep-water masses entering the Gulf of Maine which enter the area through the Northeast Channel: 
+  1. "Warm Slope Water" (WSW), which is positioned between the Gulf Stream and the continent shelf break 
+  2. "Labrador Slope Water" (LSW) which is an extension of the labrador current and flows southwest following the scotian shelf shelf-break.
+  
+There is also a third off-shelf water mass, the "Gulf Stream Water" (GSW), which as its name implies closely follows the Gulf Stream position. GSW contributes less directly to the mixed water entering the Gulf of Maine, but there is evidence of it directly contributing to the NE channel inflow. 
+
+Closer to shore, on the landward side of the LSW over the continental shelf, more cold-water is transported along Scotian Shelf (SS). SS water follows the coastline of Nova Scotia and enters the Gulf of Maine before continuing up towards the Bay of Fundy.
+
+These water masses each have different temperature, salinity, nutrient, and plankton community characteristics which all play a role in shaping downstream Gulf of Maine characteristics.
+
+If we follow the bottom temperatures of the Gulf of Maine we can get some proxy of whether the inflow through the Northeast Channel favoring more WSW vs. LSW.
+
+```{r}
+glorys_path <- cs_path("res", "GLORYS/GOM_Timeseries")
+glorys_bt <- read_csv(str_c(glorys_path, "Glorys_surfacebottom_gom_ts.csv")) %>% select(-1)
+
+
+ggplot(glorys_bt) +
+  #geom_line(aes(time, surface_temp, color = "Surface Temperature")) +
+  geom_line(aes(time, bottom_temp, color = "Bottom Temperature")) +
+  geom_smooth(aes(time, bottom_temp), method = "lm", color = "black") +
+  scale_color_gmri() +
+  theme(legend.position = "bottom")
+
+
+
+glorys_annual <- glorys_bt %>% 
+  filter(time < as.Date("2025-01-01")) %>% 
+  group_by(year = year(time)) %>% 
+  summarise(across(-time, mean))
+
+
+ggplot(glorys_annual) +
+  # geom_line(aes(year, surface_temp, color = "Surface Temperature")) +
+  geom_line(aes(year, bottom_temp, color = "Bottom Temperature")) +
+  geom_smooth(aes(year, bottom_temp), method = "lm", color = "black") +
+  scale_color_gmri() +
+  theme(legend.position = "bottom")
+```
+
+
 
 ## About the Updates:
 

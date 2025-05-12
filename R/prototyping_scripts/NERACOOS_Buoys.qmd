@@ -9,6 +9,8 @@ editor: visual
 Neracoos buoy data can be found at the NERACOOS ERDDAP server [http://www.neracoos.org/erddap/tabledap/index.html](http://www.neracoos.org/erddap/tabledap/index.html?page=1&itemsPerPage=1000)
 
 ```{r}
+library(tidyverse)
+
 # Package to interface with erddap
 library(rerddap)
 
@@ -40,8 +42,12 @@ They are migrating to a newer server atm, which can be found here:\
 
 ```{r}
 
-# Buoy M - 50meter, from data.neracoos.org - new URL (in development)
+# This is where the NERACOOS Server can be found
 # Catalog: https://data.neracoos.org/erddap/index.html
+
+# We then find the dataset IDs for what we want under the tabledap link
+
+# Ex. Buoy M - 50meter, from data.neracoos.org - new URL
 url <- "http://data.neracoos.org/erddap/"
 buoy_m_50m <- tabledap(
   x = "M01_ocean_050m", 
@@ -51,4 +57,52 @@ buoy_m_50m <- tabledap(
 # Plot
 ggplot(buoy_m_50m, aes(time, temperature)) +
   geom_line(linewidth = 0.5, color = "gray60")
+```
+
+### Helping with a Data Request
+
+It is not uncommon for people to have difficulty finding the access points for data on ERDDAP or being unfamiliar with how to get the data for what they need, myself included.
+
+This most recent data request was for:
+
+```{r}
+
+# If there are a number of buoys we want data for we can run them togther this way:
+
+# This is where the NERACOOS Server can be found
+# Catalog: https://data.neracoos.org/erddap/index.html
+
+# We then find the dataset IDs for what we want under the tabledap link:
+# https://data.neracoos.org/erddap/tabledap/index.html
+
+# If we want the same data from a couple datasets we can put them in a list and reuse code
+dataset_ids <-  list(
+  "B" = "B01_ocean_001m",
+  "E" = "E01_ocean_001m",
+  "F" = "F01_ocean_001m",
+  "I" = "I01_ocean_001m")
+
+# This will pull data for each and assemble a single table
+befi_surface_temps <- map_dfr(
+  .x = dataset_ids,
+  .f = function(dataset_id_x){
+    tabledap(
+      x = dataset_id_x,
+      url = url,
+      fields = c("station", "time", "longitude", "latitude", 
+                 "depth", "temperature"), 
+      # This is a constraint flag removing qc_agg values > 3
+      'temperature_qc_agg<=3') %>%  
+      as_tibble()
+  }
+)
+
+# Plot them to check the data
+befi_surface_temps %>% 
+  ggplot(aes(time, temperature)) + geom_line() + facet_wrap(~station)
+
+
+# Export
+write_csv(befi_surface_temps, here::here("local_data/random_requests/neracoos_befi_surface_temps.csv"))
+
 ```
