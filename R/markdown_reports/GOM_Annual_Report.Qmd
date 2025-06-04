@@ -2083,6 +2083,7 @@ Bottom temperatures are less directly impacted by local weather systems and can 
 ```
 
 
+=
 
 ```{r}
 #| label: Load Buoy M timeseries
@@ -2092,12 +2093,47 @@ buoy_m <- read_csv(here::here("local_data/buoy_m_250m.csv")) %>%
   mutate(temperature = as_fahrenheit(temperature))
 
 
+
+# Buoy Locations
+buoy_locations <- tribble(
+  ~"Buoy", ~"lat", ~"lon", 
+  "B",     43.18,  -70.42,
+  "E",     43.71,  -69.35,
+  "F",     44.05,  -68.99,
+  "I",     44.10,  -68.10,
+  "N",     42.33,  -65.90,
+  "M",     43.49,  -67.87) %>% 
+  mutate(label_lon = lon + .12, label_lat = lat - .14) %>% 
+  st_as_sf(coords = c("lon", "lat"), crs = 4326, remove = FALSE)
+
+
+
+####  sf contours  ####
+buoy_map <- ggplot() +
+  geom_sf(data = new_england) +
+  geom_sf(data = canada) +
+  tidyterra::geom_spatraster_contour(
+    data = terra::rast(bathy), 
+    breaks = -1*c(50, 100, 250)) +
+  geom_sf(data = buoy_locations) +
+  geom_label(data = buoy_locations, aes(label_lon, label_lat, label = Buoy), colour = "black") +
+  scale_color_grey(start = 0.6) +
+  scale_fill_grey(start = 0.6) +
+  coord_sf(xlim = c(-71.25, -65.25), ylim = c(41, 44.65), expand = FALSE) +
+  labs(x = NULL, y = NULL) +
+  theme(panel.grid.major = element_line(colour = "transparent"))
+
+buoy_map
+
+
+
 # Monthly averages and climatology
 bm_month_clim <-  buoy_m  %>% 
   group_by(station, depth, mnth) %>% 
   summarise(
     mean_temp = mean(temperature, na.rm = T),
     .groups = "drop")
+
 
 # Get Anomalies
 bm_monthly <- buoy_m  %>% 
@@ -2139,6 +2175,29 @@ sst_monthly <- region_hw %>%
       str_pad(month, pad = "0", side = "left", width = 2),
       "01", sep = "-")),
     anom_col = if_else(anom_f > 0, "#B2182B", "#2166AC"))
+
+# # Plot monthly
+# bm_monthly %>% 
+#   mutate(anom_col = if_else(is_pos, "#B2182B", "#2166AC")) %>% 
+#   ggplot() +
+#   geom_col(aes(time, temp_anom, color  = I(anom_col), fill = I(anom_col)))
+
+
+
+
+# Plot monthly as a line, and color it on whether its abov/below monthly mean
+bm_monthly %>% 
+  mutate(anom_col = if_else(is_pos, "#B2182B", "#2166AC")) %>% 
+  ggplot() +
+  geom_line(aes(time, temperature, color = I(anom_col), group = 1)) +
+  # geom_smooth(
+  #   aes(time, temperature), 
+  #   formula = y ~ x,
+  #   method = "lm",
+  #   color = "black") +
+  labs(title = "Buoy M: Temperature at 250 meters",
+       y = "Temperature",
+       x = "Date")
 ```
 
 
