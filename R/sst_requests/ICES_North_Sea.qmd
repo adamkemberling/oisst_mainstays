@@ -53,6 +53,8 @@ ggplot(nsea, aes(year, temperature_c)) +
        subtitle = "Annual Temperature",
        y = "Temperature",
        x = "Year")
+
+
 ```
 
 
