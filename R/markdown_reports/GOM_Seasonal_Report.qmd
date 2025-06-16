@@ -984,6 +984,17 @@ hw_temp_p
 ```
 
 
+
+### Competing Philosophies on Marine Heatwaves
+
+
+```{r}
+region_hw
+```
+
+
+
+
 ## Heatmap of Temperature Anomalies and Heatwave Events
 
 Looking at the full record of daily SST anomalies in the Gulf of Maine (@fig-mhw-heatmap), the distinct thermal regime shift beginning around 2010 is evident. 
