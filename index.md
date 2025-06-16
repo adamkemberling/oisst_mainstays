@@ -8,10 +8,10 @@ This index page serves as a link directory to temperature reports. Use the follo
 
  
  
- 1. [Gulf of Maine Seasonal Update (1991-2020 Climatology)](https://adamkemberling.github.io/oisst_mainstays/R/markdown_reports/GOM_Seasonal_23.html)
+ 1. [Gulf of Maine Seasonal Update (1991-2020 Climatology)](https://adamkemberling.github.io/oisst_mainstays/R/markdown_reports/GOM_Seasonal_Report.html)
  
  
- 2. [Gulf of Maine Current Year Sea Surface Temperature Update](https://adamkemberling.github.io/oisst_mainstays/R/markdown_reports/GulfOfMaine_CurrentYear.html)
+ 2. [Gulf of Maine Current Year Sea Surface Temperature Update](https://adamkemberling.github.io/oisst_mainstays/R/markdown_reports/GOM_CurrentYear.html)
  
  3. [Gulf of Maine 2022: Annual Report](https://adamkemberling.github.io/oisst_mainstays/R/markdown_reports/GOM_Annual_Report.html)
  

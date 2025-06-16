@@ -1,0 +1,120 @@
+---
+title: "North Sea Warming"
+author: "Adam Kemberling"
+url: "https://github.com/adamkemberling"
+affiliation: "Gulf of Maine Research Institute"
+affiliation_url: "https://www.gmri.org"
+format: 
+  html:
+    toc: true
+    self-contained: true
+execute: 
+  echo: false
+  warning: false
+  message: false
+  comment: ""
+  fig.align: center
+---
+
+# North Sea Warming
+
+
+**Request:**
+
+Could you take the data in the attached Excel file and help fill in the numbers for the following statement:
+
+ > Data from the Helgoland Roads observation station show a warming trend of ?? C per decade since 1950. For the most recent decade (2015-2024), annual SSTs have averaged ????, while during an earlier decade (????-????), they averaged ??, representing an increase of ?? C.
+
+```{r}
+library(tidyverse)
+library(gmRi)
+library(here)
+
+
+```
+
+
+### Results
+
+Surface temperature data for the North Sea shows the following changes:
+
+```{r}
+# north sea data from ICES
+nsea <- read_csv(here("local_data","North_Sea_HelgolandRoads_Annual/North_Sea_HelgolandRoads_Annual.csv"), skip = 20) %>% 
+  janitor::clean_names() %>% 
+  mutate(decade = floor_decade(year))
+
+
+ggplot(nsea, aes(year, temperature_c)) +
+  geom_line() +
+  theme_gmri() +
+  scale_y_continuous(labels = scales::label_number(suffix = "\u00b0C")) +
+  labs(title = "North Sea, Helgolands Roads",
+       subtitle = "Annual Temperature",
+       y = "Temperature",
+       x = "Year")
+
+
+```
+
+
+ 
+```{r}
+
+# Just get the rate, multiply by ten
+nsea_lm <- lm(temperature_c ~ year, data = filter(nsea, year >= 1950))
+decadal_rate <- round(coef(nsea_lm)[[2]] * 10, 2)
+
+# # Group on decades?
+# nsea_decades <- nsea %>% #tail()
+#   filter(year >= 1950) %>% 
+#     group_by(decade) %>% 
+#     summarise(across(-c(year), .fns = mean))
+
+```
+
+
+Data from the Helgoland Roads observation station show a warming trend of `r decadal_rate` C per decade since 1950.
+
+```{r}
+nsea_recent <- nsea %>% 
+  filter(between(year, 2015,2024)) %>% 
+  summarise(
+    min_year = min(year),
+    max_year = max(year),
+    mean_temp = mean(temperature_c), 
+    min_temp = min(temperature_c),
+    max_temp = max(temperature_c))
+
+
+nsea_early <- nsea %>% 
+  filter(between(year, 1950,1960)) %>% 
+  summarise(
+    min_year = min(year),
+    max_year = max(year),
+    mean_temp = mean(temperature_c), 
+    min_temp = min(temperature_c),
+    max_temp = max(temperature_c))
+
+# Change from early to late
+temp_change <- round(nsea_recent$mean_temp - nsea_early$mean_temp, 2)
+
+
+# Group on decades?
+nsea_decades <- nsea %>% #tail()
+  filter(year >= 1950) %>%
+    group_by(decade) %>%
+    summarise(
+      min_year = min(year),
+      max_year = max(year),
+      mean_temp = mean(temperature_c), 
+      min_temp = min(temperature_c),
+      max_temp = max(temperature_c)
+    )
+
+
+
+```
+
+
+For the most recent decade (`r nsea_recent$min_year`-`r nsea_recent$max_year`), annual SSTs have averaged `r round(nsea_recent$mean_temp, 2)`, while during an earlier decade (`r nsea_early$min_year`-`r nsea_early$max_year`), they averaged `r round(nsea_early$mean_temp, 2)`, representing an increase of `r temp_change` C.

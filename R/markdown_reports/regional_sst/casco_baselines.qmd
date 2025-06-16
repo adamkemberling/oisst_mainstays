@@ -211,18 +211,18 @@ portland_buoy <- portland_buoy %>%
     TIDE  = as.numeric(TIDE),
     # So apparently 9999 etc is used as NA
     # Make 99's actual NA's
-    WD    = ifelse(WD == 999, NA, WD),
+    WD    = ifelse(WD   == 999, NA, WD),
     WSPD  = ifelse(WSPD == 99, NA, WSPD),
-    GST   = ifelse(GST == 99, NA, GST),
+    GST   = ifelse(GST  == 99, NA, GST),
     WVHT  = ifelse(WVHT == 99, NA, WVHT),
-    DPD   = ifelse(DPD == 99, NA, DPD),
-    APD   = ifelse(APD == 99, NA, APD),
-    MWD   = ifelse(MWD == 999, NA, MWD),
-    BAR   = ifelse(BAR == 9999, NA, BAR),
+    DPD   = ifelse(DPD  == 99, NA, DPD),
+    APD   = ifelse(APD  == 99, NA, APD),
+    MWD   = ifelse(MWD  == 999, NA, MWD),
+    BAR   = ifelse(BAR  == 9999, NA, BAR),
     ATMP  = ifelse(ATMP == 999, NA, ATMP),
     WTMP  = ifelse(WTMP == 999, NA, WTMP),
     DEWP  = ifelse(DEWP == 999, NA, DEWP),
-    VIS   = ifelse(VIS == 99, NA, VIS),
+    VIS   = ifelse(VIS  == 99, NA, VIS),
     TIDE  = ifelse(TIDE == 99, NA, TIDE))
 
 # Load 2024 Since its needed to be downloaded elsewhere
