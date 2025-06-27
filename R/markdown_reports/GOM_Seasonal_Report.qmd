@@ -1026,6 +1026,7 @@ hw_temp_p
 ```
 
 
+
 ## Alternative Approaches for MHW Identification
 
 The way extreme events are identified has become a topic of discussion, and the merits of using a fixed climatological baseline under a changing climate are being questioned.
@@ -1108,8 +1109,8 @@ detrend_annual <- heatwaves_detrended %>%
     clim_color = if_else(mcs, "#2166AC", clim_color),
     clim_size = if_else(mcs, 3, clim_size))
 
-
 ```
+
 
 
 
@@ -1183,6 +1184,7 @@ concept_p <- static_baseline_concept | detrend_concept
 
 
 ## Temperature Anomalies and Extreme Events
+
 
 Looking at the full record of daily SST anomalies in the Gulf of Maine (@fig-mhw-heatmap), the distinct thermal regime shift beginning around 2010 is evident. 
 
