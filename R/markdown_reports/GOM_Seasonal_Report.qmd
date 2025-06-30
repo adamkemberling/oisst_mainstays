@@ -22,7 +22,7 @@ params:
   season: "Spring"
   seas: "spring"
   save_data: FALSE
-  save_figures: FALSE
+  save_figures: TRUE
 ---
 
 ```{r}
@@ -88,6 +88,9 @@ elev_terra <- terra::rast(str_c(cs_path("res","Bathy/"), "ETOPO1/NEShelf_Etopo1_
 
 
 ```
+
+
+
 
 
 ```{r}
@@ -231,6 +234,19 @@ this_season_data <-  this_season_data %>%
 
 
 
+
+```{r}
+# # Export sst for Noa, Damian's intern
+# 
+# # Just sending the sst for someone
+# region_timeseries %>%
+#   select(time, sst_c = area_wtd_sst, sst_f = area_wtd_f) %>%
+#   #write_csv(here::here("local_data/random_requests/GMRI_OISSTv2_GulfOfMaineSST.csv"))
+#   ggplot(aes(time, sst_f)) +
+#   geom_line()
+
+```
+
 ```{r}
 #| label: seasonal-sst-summary
 
@@ -345,8 +361,10 @@ decadal_rate_f <- round((annual_rate*10), 2)
 #---------  Global Rates
 
 # Global Temperature Anomaly Rates
+# These are produced in: 
 global_anoms <- read_csv(
-    paste0(oisst_path, "global_timeseries/global_anoms_1982to2011.csv"), 
+    # paste0(oisst_path, "global_timeseries/global_anoms_1982to2011.csv"), 
+    paste0(oisst_path, "global_timeseries/global_anoms_1991to2020.csv"), 
     guess_max = 1e6,
     col_types = cols()) %>% 
   mutate(year = year(time)) %>% 
@@ -463,8 +481,6 @@ This year, the average SST for the Gulf of Maine was `r season_avg_temp`°F. Thi
 
 @tbl-season-temps highlights how the SST for each week this `r params$seas` compares to the 1991-2020 CRP for the area shown in @fig-map. The observed SST, long-term average SST, and SST anomalies (i.e., departures from the long-term average SST) are shown. 
 
-`r params$seas` average SST were on average `r round(mean(this_season_data$anom_f),2)`°F below normal, with weekly SST anomalies ranging from -1.68°F to +0.41°F; all but one week at the end of 2023 recorded SSTs that were below the 1991-2020 average.
-
 
 ```{r}
 #| label: week-summary-data-prep
@@ -476,7 +492,7 @@ week_labels <- this_season_data  %>%
     wk_end = ceiling_date(time, unit = "week"),
     wk_end = if_else(wk_end >= last_day, last_day, wk_end - 1)) %>% 
   
-  # pull distinct weeks
+  # Pull distinct weeks
   distinct(time, wk_start, wk_end)  %>% 
   
   # Add the month and day labels
@@ -524,21 +540,17 @@ week_summaries <- week_summaries %>%
       .cols = all_of(c("temp_c", "clim_c", "anom_c","temp_f", "clim_f", "anom_f")), 
       .fns = \(x) sprintf(signif(x, 3), fmt = '%#.2f')))
 
+
+# in-text values
+weekly_high <-  min(as.numeric(week_summaries$anom_f))
+weekly_low <- max(as.numeric(week_summaries$anom_f))
+
 ```
 
-```{r}
-# week_data %>% 
-#   group_by(month(time)) %>% 
-#   summarise(
-#     temp_c = mean(sst),
-#     clim_c = mean(seas),
-#     anom_c = mean(sst_anom),
-#     .groups = "drop") %>%
-#   mutate(
-#     temp_f = as_fahrenheit(temp_c),
-#     clim_f = as_fahrenheit(clim_c),
-#     anom_f = as_fahrenheit(anom_c, data_type = "anomalies"))
-```
+
+
+`r params$seas` average SST were on average `r round(mean(this_season_data$anom_f),2)`°F below normal, with weekly SST anomalies ranging from -`r weekly_low`°F to +`r weekly_high`°F; all but one week at the end of 2023 recorded SSTs that were below the 1991-2020 average.
+
 
 
 ```{r}
@@ -648,7 +660,7 @@ month_summ_table <- monthly_avgs %>%
   rows = everything(),
   md_engine = c("markdown", "commonmark")) %>% 
   cols_label( # Change the column names to the units
-    rank = md("Rank (1982-2024)"),
+    rank = md("Rank (1982-2025)"),
     temp = md("Observed Temperature"),
     clim = md("Climatological Average"),
     anom = md("Temperature Anomaly")) %>% 
@@ -793,7 +805,7 @@ global_rate_plot <- ggplot(glob_plot_dat) +
   labs(title = str_c(params$season, " SST Warming Rates"),
        x = "Year",
        y = str_c("Sea Surface Temperature Anomalies\n(", season_range, ")"),
-       color = "1982-2024 Warming Rates")  +
+       color = "1982-2025 Warming Rates")  +
   coord_cartesian(clip = "off") +
   geom_logo(x_npc = 0.85, y_npc = 1.1, logo_height = 1, height_units = "cm")
 
@@ -873,7 +885,7 @@ Using this broadly accepted definition, **the Gulf of Maine has experienced MHW 
 #| label: fig-season-mhw-timeline
 #| fig-height: 5
 #| eval: true
-#| fig-cap: "A timeseries of marine heatwave (MHW) conditions in the Gulf of Maine extending from December 1, 2023 through February 28, 2024. Black lines represent the long-term (i.e., 1991 – 2020) average SST, the 10th percentile, and 90th percentile for a given day in the Gulf of Maine; a solid line (red for marine heatwave or blue for a non-event) indicate the observed SST this year; red (above 90th percentile) and blue (below 90th percentile) shading illustrates how far the observed SST is from the climatological average."
+#| fig-cap: "A timeseries of marine heatwave (MHW) conditions in the Gulf of Maine extending from January 1, 2025 through May 30, 2025. Black lines represent the long-term (i.e., 1991 – 2020) average SST, the 10th percentile, and 90th percentile for a given day in the Gulf of Maine; a solid line (red for marine heatwave or blue for a non-event) indicate the observed SST this year; red (above 90th percentile) and blue (below 90th percentile) shading illustrates how far the observed SST is from the climatological average."
 
 
 # Grab the data we're using
@@ -1109,13 +1121,8 @@ detrend_annual <- heatwaves_detrended %>%
     clim_color = if_else(mcs, "#2166AC", clim_color),
     clim_size = if_else(mcs, 3, clim_size))
 
-```
 
-
-
-
-
-```{r}
+# Conceptual Plot for static baseline climatology
 static_baseline_concept <- ggplot(static_annual) +
   geom_ribbon(
     aes(ymin = mcs_thresh_f, ymax = mhw_thresh_f, x = yr), 
@@ -1140,10 +1147,10 @@ static_baseline_concept <- ggplot(static_annual) +
     color = "",
     title = "Static Thresholds for Extreme Events",
     subtitle = "Climatological Reference period determines thresholds for extreme events")
-```
 
 
-```{r}
+
+# Conceptual Plot for adaptive baseline heatwaves
 detrend_concept <- ggplot(detrend_annual) +
   geom_ribbon(
     aes(ymin = mcs_trend_thresh_f, ymax = mhw_trend_thresh_f, x = yr), 
@@ -1185,50 +1192,15 @@ concept_p <- static_baseline_concept | detrend_concept
 
 ## Temperature Anomalies and Extreme Events
 
-
 Looking at the full record of daily SST anomalies in the Gulf of Maine (@fig-mhw-heatmap), the distinct thermal regime shift beginning around 2010 is evident. 
 
 
 If we use the standard MHW definition, where heatwaves and coldspells are determined using a static 30-year baseline we get the following record of these extreme events:
 
-```{r}
-#| eval: false
-
-# Pulling out yearly summary of MHWs for tv graphic
-
-
-# events_summ <- hw_dat %>% #glimpse()
-#   filter(yr < 2025) %>% #glimpse()
-#   mutate(
-#     mhw_event_no = if_else(mhw_event_no == "NA", NA, mhw_event_no),
-#     mcs_event_no = if_else(mcs_event_no == "NA", NA, mcs_event_no)) %>% 
-#   group_by(yr) %>% 
-#   summarise(
-#     hw_count = n_distinct(mhw_event_no, na.rm = T),
-#     hw_day_total = sum(mhw_event, na.rm = T)#,
-#     # cs_count = n_distinct(mcs_event_no, na.rm = T),
-#     # cs_day_total = sum(mcs_event, na.rm = T)
-#   )
-# 
-# write_csv(events_summ, here::here("local_data/gom_mhw_summary_WMTW.csv"))
-# 
-# 
-# ggplot(events_summ, aes(yr, hw_count)) +
-#   geom_point(aes(size = hw_day_total)) +
-#   scale_x_continuous(breaks = seq(1980, 2025,5)) +
-#   scale_y_continuous(breaks = c(0:10)) +
-#   theme(legend.position = "inside",
-#         legend.position.inside = c(0.3, 0.7)) +
-#   labs(x = "Year", y = "Number of MHW's", size = "Days of MHW Conditions")
-
-
-```
-
-
 
 ```{r}
 #| eval: true
-#| fig.height: 9
+#| fig.height: 8
 #| label: fig-static-baseline-heatmap
 #| fig-cap: "Heat map of daily SST anomalies from a 30-year 1991-2020 climatological baseline. Marine heatwave events (red lines) and marine coldspell events (blue lines) using the standard Hobday et al. method have been overlaid."
 
@@ -1252,10 +1224,8 @@ fixed_hw <- hw_dat %>%
     ggplot(aes(x = flat_date, y = year)) +
     # tile for sst colors
     geom_tile(
-      aes(fill = {{ anom_col }},#), 
-      #alpha = I(hwcs_event_alpha)),
-      #alpha = I(season_alpha)),
-      ), alpha = 0.8,
+      aes(fill = {{ anom_col }}), 
+      alpha = 0.8,
       color = "transparent") +
     # lines for heatwave events
     geom_line(
@@ -1306,15 +1276,14 @@ fixed_hw <- hw_dat %>%
       fill = "Sea Surface Temperature Anomaly")
   
 
-(static_baseline_concept / fixed_hw) + plot_layout(heights = c(2,5))
+fixed_hw
 ```
 
 If instead, we adopt an approach which removes the long-term warming trend we get the following figure.
 
 
-
 ```{r}
-#| fig.height: 9
+#| fig.height: 8
 #| label: fig-shifting-baseline-heatmap
 #| fig-cap: "Heat map of daily SST anomalies from a 30-year 1991-2020 climatological baseline. Marine heatwave events (red lines) and marine coldspell events (blue lines) using a detrended timeseries have been overlaid."
 
@@ -1324,10 +1293,7 @@ detrend_hw <- heatwaves_detrended %>%
    ggplot(aes(x = flat_date, y = year)) +
     # tile for sst colors
     geom_tile(
-      aes(fill = {{ anom_col }},#), 
-      #alpha = I(hwcs_event_alpha)),
-      #alpha = I(season_alpha)),
-    ), alpha = 0.8,
+      aes(fill = {{ anom_col }}), alpha = 0.8,
       color = "transparent") +
     # lines for heatwave events
     geom_line(
@@ -1375,7 +1341,7 @@ detrend_hw <- heatwaves_detrended %>%
       caption = "Heatwave (red) and Coldspell (blue) events have been overlayed with lines for distinction.",
       fill = "Sea Surface Temperature Anomaly")
 
-(detrend_concept / detrend_hw) + plot_layout(heights = c(2,5))
+detrend_hw
 ```
 
 There is debate on the merits of either approach, and further discussion on whether regional dynamics (e.g. the North Atlantic Oscillation, ENSO, Gulf Stream Position) should be accounted for when identifying marine heatwaves.
@@ -1384,7 +1350,7 @@ A comparison of the two above approaches shows that the methodology choices will
 
 
 ```{r}
-#| fig.height: 11
+#| fig.height: 8
 #| fig.width: 8
 #| label: fig-mhw-heatmap
 #| fig-cap: "Heat maps of daily SST anomalies from a 30-year 1991-2020 climatological baseline. Marine heatwave events (red lines) and marine coldspell events (blue lines) contrasting two competing methodologies have been overlaid."
@@ -1397,10 +1363,10 @@ heatmap_p <- (
   plot_layout(guides = "collect") & theme(legend.position = "bottom") 
 
 # # Without guides
-# heatmap_p
+heatmap_p
 
-# With conceptual guides
-(heatmap_p / concept_p) + plot_layout(heights = c(5,3))
+# # With conceptual guides
+# (heatmap_p / concept_p) + plot_layout(heights = c(5,3))
 
 
 ```
@@ -1591,7 +1557,7 @@ The aerial distributions of average monthly SST anomalies are shown in @fig-mont
 #| fig.width: 8
 #| fig.height: 4
 #| fig.align: center
-#| fig-cap: "This series of maps shows the average monthly SST anomaly for December 2023, January 2024, and February 2024. The box outlined by the black dashed line denotes the region of study for the analysis. Darker red regions indicate warmer anomalies."
+#| fig-cap: "This series of maps shows the average monthly SST anomaly for December 2023, January 2025, and May 2025. The box outlined by the black dashed line denotes the region of study for the analysis. Darker red regions indicate warmer anomalies."
 
 
 # Get monthly averages
@@ -1681,26 +1647,34 @@ glorys_bt <- read_csv(str_c(glorys_path, "Glorys_surfacebottom_gom_ts.csv")) %>%
 
 
 ggplot(glorys_bt) +
-  #geom_line(aes(time, surface_temp, color = "Surface Temperature")) +
+  geom_line(aes(time, surface_temp, color = "Surface Temperature")) +
   geom_line(aes(time, bottom_temp, color = "Bottom Temperature")) +
-  geom_smooth(aes(time, bottom_temp), method = "lm", color = "black") +
+  #geom_smooth(aes(time, bottom_temp), method = "lm", color = "black") +
+  facet_zoom(ylim = c(3.75, 6.5), zoom.size = 3) +
   scale_color_gmri() +
-  theme(legend.position = "bottom")
+  theme(legend.position = "bottom") +
+  scale_y_continuous(labels = label_number(suffix = deg_c)) +
+  labs(
+    title = "Gulf of Maine Bottom Temperatures",
+    subtitle = "GLORYS Ocean Physics Reanalysis",
+    color = "Depth",
+    y = "Temperature",
+    x = "Year")
 
 
 
-glorys_annual <- glorys_bt %>% 
-  filter(time < as.Date("2025-01-01")) %>% 
-  group_by(year = year(time)) %>% 
-  summarise(across(-time, mean))
-
-
-ggplot(glorys_annual) +
-  # geom_line(aes(year, surface_temp, color = "Surface Temperature")) +
-  geom_line(aes(year, bottom_temp, color = "Bottom Temperature")) +
-  geom_smooth(aes(year, bottom_temp), method = "lm", color = "black") +
-  scale_color_gmri() +
-  theme(legend.position = "bottom")
+# glorys_annual <- glorys_bt %>% 
+#   filter(time < as.Date("2025-01-01")) %>% 
+#   group_by(year = year(time)) %>% 
+#   summarise(across(-time, mean))
+# 
+# 
+# ggplot(glorys_annual) +
+#   # geom_line(aes(year, surface_temp, color = "Surface Temperature")) +
+#   geom_line(aes(year, bottom_temp, color = "Bottom Temperature")) +
+#   geom_smooth(aes(year, bottom_temp), method = "lm", color = "black") +
+#   scale_color_gmri() +
+#   theme(legend.position = "bottom")
 ```
 
 
@@ -1755,7 +1729,7 @@ gom_extent_p
 
 If you would like to cite this report, please use: 
 
-> Gulf of Maine Research Institute. 2024. Gulf of Maine Warming Update: `r params$season` 2024 
+> Gulf of Maine Research Institute. 2025. Gulf of Maine Warming Update: `r params$season` 2025 
 
 ### Note About the Data: 
 

@@ -61,3 +61,6 @@ R/markdown_reports/Openspaces_data/*
 # Powerpoint Documentation
 mainstays_overview.pptx
 ~$mainstays_overview.pptx
+# pixi environments
+.pixi
+*.egg-info

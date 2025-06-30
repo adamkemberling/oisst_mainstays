@@ -10,6 +10,7 @@ import regionmask
 import numpy as np
 import pandas as pd
 import geopandas as gpd
+import math
 
 
 
@@ -20,7 +21,7 @@ import geopandas as gpd
 # Set Workspace Path to Box
 #
 #-----------------------------------------------------
-def set_workspace(workspace: str) -> None:
+def set_workspace(workspace: str) -> str:
   """
   Switch from local path to docker volume path with a workspace parameter
   
@@ -46,7 +47,7 @@ def set_workspace(workspace: str) -> None:
 # Set Cache Root to OISST Mainstays
 #
 #-----------------------------------------------------
-def set_cache_root(box_root: str) -> None:
+def set_cache_root(box_root: str) -> str:
   """
   Set route to OISST Daily Cache Locations. Toggles based on the box_root returned by 
   ot.set_workspace()
@@ -67,7 +68,7 @@ def set_cache_root(box_root: str) -> None:
 # Get Update Month Based on current Date
 #
 #-----------------------------------------------------
-def get_update_month(return_this_month: bool) -> True:
+def get_update_month(return_this_month: bool) -> str:
   """
   Check date and return what the current or most recent month was for updating.
   
@@ -88,7 +89,7 @@ def get_update_month(return_this_month: bool) -> True:
 # Get Update Year to Match Update Month
 #
 #-----------------------------------------------------
-def check_update_yr(for_this_month: bool) -> True:
+def check_update_yr(for_this_month: bool) -> str:
   """
   Check date and return correct update year for either the current month or
   for last month, correcting for year transitions.
@@ -102,12 +103,12 @@ def check_update_yr(for_this_month: bool) -> True:
   update_yr  = now.year
   last_month = str(now.month - 1 if now.month > 1 else 12)
   if for_this_month == True:
-    return update_yr
+    return str(update_yr)
   elif last_month != "12":
-    return update_yr
+    return str(update_yr)
   else:
     update_yr = update_yr - 1
-    return update_yr
+    return str(update_yr)
     
     
 
@@ -395,7 +396,7 @@ def build_annual_from_cache(update_yr, last_month, this_month, workspace = "loca
     oisst_noreps = oisst_update.sel(time = ~oisst_update.get_index("time").duplicated(keep = 'first'))
     
     # Select just sst and drop Zlev coordinate from the Array
-    norep_sst = oisst_noreps["sst"][:, 0, :, :].drop("zlev")
+    norep_sst = oisst_noreps["sst"][:, 0, :, :].drop(["zlev"])
     
     # Change to xr.Dataset
     update_prepped = xr.Dataset({"sst" : norep_sst})
@@ -849,7 +850,7 @@ def append_sst_ts(old_ts, update_ts, var_name = "sst"):
    appended_ts = pd.concat([ old_sst, update_ts ])
    
    # Format time as datetime
-   appended_ts["time"] = appended_ts["time"].astype("datetime64")
+   appended_ts["time"] = appended_ts["time"].astype("datetime64[ns]")
 
    return appended_ts
 
@@ -1339,7 +1340,7 @@ def update_global_timeseries(yr_min, yr_max, box_root, var_name = "sst", referen
     # Sort
     # Drop any actual duplicate dates
     # Remove Dates that Overlap Dates but Different Time Stamps b/c Data Sources
-    appended_ts["time"] = appended_ts["time"].astype("datetime64")
+    appended_ts["time"] = appended_ts["time"].astype("datetime64[ns]")
     appended_ts = appended_ts.sort_values(by = "time")
     appended_ts = appended_ts.drop_duplicates(subset=['time'])
     appended_ts = date_source_prefer(appended_ts, phase_out = "ncei")
