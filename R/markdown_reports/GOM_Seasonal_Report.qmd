@@ -676,13 +676,13 @@ month_summ_table
 
 ## How Does this `r params$season` Compare to the Past?
 
-`r params$year` was the `r hot_rank_label` warmest (`r cold_rank_label` coldest) `r params$seas` season observed in the Gulf of Maine during the 42 years we have satellite data to analyze. Its position among years ranked more-highly is displayed below in @fig-season-rank.
+`r params$year` was the `r hot_rank_label` warmest (`r cold_rank_label` coldest) `r params$seas` season observed in the Gulf of Maine during the 42+ years we have satellite data to analyze. Its position among years ranked more-highly is displayed below in @fig-season-rank.
 
 
 ```{r}
 #| label: fig-season-rank
 #| fig.height: 6
-#| fig-cap: "A ranking of the 25 warmest winter seasons for the Gulf of Maine in the satellite record (1982-2023). 2023-24 was the twenty-third warmest winter on record."
+#| fig-cap: "A ranking of the 25 warmest seasons for the Gulf of Maine in the satellite record (1982-2025). "
 
 # usually this height
 # fig.height: 6
@@ -1013,7 +1013,7 @@ hw_temp_p <- hw_temp_p +
       date_labels = "%b",
       date_breaks = "1 month",
       # expand = expansion(add = c(0,110)))
-      expand = expansion(add = c(0,45)))
+      expand = expansion(add = c(0,55)))
 
 
 
