@@ -369,7 +369,9 @@ global_anoms <- read_csv(
     col_types = cols()) %>% 
   mutate(year = year(time)) %>% 
   filter(between(year, ssn_year_start, params$year))  %>% 
-  pull_heatwave_events(clim_ref_period = c("1991-01-01", "2020-12-23"))
+  pull_heatwave_events(
+    temp_col =  "area_weighted_sst_anom",
+    clim_ref_period = c("1991-01-01", "2020-12-23"))
   
 
 # Pull the season, summarize by year
@@ -473,7 +475,8 @@ max_anom_yr <- seasonal_avgs %>%
 
 For this seasonal report we present an analysis of sea surface temperature (SST) for `r params$seas` `r params$year`, defined as the period extending from  `r month_range`. 
 
-Winter is an important time of year for the Gulf of Maine. During this time of year, SSTs are typically falling, weakening the stratification of surface waters from deeper waters that occurs during warmer months.  The breakdown of stratification allows for vertical mixing in the water column, which helps transport important nutrients up into the near-surface waters. These nutrients fuel the spring phytoplankton blooms that support the high productivity in the region. Vertical mixing may be enhanced in winter with the help of Nor’Easters, which are most common this time of year and stir up the water column with rough seas and strong winds.
+For this seasonal report we present an analysis of sea surface temperature (SST) for spring 2025, defined as the period extending from March 1, 2025 through May 31, 2025.
+Springtime in the Gulf of Maine is when SSTs dip to their annual lows (typically in March), followed soon-after by a climb in temperature and the pronounced spring peak in phytoplankton productivity. Vertical mixing over the winter replenishes critical nutrients to the surface waters which, together with longer durations of sunlight, fuel the spring phytoplankton bloom. This is a very active time of year for marine species looking to take advantage of the seasonal bounty of plankton.
 
 This year, the average SST for the Gulf of Maine was `r season_avg_temp`°F. This seasonal average temperature was `r season_avg_anom`°F above the 1991–2020 climatological reference period (CRP) `r params$seas` average of `r season_avg_clim`°F.
 
@@ -1657,7 +1660,7 @@ ggplot(glorys_bt) +
   labs(
     title = "Gulf of Maine Bottom Temperatures",
     subtitle = "GLORYS Ocean Physics Reanalysis",
-    color = "Depth",
+    color = "Temperature Record",
     y = "Temperature",
     x = "Year")
 
