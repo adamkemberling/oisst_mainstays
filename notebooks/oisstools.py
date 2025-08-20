@@ -33,8 +33,10 @@ def set_workspace(workspace: str) -> str:
   # root_locations = {"local"  : "/Users/akemberling/Box/",
   #                   "docker" : "/home/jovyan/"}
 
-  root_locations = {"local"  : "/Users/akemberling/Library/CloudStorage/Box-Box/",
-                    "docker" : "/home/jovyan/"}
+  root_locations = {
+    #"local"  : "/Users/akemberling/Library/CloudStorage/Box-Box/",
+    "local"  : "/Users/adamkemberling/Library/CloudStorage/Box-Box/",
+    "docker" : "/home/jovyan/"}
   
   # Set root with workspace
   box_root = root_locations[workspace]
@@ -751,7 +753,7 @@ def area_weighted_means(grid_obj, var_name = "sst", sd = False):
 # Masked Timseries from xr.Dataset
 #
 #----------------------------------------------------
-def calc_ts_mask(grid_obj, shp_obj, shp_name, var_name = "sst", climatology = False):
+def calc_ts_mask(grid_obj, shp_obj, var_name = "sst", climatology = False):
   """
   Return a timeseries using data that falls within shapefile. 
   
@@ -761,18 +763,24 @@ def calc_ts_mask(grid_obj, shp_obj, shp_name, var_name = "sst", climatology = Fa
   Args:
     grid_obj       : xr.Dataset of the desired input data to mask
     shp_obj        : shapefile polygon to use as a mask
-    shp_name (str) : String to use as name when making mask
+    # shp_name (str) : String to use as name when making mask
     var_name (str) : Optional string identifying the variable to use
     climatology (bool): Whether you are masking a climatology, informs naming conventions and
     whether to process standard deviation
   """
 
   #### 1. Make the mask
-  area_mask = regionmask.Regions(shp_obj.geometry,
-                                 name = shp_name)
+  # area_mask = regionmask.Regions(
+  #   shp_obj.geometry,
+  #   name = shp_name)
 
   #### 2. Mask the array with gom_mask to get nan test
-  mask = area_mask.mask(grid_obj, lon_name = "lon", lat_name = "lat")
+  # mask = area_mask.mask(grid_obj, lon_name = "lon", lat_name = "lat")
+
+  # Newer regionmask library has mask_geopandas
+  mask = regionmask.mask_geopandas(
+    geodataframe = shp_obj, 
+    lon_or_obj = grid_obj) 
 
   
   #### 3. Extract data that falls within the mask
@@ -786,12 +794,10 @@ def calc_ts_mask(grid_obj, shp_obj, shp_name, var_name = "sst", climatology = Fa
         
     # area-weighted
     masked_ts = area_weighted_means(masked_ds, var_name, sd = False)
-    
     # Not area-weighted
     masked_ts[var_name] = getattr(masked_ds, var_name).mean(dim = ("lat", "lon"))
     
    
-    
   elif climatology == True:
     
     # area-weighted?
@@ -801,9 +807,6 @@ def calc_ts_mask(grid_obj, shp_obj, shp_name, var_name = "sst", climatology = Fa
     # Not area-weighted
     masked_ts[var_name] = getattr(masked_ds, var_name).mean(dim = ("lat", "lon"))
     masked_ts["clim_sd"] = getattr(masked_ds, var_name).std(dim = ("lat", "lon"))
-    
-    
-    
 
   
   #### 5. Change time index rownames to a column 
@@ -1429,7 +1432,7 @@ def update_regional_timeseries_collection(start_yr, end_yr, region_collection, b
       masked_ts = calc_ts_mask(
         grid_obj = oisst_grid, 
         shp_obj = mask_shp, 
-        shp_name = mask_name,
+        #shp_name = mask_name,
         var_name = var_name)
       
       # Add to list

@@ -19,10 +19,10 @@ execute:
   fig.align: center
 params: 
   year: 2025
-  season: "Spring"
-  seas: "spring"
+  season: "Summer"
+  seas: "summer"
   save_data: FALSE
-  save_figures: TRUE
+  save_figures: FALSE
 ---
 
 ```{r}
@@ -30,7 +30,7 @@ params:
 #| include: false
 #| echo: false
 #| warning: false
-
+ 
 ####  Packages  ####
 {
   library(lubridate)
@@ -163,6 +163,7 @@ showtext::showtext_auto()
 ```{r}
 #| label: regional-timeseries-prep
 
+
 # Get the timeseries path
 timeseries_path <- region_paths[["apershing_gulf_of_maine"]][["timeseries_path"]]
 
@@ -236,14 +237,21 @@ this_season_data <-  this_season_data %>%
 
 
 ```{r}
-# # Export sst for Noa, Damian's intern
-# 
-# # Just sending the sst for someone
-# region_timeseries %>%
-#   select(time, sst_c = area_wtd_sst, sst_f = area_wtd_f) %>%
-#   #write_csv(here::here("local_data/random_requests/GMRI_OISSTv2_GulfOfMaineSST.csv"))
-#   ggplot(aes(time, sst_f)) +
-#   geom_line()
+#| eval: false
+# Export sst for Noa, Damian's intern
+
+# Just sending the sst for someone
+region_timeseries %>% #names()
+  select(
+    time, 
+    sst_c = area_wtd_sst, 
+    anom_c = area_wtd_anom,
+    sst_f = area_wtd_f, 
+    anom_f = anom_f) %>%
+  # write_csv(here::here("local_data/random_requests/GMRI_OISSTv2_GulfOfMaineSST.csv"))
+  ggplot(aes(time, sst_f)) +
+  #ggplot(aes(time, anom_f)) +
+  geom_line()
 
 ```
 
