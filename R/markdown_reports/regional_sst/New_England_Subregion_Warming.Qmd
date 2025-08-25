@@ -15,12 +15,13 @@ editor: source
 
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = FALSE, 
-                      message = F, 
-                      warning = F, 
-                      comment = "", 
-                      fig.align = "center",
-                      retina = 3)
+knitr::opts_chunk$set(
+  echo = FALSE, 
+  message = F, 
+  warning = F, 
+  comment = "", 
+  fig.align = "center",
+  retina = 3)
 
 # Packages
 library(lubridate)
@@ -37,12 +38,13 @@ library(ggforce)
 library(gmRi)
 library(heatwaveR)
 library(ggalt)
+library(gmRi)
 
 # Support Functions
 source(here("R/oisst_support_funs.R"))
 
 #box paths
-box_paths <- research_access_paths()
+box_paths <- research_access_paths(box_location = "cloudstorage")
 
 
 # File Paths
@@ -110,20 +112,20 @@ Each of the focal regions have been added to the {gmRi} package and can have the
 # Load the focal Areas using GMRI Package:
 
 # Get timeseries paths loads a list based on the group
-sst_areas <- get_timeseries_paths("gmri_sst_focal_areas")
+sst_areas <- get_timeseries_paths("gmri_sst_focal_areas", box_location = "cloudstorage")
 gom_shape <- sst_areas[["apershing_gulf_of_maine"]]["shape_path"]
 gom_shape <- read_sf(gom_shape)
 
 lis_shape <- sst_areas[["long_island_sound"]][["shape_path"]]
 lis_shape <- read_sf(lis_shape)
 
-nelme_shape <- get_timeseries_paths("lme")$northeast_us_continental_shelf$shape_path
+nelme_shape <- get_timeseries_paths("lme", box_location = "cloudstorage")$northeast_us_continental_shelf$shape_path
 nelme_shape <- read_sf(nelme_shape)
 
-ss_shape <- get_timeseries_paths("lme")$scotian_shelf$shape_path
+ss_shape <- get_timeseries_paths("lme", box_location = "cloudstorage")$scotian_shelf$shape_path
 ss_shape <- read_sf(ss_shape)
 
-bf_shape <- get_timeseries_paths("gom physio regions")$bay_of_fundy$shape_path
+bf_shape <- get_timeseries_paths("gom physio regions", box_location = "cloudstorage")$bay_of_fundy$shape_path
 bf_shape <- read_sf(bf_shape)
 
 # sj_shape <- get_timeseries_paths("lme")$sea_of_japan$shape_path
@@ -166,15 +168,15 @@ us_map
 
 ```{r, echo = FALSE}
 # Load Regional Temperatures
-world_ts <- read_csv(paste0(oisst_path, "global_timeseries/global_anoms_1982to2011.csv"), 
+world_ts <- read_csv(paste0(oisst_path, "global_timeseries/global_anoms_1991to2020.csv"), 
     guess_max = 1e6,
     col_types = cols()) %>% 
   mutate(year = year(time))
-nelme_ts <- oisst_access_timeseries("lme", "northeast us continental shelf")
-gom_ts   <- oisst_access_timeseries(region_family = "gmri focus areas", "apershing gulf of maine")
-ss_ts    <- oisst_access_timeseries(region_family = "lme", "scotian shelf")
-bf_ts    <- oisst_access_timeseries(region_family = "gom physio regions", "bay of fundy")
-lis_ts   <- oisst_access_timeseries("gmri focus areas", "long island sound")
+nelme_ts <- oisst_access_timeseries("lme", "northeast us continental shelf", box_location = "cloudstorage")
+gom_ts   <- oisst_access_timeseries(region_family = "gmri focus areas", "apershing gulf of maine", box_location = "cloudstorage")
+ss_ts    <- oisst_access_timeseries(region_family = "lme", "scotian shelf", box_location = "cloudstorage")
+bf_ts    <- oisst_access_timeseries(region_family = "gom physio regions", "bay of fundy", box_location = "cloudstorage")
+lis_ts   <- oisst_access_timeseries("gmri focus areas", "long island sound", box_location = "cloudstorage")
 
 
 
@@ -203,8 +205,8 @@ area_hw <- map(area_hw, function(.x){
   .x %>% mutate(
     Month = month(time, label = T, abbr = T), 
     Year = year(time),
-    sst_f = as_farenheit(sst),
-    seas_f = as_farenheit(seas),
+    sst_f = gmRi::as_fahrenheit(sst),
+    seas_f = as_fahrenheit(seas),
     anom_f = sst_f - seas_f)
 })
 
@@ -236,9 +238,8 @@ report_data <- area_hw %>%
         temp_anom_f = avg_temp_f - climate_mean_f,
         total_hw_days = sum(mhw_event, na.rm = T),
         days_over_20C = sum(above_20, na.rm = T),
-        .groups = "drop"
-      )%>%
-    mutate_if(is_numeric, round, 4)
+        .groups = "drop") %>%
+   mutate_if(.tbl = ., .predicate = is.numeric, .funs = round, 4)
 
   })
 

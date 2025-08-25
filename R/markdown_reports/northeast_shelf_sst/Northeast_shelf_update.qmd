@@ -55,7 +55,6 @@ suppressPackageStartupMessages(source(here("R/oisst_support_funs.R")))
 suppressPackageStartupMessages(source(here("R/temp_report_support.R")))
 
 
-
 # File Paths
 mills_path <- cs_path("mills")
 oisst_path <- cs_path("res", "OISST/oisst_mainstays")
@@ -89,10 +88,12 @@ params <- list(region  = "inuse_strata")
 region_paths <- get_timeseries_paths(
   region_group = "nmfs_trawl_regions", 
   box_location = "cloudstorage")
+
+# Path to timeseries
+timeseries_path   <- region_paths[[params$region]][["timeseries_path"]]
   
 # clean up the name
 tidy_name <- "Northeastern US Shelf Region"
-
 
 # Current Year
 current_yr <- year(Sys.Date())
@@ -155,28 +156,31 @@ Satellite sea surface temperature data used was obtained from the National Cente
 Whenever discussing the `r tidy_name` in this report, we refer to the following spatial extent displayed below. The coordinates of this bounding box are the same coordinates used to clip the sea surface temperature data.
 
 ```{r}
-#| eval: false
+#| eval: true
 
 
-# Load the bounding box for Northeast Shelf
-timeseries_path     <- region_paths[[params$region]][["timeseries_path"]]
+# Load the bounding box for Northeast Shel
 poly_path     <- region_paths[[params$region]][["shape_path"]]
-region_extent <- st_read(poly_path, quiet = TRUE)
-# region_extent <- st_union(region_extent)
+region_extent <- st_read(poly_path, quiet = TRUE) 
+region_extent <- st_union(region_extent)
 
 # Pull extents for the region to set crop extent
 crop_x <- st_bbox(region_extent)[c(1,3)]
 crop_y <- st_bbox(region_extent)[c(2,4)]
+```
 
 
+```{r}
+#| eval: false
 # Map the study area
-map_study_area(region_extent = st_union(region_extent),
-               x_buffer =  c(-2, 2),
-               y_buffer =  c(-0.75, 0.75), 
-               new_england_sf = new_england, 
-               canada_sf = canada,
-               greenland_sf = greenland,
-               shape_linetype = 2)
+map_study_area(
+  region_extent = st_union(region_extent),
+  x_buffer =  c(-2, 2),
+  y_buffer =  c(-0.75, 0.75), 
+  new_england_sf = new_england, 
+  canada_sf = canada,
+  greenland_sf = greenland,
+  shape_linetype = 2)
 
 ```
 
@@ -410,7 +414,7 @@ What began as one of the warmest years on record for the Northeast Shelf ended o
 region_hw <- region_hw %>% 
   mutate(
     is_23 = ifelse(yr == 2023, TRUE, FALSE),
-    yr_col   = ifelse(is_23, gmri_cols("orange"), "gray90"),
+    yr_col   = ifelse(is_23, gmri_cols("lv orange"), "gray90"),
     yr_lw    = ifelse(is_23, 1.5, 0.8),
     yr_alpha = ifelse(is_23, 1, 0.5),
     flat_date = as.Date("2000-01-01") + doy-1)
@@ -441,12 +445,13 @@ n_record_days <- gom_23 %>% filter(record_temp_alpha == 1) %>% distinct(time) %>
 # Make a similar plot for the  Northeast Shelf
 gom_23_record_ts <- gom_23 %>% 
   ggplot(aes(flat_date, anom_f)) +
-  # geom_ribbon(
-  #   aes(ymin = cs_thresh_f, ymax = hw_thresh_f), 
-  #   fill = "lightgray", alpha = 0.4) +
+  geom_ribbon(
+    aes(ymin = cs_thresh_f, ymax = hw_thresh_f),
+    fill = "lightgray", alpha = 0.4) +
   geom_texthline(yintercept = 0, label = "1991-2020\nClimatological Average", linewidth = 1, size = 5, family = "Avenir", hjust = 0.05) +
-  geom_line(aes(group = yr, linewidth = I(record_temp_lw), alpha = I(record_temp_alpha), 
-                color = I(yr_col))) +
+  geom_line(
+    aes(group = yr, #linewidth = I(record_temp_lw), alpha = I(record_temp_alpha), 
+        color = I(yr_col))) +
   geom_text(
     data = gom_23 %>% slice(yday(min(gom_23$time))+65),
     label = "Record High SSTs", vjust = -5, size = 5,
@@ -487,7 +492,7 @@ gom_23_record_ts
 
 Observed SSTs may both influence and be influenced by atmospheric weather patterns. These interactions can act to amplify warming or cooling of surface waters. Sustained periods of low cloud cover and the consequent direct sunlight can rapidly warm the ocean at the surface. Steady winds can act as a fan, advecting heat away from the ocean and cooling the surface. Strong winds and storm systems may also lower SST through mixing, which can bring cooler water from depth closer to the surface.
 
-During September, extratropical storm Lee traversed the Northeast Shelf, which weakened from hurricane strength as it crossed over Georges Bank on September 16 @fig-lee-traversal. The impacts of this storm on the region’s SSTs can be seen in @fig-gom-record-temps when temperature fell over 5F over a period of 12 days.
+During September, extratropical storm Lee traversed the Northeast Shelf, which weakened from hurricane strength as it crossed over Georges Bank on September 16. The impacts of this storm on the region’s SSTs can be seen in @fig-gom-record-temps when temperature fell over 5F over a period of 12 days.
 
 Similar storm crossings have occurred in the recent past, including in 2019 when Hurricane Dorian passed through the Northeast Shelf after working its way up the US East Coast. Both years had some of the fewest autumn heatwave days seen in the past two decades (2019: 0 days, 2023: 6 days).
 
@@ -505,7 +510,7 @@ rank_plot_data <- annual_summary %>%
   mutate(
     year_rank = fct_reorder(factor(year), sst_rank, .desc = T),
     rank = fct_rev(factor(sst_rank)),
-    flag_col = ifelse(year == 2023, gmri_cols("orange"), gmri_cols("blue")),
+    flag_col = ifelse(year == 2023, gmri_cols("lv orange"), gmri_cols("gmri blue")),
     temp_label    = str_c(round(sst_f, 2), " \u00b0F  |  ", round(sst, 2), " \u00b0C"),
     anom_label    = str_c(round(anom_f, 2), " \u00b0F  |  ", round(sst_anom, 2), " \u00b0C"),
     label_face = ifelse(year == 2023, "bold", "plain")) 

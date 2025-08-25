@@ -22,7 +22,7 @@ params:
   in_celsius: FALSE
   save_figures: 
     label: "Save Figures?" 
-    value: TRUE
+    value: FALSE
 ---
 
 
@@ -176,9 +176,6 @@ showtext::showtext_auto()
 
 
 
-
-
-
 ```{r}
 #| label: load-timeseries-data
 
@@ -246,10 +243,17 @@ global_anoms <- read_csv(
     col_types = cols()) %>% 
   mutate(year = year(time)) %>% 
   filter(between(year, 1982, report_yr)) %>% 
-  supplement_season_info()
+  supplement_season_info()  %>% 
+  # Change column names to favor the area-weighted values
+  rename(
+    sst = unweighted_sst,
+    sst_anom = unweighted_sst_anom,
+    area_wtd_sst = area_weighted_sst,
+    area_wtd_anom = area_weighted_sst_anom) 
+
 
 # summarize by year again
-global_summary <- global_anoms %>% 
+global_summary <- global_anoms%>% 
   group_by(year) %>% 
   temperature_summaries() %>% 
   mutate(yr_as_dtime = as.Date(paste0(year, "-07-02")),
@@ -1121,6 +1125,83 @@ grid::grid.raster(lab_logo, x = 0.1, y = 0.05, just = c('left', 'bottom'), heigh
 
 
 
+```{r}
+#| label: New England 2021 Map C
+#| eval: false
+
+
+# Set time limits to get data
+annual_dates_21 <- as.Date(
+  c("2024-01-01", "2024-12-31"))
+
+# Make data window for the year
+data_window <- data.frame(
+  lon = c(-81, -54.5),
+  lat = c(33.5, 50),
+  time = annual_dates_21)
+
+# Load data, stack and tidy
+ne_anoms <- oisst_window_load(
+    data_window = data_window,
+    anomalies = T,
+    box_location = "cloudstorage", 
+    climate_ref = "1991-2020") %>%  
+  stack()
+
+# Process the yearly average
+ne_annual_anom <- mean(ne_anoms, na.rm = T)
+
+# Make it a stars class to plot with ggplot
+ne_anoms_st <- st_as_stars(ne_annual_anom)
+
+# Color limit for palettes
+temp_limits <- c(-3, 3)
+temp_breaks <- c(temp_limits[1], temp_limits[1]/2,  0, temp_limits[2]/2, temp_limits[2])
+temp_labels <- str_c(c(str_c("< ", temp_limits[1]), temp_limits[1]/2, 0, temp_limits[2]/2, str_c("> ", temp_limits[2])), "\u00b0C")
+
+#### 1. Map the Anomalies in Space
+annual_gom_map <- ggplot() +
+  geom_stars(data = ne_anoms_st) +
+  tidyterra::geom_spatraster_contour(
+    data = elev_terra,
+    breaks = seq(0,-200,-100),
+    alpha = 0.75) +
+  geom_sf(data = new_england, fill = "gray90", linewidth = .15) +
+  geom_sf(data = canada, fill = "gray90", linewidth = .15) +
+  geom_sf(data = region_extent,
+          color = "black",
+          linetype = 2, linewidth = 1,
+          fill = "transparent") +
+  scale_y_continuous(breaks = seq(30, 50, by = 2)) +
+  scale_fill_distiller(
+    palette  = "RdBu", 
+    na.value = "transparent", 
+    limit    = temp_limits, 
+    labels   = temp_labels, 
+    breaks = temp_breaks,
+    oob      = scales::oob_squish) +
+  coord_sf(xlim = c(-78, -56.5), ylim = c(37.8, 48)) +
+  labs(title = "2024: Average Temperature Anomalies",
+       caption = "Anomalies calculated using 1991-2020 climatology.\n100m & 200m contours overlaid to show bathymetric details.") +
+  map_theme(
+    legend.position = "bottom",
+    legend.title = element_text(angle = 0, face = "bold", family = "Avenir"))+
+  guides("fill" = guide_colorbar(
+    title = "Average Temperature Anomaly ",
+    title.position = "top",
+    title.hjust = 0.5,
+    barwidth = unit(3, "in"),
+    frame.colour = "black",
+    ticks.colour = "black")) 
+
+# Show figure
+annual_gom_map
+grid::grid.raster(lab_logo, x = 0.1, y = 0.05, just = c('left', 'bottom'), height = unit(1, "cm"))
+
+```
+
+
+
 ### Quarterly Average SST Maps
 
 Looking at these spatial patterns across the annual quarters of `r report_yr` (@fig-four-season-maps) shows not only the large spatial variability in SST conditions, but also the significant variation in those patterns over the course of the year. 
@@ -1277,7 +1358,11 @@ n_atl_inset_plot <- ggplot() +
 #| fig-cap: "Timeseries for each of the three years that hold record daily SSTs for the North Atlantic (2020 = light green, 2022 = blue, 2024 = orange), record setting SSTs shown in  bold. The 1991-2020 average daily SST (black) and 10th - 90th percentile range is shown in gray."
 
 # Load the timeseries for the spaghetti plot
-natl_ts <- read_csv(here("notebooks/nb_testing_data/north_atlantic_sst_1982to2024.csv"))
+# natl_ts <- read_csv(here("notebooks/nb_testing_data/north_atlantic_sst_1982to2025.csv"))
+
+# Changed path to put on box
+natl_ts_path <- str_c(oisst_path, "regional_timeseries/gmri_sst_focal_areas/OISSTv2_north_atlantic.csv")
+natl_ts <- read_csv(natl_ts_path)
 
 # Get the heatwave situation
 natl_ts <- pull_heatwave_events(
@@ -1287,21 +1372,20 @@ natl_ts <- pull_heatwave_events(
 
 # Clean up
 natl_ts <- natl_ts %>% 
-  mutate(yr = year(time),
-         is_23 = ifelse(yr == 2023, TRUE, FALSE),
-         yr_col   = ifelse(is_23, gmri_cols("lv orange"), "gray90"),
-         yr_lw    = ifelse(is_23, 1.5, 0.8),
-         yr_alpha = ifelse(is_23, 1, 0.5),
-         flat_date = as.Date("2000-01-01") + doy-1,
-         anom_f = as_fahrenheit(sst_anom, data_type = "anomalies"),
-         hw_thresh_f = as_fahrenheit(mhw_thresh-seas, data_type = "anomalies"),
-         cs_thresh_f = as_fahrenheit(mcs_thresh-seas, data_type = "anomalies"))
+  mutate(
+    yr = year(time),
+    is_23 = ifelse(yr == 2023, TRUE, FALSE),
+    yr_col   = ifelse(is_23, gmri_cols("lv orange"), "gray90"),
+    yr_lw    = ifelse(is_23, 1.5, 0.8),
+    yr_alpha = ifelse(is_23, 1, 0.5),
+    flat_date = as.Date("2000-01-01") + doy-1,
+    anom_f = as_fahrenheit(sst_anom, data_type = "anomalies"),
+    hw_thresh_f = as_fahrenheit(mhw_thresh-seas, data_type = "anomalies"),
+    cs_thresh_f = as_fahrenheit(mcs_thresh-seas, data_type = "anomalies"))
 
 
 
 #----- Plot how unusual this year was:
-
-
 
 # Flag when temperatures were records
 natl_hottest_days <- natl_ts %>% 
@@ -1322,6 +1406,7 @@ natl_record_yrs <- natl_ts %>%
 # Pull the most important single years
 natl_23 <- filter(natl_record_yrs, yr == 2023) 
 natl_24 <- filter(natl_record_yrs, yr == 2024)
+natl_25 <- filter(natl_ts, yr == 2025)
 
 
 
@@ -1343,6 +1428,8 @@ north_atl_plot <- natl_23 %>%
         linewidth = I(record_temp_lw),
         alpha = I(record_temp_alpha)),
     show.legend = F) +
+  # # 2025
+  # geom_line(data = natl_25, aes(flat_date, anom_f, color = "2025")) +
   # Try to fix how blocky ggplot lines are
   # geom_line(
   #   data = mutate(natl_record_yrs, anom_f = if_else(is_record, anom_f, NA)),
@@ -1563,15 +1650,14 @@ equator_e <- data.frame(
 #| label: global-sst-prep
 #| eval: true
 
-
 # 1. Load and format the anomalies for the year:
 global_anoms_stack <- stack(
-  str_c("/Users/akemberling/Library/CloudStorage/Box-Box/RES_Data/OISST/oisst_mainstays/", "yearly_averages/annual_sst_1982to2024.nc"), 
+  str_c(oisst_path, "yearly_averages/annual_sst_1982to2024.nc"), 
   varname = "sst_anom")
 
 # 2. Load the annual sst averages file:
 global_sst <- stack(
-  str_c("/Users/akemberling/Library/CloudStorage/Box-Box/RES_Data/OISST/oisst_mainstays/", "yearly_averages/annual_sst_1982to2024.nc"), 
+  str_c(oisst_path, "yearly_averages/annual_sst_1982to2024.nc"), 
   varname = "sst")
 
 
@@ -2296,8 +2382,6 @@ buoy_map <-
 # three levels: map, sst monthly, bt monthly, aligned x axis
 
 
-
-
 # Plot the Surface Temperature Anomalies on Monthly Scale
 monthly_sst_plot <- sst_monthly %>% 
   ggplot() +
@@ -2419,7 +2503,7 @@ glorys_bot_mhw %>%
   geom_textpath(
       aes(x = time, y = 0), 
       color = "gray10", 
-      label = "Climatological Avg. +/-\n10th-90th Percentile Range", 
+      label = "Climatological Avg.", 
       hjust = 0.85, lty = 1, family = "Avenir", vjust = 1.2, size = 4) +
   scale_color_manual(values = color_vals) +
   scale_y_continuous(
@@ -2764,7 +2848,8 @@ navy_gsi %>%
 
 ```{r}
 #| label: monthly gulf stream postions
-#| eval: false
+#| eval: true
+#| fig-height: 8
 
 nwall <- navy_gsi %>% 
   mutate(yr = year(date),
@@ -2852,8 +2937,6 @@ monthly_avg_lines %>%
   geom_sf(alpha = 0.8, linewidth = 0.8) +
   facet_grid(mnth~yr) +
   coord_sf(xlim = c(-78, -56.5), ylim = c(35.8, 48))
-
-
 
 ```
 

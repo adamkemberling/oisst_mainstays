@@ -10,7 +10,6 @@ This index page serves as a link directory to temperature reports. Use the follo
  
  1. [Gulf of Maine Seasonal Update (1991-2020 Climatology)](https://adamkemberling.github.io/oisst_mainstays/R/markdown_reports/GOM_Seasonal_Report.html)
  
- 
  2. [Gulf of Maine Current Year Sea Surface Temperature Update](https://adamkemberling.github.io/oisst_mainstays/R/markdown_reports/GOM_CurrentYear.html)
  
  3. [Gulf of Maine 2022: Annual Report](https://adamkemberling.github.io/oisst_mainstays/R/markdown_reports/GOM_Annual_Report.html)
@@ -23,7 +22,7 @@ This index page serves as a link directory to temperature reports. Use the follo
  
  7. [Impact of New Normal](https://adamkemberling.github.io/oisst_mainstays/R/markdown_reports/gom_dev/GOM_shifting_baselines.html)
 
- 8. [Warming Patterns in New England 2021](https://gulfofmaine.github.io/oisst_mainstays/R/markdown_reports/regional_sst/New_England_Warming.html)
+ 8. [Warming Patterns in New England Subregions During 2021](https://gulfofmaine.github.io/oisst_mainstays/R/markdown_reports/regional_sst/New_England_Warming.html)
  
  9. [Global Sea Surface Temperature Patterns](https://adamkemberling.github.io/oisst_mainstays/R/markdown_reports/global_sst/Global_sst_trends.html)
 
