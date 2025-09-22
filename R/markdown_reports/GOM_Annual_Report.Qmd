@@ -1130,73 +1130,73 @@ grid::grid.raster(lab_logo, x = 0.1, y = 0.05, just = c('left', 'bottom'), heigh
 #| eval: false
 
 
-# Set time limits to get data
-annual_dates_21 <- as.Date(
-  c("2024-01-01", "2024-12-31"))
-
-# Make data window for the year
-data_window <- data.frame(
-  lon = c(-81, -54.5),
-  lat = c(33.5, 50),
-  time = annual_dates_21)
-
-# Load data, stack and tidy
-ne_anoms <- oisst_window_load(
-    data_window = data_window,
-    anomalies = T,
-    box_location = "cloudstorage", 
-    climate_ref = "1991-2020") %>%  
-  stack()
-
-# Process the yearly average
-ne_annual_anom <- mean(ne_anoms, na.rm = T)
-
-# Make it a stars class to plot with ggplot
-ne_anoms_st <- st_as_stars(ne_annual_anom)
-
-# Color limit for palettes
-temp_limits <- c(-3, 3)
-temp_breaks <- c(temp_limits[1], temp_limits[1]/2,  0, temp_limits[2]/2, temp_limits[2])
-temp_labels <- str_c(c(str_c("< ", temp_limits[1]), temp_limits[1]/2, 0, temp_limits[2]/2, str_c("> ", temp_limits[2])), "\u00b0C")
-
-#### 1. Map the Anomalies in Space
-annual_gom_map <- ggplot() +
-  geom_stars(data = ne_anoms_st) +
-  tidyterra::geom_spatraster_contour(
-    data = elev_terra,
-    breaks = seq(0,-200,-100),
-    alpha = 0.75) +
-  geom_sf(data = new_england, fill = "gray90", linewidth = .15) +
-  geom_sf(data = canada, fill = "gray90", linewidth = .15) +
-  geom_sf(data = region_extent,
-          color = "black",
-          linetype = 2, linewidth = 1,
-          fill = "transparent") +
-  scale_y_continuous(breaks = seq(30, 50, by = 2)) +
-  scale_fill_distiller(
-    palette  = "RdBu", 
-    na.value = "transparent", 
-    limit    = temp_limits, 
-    labels   = temp_labels, 
-    breaks = temp_breaks,
-    oob      = scales::oob_squish) +
-  coord_sf(xlim = c(-78, -56.5), ylim = c(37.8, 48)) +
-  labs(title = "2024: Average Temperature Anomalies",
-       caption = "Anomalies calculated using 1991-2020 climatology.\n100m & 200m contours overlaid to show bathymetric details.") +
-  map_theme(
-    legend.position = "bottom",
-    legend.title = element_text(angle = 0, face = "bold", family = "Avenir"))+
-  guides("fill" = guide_colorbar(
-    title = "Average Temperature Anomaly ",
-    title.position = "top",
-    title.hjust = 0.5,
-    barwidth = unit(3, "in"),
-    frame.colour = "black",
-    ticks.colour = "black")) 
-
-# Show figure
-annual_gom_map
-grid::grid.raster(lab_logo, x = 0.1, y = 0.05, just = c('left', 'bottom'), height = unit(1, "cm"))
+# # Set time limits to get data
+# annual_dates_21 <- as.Date(
+#   c("2021-01-01", "2021-12-31"))
+# 
+# # Make data window for the year
+# data_window <- data.frame(
+#   lon = c(-81, -54.5),
+#   lat = c(33.5, 50),
+#   time = annual_dates_21)
+# 
+# # Load data, stack and tidy
+# ne_anoms <- oisst_window_load(
+#     data_window = data_window,
+#     anomalies = T,
+#     box_location = "cloudstorage",
+#     climate_ref = "1991-2020") %>%
+#   stack()
+# 
+# # Process the yearly average
+# ne_annual_anom <- mean(ne_anoms, na.rm = T)
+# 
+# # Make it a stars class to plot with ggplot
+# ne_anoms_st <- st_as_stars(ne_annual_anom)
+# 
+# # Color limit for palettes
+# temp_limits <- c(-3, 3)
+# temp_breaks <- c(temp_limits[1], temp_limits[1]/2,  0, temp_limits[2]/2, temp_limits[2])
+# temp_labels <- str_c(c(str_c("< ", temp_limits[1]), temp_limits[1]/2, 0, temp_limits[2]/2, str_c("> ", temp_limits[2])), "\u00b0C")
+# 
+# #### 1. Map the Anomalies in Space
+# annual_gom_map <- ggplot() +
+#   geom_stars(data = ne_anoms_st) +
+#   tidyterra::geom_spatraster_contour(
+#     data = elev_terra,
+#     breaks = seq(0,-200,-100),
+#     alpha = 0.75) +
+#   geom_sf(data = new_england, fill = "gray90", linewidth = .15) +
+#   geom_sf(data = canada, fill = "gray90", linewidth = .15) +
+#   # geom_sf(data = region_extent,
+#   #         color = "black",
+#   #         linetype = 2, linewidth = 1,
+#   #         fill = "transparent") +
+#   scale_y_continuous(breaks = seq(30, 50, by = 2)) +
+#   scale_fill_distiller(
+#     palette  = "RdBu",
+#     na.value = "transparent",
+#     limit    = temp_limits,
+#     labels   = temp_labels,
+#     breaks = temp_breaks,
+#     oob      = scales::oob_squish) +
+#   coord_sf(xlim = c(-78, -56.5), ylim = c(37.8, 48)) +
+#   labs(title = "2021: Average Temperature Anomalies",
+#        caption = "Anomalies calculated using 1991-2020 climatology.\n100m & 200m contours overlaid to show bathymetric details.") +
+#   map_theme(
+#     legend.position = "bottom",
+#     legend.title = element_text(angle = 0, face = "bold", family = "Avenir"))+
+#   guides("fill" = guide_colorbar(
+#     title = "Average Temperature Anomaly ",
+#     title.position = "top",
+#     title.hjust = 0.5,
+#     barwidth = unit(3, "in"),
+#     frame.colour = "black",
+#     ticks.colour = "black"))
+# 
+# # Show figure
+# annual_gom_map
+# grid::grid.raster(lab_logo, x = 0.1, y = 0.05, just = c('left', 'bottom'), height = unit(1, "cm"))
 
 ```
 

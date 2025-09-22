@@ -526,7 +526,10 @@ def load_oisst_climatology(box_root, reference_period = "1982-2011"):
   # Set climatology source choices
   climatologies = {"1982-2011" : "daily_clims_1982to2011.nc",
                    "1985-2014" : "daily_clims_1985to2014.nc",
-                   "1991-2020" : "daily_clims_1991to2020.nc"}
+                   "1991-2020" : "daily_clims_1991to2020.nc",
+                   "1982to2011" : "daily_clims_1982to2011.nc",
+                   "1985t02014" : "daily_clims_1985to2014.nc",
+                   "1991to2020" : "daily_clims_1991to2020.nc"}
 
   # Build file name
   clim_root = f"{box_root}RES_Data/OISST/oisst_mainstays/daily_climatologies/"
@@ -1239,7 +1242,13 @@ def update_global_anomalies(yr_min, yr_max, box_root, var_name = "sst", referenc
 # Update Global timeseries
 #
 #-----------------------------------------------------
-def update_global_timeseries(yr_min, yr_max, box_root, var_name = "sst", reference_period = "1991-2020", append_existing = True):
+def update_global_timeseries(
+  yr_min, 
+  yr_max, 
+  box_root, 
+  var_name = "sst", 
+  reference_period = "1991-2020", 
+  append_existing = True):
   """
     Update the timeseries for global temperatures/climate/anomalies and their area-weighted counterparts.
     
@@ -1272,7 +1281,8 @@ def update_global_timeseries(yr_min, yr_max, box_root, var_name = "sst", referen
     yr_min, 
     yr_max, 
     anomalies = True, 
-    do_parallel = True, reference_period=reference_period)
+    do_parallel = True, 
+    reference_period=reference_period)
 
   # Climatology
   oisst_clim = load_oisst_climatology(
@@ -1284,43 +1294,67 @@ def update_global_timeseries(yr_min, yr_max, box_root, var_name = "sst", referen
   mean_sst = oisst.mean(["lat", "lon"])
   weighted_sst = area_weighted_means(oisst, var_name = "sst", sd = False)
 
-  # Convert to dataframes
-  sst_df     = mean_sst.to_dataframe().reset_index()
-  sst_wt_df  = weighted_sst.to_dataframe().reset_index()
-
-
-  # Merge standard and area weighted values
-  sst_join = sst_df.merge(sst_wt_df, how = "left", on = ["time", "MOD"])
-  sst_join = sst_join.drop(columns = ['modified_ordinal_day'])
-  sst_join = sst_join[['time', 'MOD', 'sst', 'area_wtd_sst']]
-
-
-  # 2. Mean Climatology
+  # 2. Process the Mean Climatology
   mean_clim = oisst_clim.mean(["lat", "lon"])
   weighted_clim = area_weighted_means(oisst_clim, var_name = "sst", sd = False)
 
-  # Convert to dataframes
-  clim_df    = mean_clim.to_dataframe().reset_index()
-  clim_wt_df = weighted_clim.to_dataframe().reset_index()
-
-  # climatology
-  clim_join = clim_df.merge(clim_wt_df, on = "modified_ordinal_day")
-  clim_join = clim_join.rename(columns = {"sst" : "sst_clim", "area_wtd_sst" : "area_wtd_clim", "modified_ordinal_day" : "MOD"})
-
-  # Join sst and climatology
-  sst_and_clim = sst_join.merge(clim_join, how = "left", on = "MOD")
-
   # 3. Mean Anomalies
   mean_anomalies = daily_anoms.mean(['lat', 'lon']) 
-  weighted_means = area_weighted_means(daily_anoms, var_name = "sst", sd = False)
+  weighted_anoms = area_weighted_means(daily_anoms, var_name = "sst", sd = False)
 
-  # Convert to dataframes
-  anom_df    = mean_anomalies.to_dataframe().reset_index().drop(columns = ["modified_ordinal_day"])
-  anom_wt_df = weighted_means.to_dataframe().reset_index().drop(columns = ["modified_ordinal_day"])
 
-  # Join anomalies
-  anom_join = anom_df.merge(anom_wt_df, how = "left", on = ["time", "MOD"])
-  anom_join = anom_join.rename(columns = {"sst" : "sst_anom", f"area_wtd_sst" : "area_wtd_anom"})
+  # WORKING HERE, new Joins
+  # Convert sst to a dataframe from xr.array
+  sst_df = mean_sst.sst.to_dataframe().rename(columns = {"sst" : "unweighted_sst"})
+  sst_wtd = weighted_sst.area_wtd_sst.to_dataframe().rename(columns = {"area_wtd_sst": "area_weighted_sst"}).drop(columns = ["MOD"])
+  clim_df = mean_clim.to_dataframe().rename(columns = {"sst" : "unweighted_clim"})
+  clim_wtd_df = weighted_clim.to_dataframe().rename(columns = {"area_wtd_sst": "area_weighted_clim"})
+  anom_df = mean_anomalies.sst.to_dataframe().rename(columns = {"sst" : "unweighted_sst_anom"})
+  anoms_wtd = weighted_anoms.area_wtd_sst.to_dataframe().rename(columns = {"area_wtd_sst" : "area_weighted_sst_anom"})
+
+  # Drop columns we don't need from anomalies
+  anom_df = anom_df.drop(columns = ["MOD", "modified_ordinal_day"])
+  anoms_wtd  = anoms_wtd.drop(columns = ["MOD", "modified_ordinal_day"])
+
+  # Combine weighted and unweighted assets
+  combined_sst = sst_df.join(sst_wtd).reset_index()
+  combined_clim = clim_df.join(clim_wtd_df).reset_index().rename(columns = {"modified_ordinal_day" : "MOD"})
+  combined_anoms = anom_df.join(anoms_wtd,).reset_index()
+
+  # Combine SSTs and Climatology information
+  sst_and_clim = combined_sst.merge(combined_clim, how = "left", on = "MOD")
+  
+  # Join the anomalies with the sst and climatology
+  update_ts = sst_and_clim.merge(combined_anoms, how = "left", on = "time")
+
+
+  # OLD JOIN and Renaming
+  # # Convert arrays to dataframes
+  # # SST
+  # sst_df     = mean_sst.to_dataframe().reset_index()
+  # sst_wt_df  = weighted_sst.to_dataframe().reset_index()
+  # # Climatology
+  # clim_df    = mean_clim.to_dataframe().reset_index()
+  # clim_wt_df = weighted_clim.to_dataframe().reset_index()
+  # # Anomalies
+  # anom_df    = mean_anomalies.to_dataframe().reset_index().drop(columns = ["modified_ordinal_day"])
+  # anom_wt_df = weighted_means.to_dataframe().reset_index().drop(columns = ["modified_ordinal_day"])
+
+  # # Merge standard and area weighted sst values
+  # sst_join = sst_df.merge(sst_wt_df, how = "left", on = ["time", "MOD"])
+  # sst_join = sst_join.drop(columns = ['modified_ordinal_day'])
+  # sst_join = sst_join[['time', 'MOD', 'sst', 'area_wtd_sst']]
+
+  # # Join the climatology information
+  # clim_join = clim_df.merge(clim_wt_df, on = "modified_ordinal_day")
+  # clim_join = clim_join.rename(columns = {"sst" : "sst_clim", "area_wtd_sst" : "area_wtd_clim", "modified_ordinal_day" : "MOD"})
+
+  # # Join sst and climatology
+  # sst_and_clim = sst_join.merge(clim_join, how = "left", on = "MOD")
+
+  # # Join anomalies
+  # anom_join = anom_df.merge(anom_wt_df, how = "left", on = ["time", "MOD"])
+  # anom_join = anom_join.rename(columns = {"sst" : "sst_anom", f"area_wtd_sst" : "area_wtd_anom"})
 
   # Join to the SST and Climatology dataframe to consolidate the update
   update_ts = sst_and_clim.merge(anom_join, how = "left", on = ["time", "MOD"])
@@ -1329,6 +1363,7 @@ def update_global_timeseries(yr_min, yr_max, box_root, var_name = "sst", referen
   # 4. Append to Full Timeseries
   # Open what we have already on Box:
   if append_existing == True:
+    
     # old_sst = pd.read_csv(f"{box_root}Res_Data/OISST/oisst_mainstays/global_timeseries/global_anoms_1982to2011.csv")
     old_sst = pd.read_csv(f"{box_root}Res_Data/OISST/oisst_mainstays/global_timeseries/global_anoms_{ref_lab}.csv")
 
@@ -1340,8 +1375,7 @@ def update_global_timeseries(yr_min, yr_max, box_root, var_name = "sst", referen
     appended_ts = pd.concat([ old_sst, update_ts ])
 
     # Format time as datetime
-    # Sort
-    # Drop any actual duplicate dates
+    # Sort, Drop any actual duplicate dates
     # Remove Dates that Overlap Dates but Different Time Stamps b/c Data Sources
     appended_ts["time"] = appended_ts["time"].astype("datetime64[ns]")
     appended_ts = appended_ts.sort_values(by = "time")
@@ -1353,7 +1387,7 @@ def update_global_timeseries(yr_min, yr_max, box_root, var_name = "sst", referen
     # appended_ts.to_csv(f"{box_root}Res_Data/OISST/oisst_mainstays/global_timeseries/global_anoms_1982to2011.csv", index = False)
     appended_ts.to_csv(f"{box_root}Res_Data/OISST/oisst_mainstays/global_timeseries/global_anoms_{ref_lab}.csv", index = False)
   
-  
+  # Option to not append
   if append_existing == False:
     print("Saving Global Timeseries")
     update_ts.to_csv(f"{box_root}Res_Data/OISST/oisst_mainstays/global_timeseries/global_anoms_{ref_lab}.csv", index = False)
