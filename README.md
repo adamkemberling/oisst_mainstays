@@ -3,6 +3,10 @@ OISST Mainstays
 
 ### A Repository for OISSTv2 Sea Surface Temperature Reporting
 
+All report drafts are published using github pages and can be found
+here: [OISST Mainstays
+Reports](https://github.com/adamkemberling/oisst_mainstays/blob/master/index.md)
+
 #### About:
 
 This repository maintains the core workflows for accessing, processing,
@@ -15,10 +19,6 @@ two main SST processing routines housed here:
 
 2.  [The programmatic synthesis reports done R using
     Rmarkdown/Quarto](https://github.com/adamkemberling/oisst_mainstays/tree/master/R)
-
-All report drafts are published using github pages and can be found
-here: [OISST Mainstays
-Reports](https://github.com/adamkemberling/oisst_mainstays/blob/master/index.md)
 
 ## Repository Organization
 
