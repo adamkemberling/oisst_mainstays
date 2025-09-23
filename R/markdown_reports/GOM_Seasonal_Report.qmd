@@ -1016,7 +1016,8 @@ hw_temp_p <- hw_temp_p +
     geom_line(aes(x = time, y = {{cs_thresh_col}}), color = "gray40", lty = 1) +
     geom_text(
       data = clim_labels, 
-      aes(time, temp_vals, label = labs), family = "Avenir", hjust = 0) +
+      aes(time, temp_vals, label = labs), family = "Avenir", hjust = 0,
+      size = 3) +
     scale_color_manual(values = color_vals) +
     scale_x_date(
       date_labels = "%b",
@@ -1032,14 +1033,14 @@ if(nrow(hw_events) > 0){
     geom_bracket(
       data = hw_events,
       aes(xmin = llim, xmax = rlim, y.position = ymax + 2, label = str_c(len, " Days")),
-      family = "Avenir")
+      family = "Avenir", label.size = 3)
 }
 if(nrow(cs_events) > 0){
   hw_temp_p <- hw_temp_p +
     geom_bracket(
       data = cs_events, 
       aes(xmin = llim, xmax = rlim, y.position = ymax + 2, label = str_c(len, " Days")),
-      family = "Avenir")
+      family = "Avenir", label.size = 3)
 }
 
 
@@ -1202,6 +1203,7 @@ detrend_concept <- ggplot(detrend_annual) +
 
 ```{r}
 #| fig.height: 5
+#| label: concept comparison
 
 concept_p <- static_baseline_concept | detrend_concept
 
@@ -1210,21 +1212,20 @@ concept_p <- static_baseline_concept | detrend_concept
 ```
 
 
-
-
 ## Temperature Anomalies and Extreme Events
 
 Looking at the full record of daily SST anomalies in the Gulf of Maine (@fig-mhw-heatmap), the distinct thermal regime shift beginning around 2010 is evident. 
 
+If we use the standard MHW definition, where heatwaves and coldspells are determined using a static 30-year baseline we get one record of these extreme events. This has traditionally been the record we've reported on, and has a predictable pattern of more MHW events in recent years.
 
-If we use the standard MHW definition, where heatwaves and coldspells are determined using a static 30-year baseline we get the following record of these extreme events:
+If instead, we adopt an approach which removes the long-term warming trend we get a slightly different figure. After removal of the long-term linear trend a "cold period" emerges prior to the sudden warming in 2010, immediately followed by MHW events in 2010 & 2012.
+
+
 
 
 ```{r}
 #| eval: true
-#| fig.height: 8
-#| label: fig-static-baseline-heatmap
-#| fig-cap: "Heat map of daily SST anomalies from a 30-year 1991-2020 climatological baseline. Marine heatwave events (red lines) and marine coldspell events (blue lines) using the standard Hobday et al. method have been overlaid."
+#| label: plot both heatmaps
 
 # Does it look different with the season highlighted
 hw_dat <- grid_dat %>%
@@ -1296,18 +1297,7 @@ fixed_hw <- hw_dat %>%
       y = "Year",
       x = "Month",
       fill = "Sea Surface Temperature Anomaly")
-  
 
-fixed_hw
-```
-
-If instead, we adopt an approach which removes the long-term warming trend we get the following figure.
-
-
-```{r}
-#| fig.height: 8
-#| label: fig-shifting-baseline-heatmap
-#| fig-cap: "Heat map of daily SST anomalies from a 30-year 1991-2020 climatological baseline. Marine heatwave events (red lines) and marine coldspell events (blue lines) using a detrended timeseries have been overlaid."
 
 
 # Plot the detrended heatwaves
@@ -1363,12 +1353,34 @@ detrend_hw <- heatwaves_detrended %>%
       caption = "Heatwave (red) and Coldspell (blue) events have been overlayed with lines for distinction.",
       fill = "Sea Surface Temperature Anomaly")
 
-detrend_hw
+
 ```
 
-There is debate on the merits of either approach, and further discussion on whether regional dynamics (e.g. the North Atlantic Oscillation, ENSO, Gulf Stream Position) should be accounted for when identifying marine heatwaves.
 
-A comparison of the two above approaches shows that the methodology choices will ultimately impact the MHW/MCS record for the region.
+```{r}
+#| fig.height: 8
+#| label: fig-static-baseline-heatmap
+#| fig-cap: "Heat map of daily SST anomalies from a 30-year 1991-2020 climatological baseline. Marine heatwave events (red lines) and marine coldspell events (blue lines) using the standard Hobday et al. method have been overlaid."
+#| eval: false
+
+
+# fixed_hw + labs(subtitle = "")
+```
+
+
+
+```{r}
+#| fig.height: 8
+#| label: fig-shifting-baseline-heatmap
+#| eval: false
+#| fig-cap: "Heat map of daily SST anomalies from a 30-year 1991-2020 climatological baseline. Marine heatwave events (red lines) and marine coldspell events (blue lines) using a detrended timeseries have been overlaid."
+
+# detrend_hw
+
+
+```
+
+
 
 
 ```{r}
@@ -1382,7 +1394,10 @@ A comparison of the two above approaches shows that the methodology choices will
 heatmap_p <- (
   (fixed_hw) | 
     (detrend_hw + labs(title = "", caption = ""))) + 
-  plot_layout(guides = "collect") & theme(legend.position = "bottom") 
+  plot_layout(guides = "collect") & theme(
+    legend.position = "bottom", 
+    axis.text.y = element_text(size = 8),
+    axis.text.x = element_text(size = 8)) 
 
 # # Without guides
 heatmap_p
@@ -1395,6 +1410,16 @@ heatmap_p
 
 
 
+
+A comparison of the two above approaches shows that the methodology choices will ultimately impact the MHW/MCS record for the region. 
+
+Long-term linear trends can be thought of as a ramp, with a steady rise over time. The slope of the ramp is estimated using all the change over the full time period, and a single slope is returned. This slope is then removed from the whole timeseries.
+
+The sudden increase in SSTs which happened in 2010 and which persisted over the next ~13 years has a charactistic "stair-step" shape, not the steady sustained climb a linear trend would capture. When using the MHW approach which removes the linear-trend, the periods immediately before and after the stair-step are highlighted as extreme events. 
+
+There is ongoing debate on the merits of either approach, and discussions on whether regional dynamics (e.g. the North Atlantic Oscillation, ENSO, Gulf Stream Position) should be accounted for when identifying marine heatwaves.
+
+For now, I've presented both for comparison. Both approaches are valid approaches, but this side-by-side comparison should highlight how our senses of the occurrence and severity of extreme events is dependent on the approaches used.
 
 
 ## Spatial Distribution of Seasonal Anomalies
