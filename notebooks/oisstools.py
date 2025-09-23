@@ -1327,7 +1327,7 @@ def update_global_timeseries(
   # Join the anomalies with the sst and climatology
   update_ts = sst_and_clim.merge(combined_anoms, how = "left", on = "time")
 
-
+  ######
   # OLD JOIN and Renaming
   # # Convert arrays to dataframes
   # # SST
@@ -1356,8 +1356,10 @@ def update_global_timeseries(
   # anom_join = anom_df.merge(anom_wt_df, how = "left", on = ["time", "MOD"])
   # anom_join = anom_join.rename(columns = {"sst" : "sst_anom", f"area_wtd_sst" : "area_wtd_anom"})
 
-  # Join to the SST and Climatology dataframe to consolidate the update
-  update_ts = sst_and_clim.merge(anom_join, how = "left", on = ["time", "MOD"])
+  # # Join to the SST and Climatology dataframe to consolidate the update
+  # update_ts = sst_and_clim.merge(anom_join, how = "left", on = ["time", "MOD"])
+
+  ########
 
 
   # 4. Append to Full Timeseries
