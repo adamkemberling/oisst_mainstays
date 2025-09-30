@@ -21,8 +21,8 @@ params:
   year: 2025
   season: "Summer"
   seas: "summer"
-  save_data: FALSE
-  save_figures: FALSE
+  save_data: TRUE
+  save_figures: TRUE
 ---
 
 ```{r}
@@ -532,9 +532,9 @@ week_data <- this_season_data %>%
 week_summaries <- week_data %>%
   group_by(`Week`, week_position) %>%
   summarise(
-    temp_c = mean(sst),
-    clim_c = mean(seas),
-    anom_c = mean(sst_anom),
+    temp_c = mean(sst, na.rm = T),
+    clim_c = mean(seas, na.rm = T),
+    anom_c = mean(sst_anom, na.rm = T),
     .groups = "drop") %>% 
   mutate(`Week` = fct_reorder(`Week`, .x = week_position)) %>% 
   arrange(week_position)
@@ -545,11 +545,16 @@ week_summaries <- week_summaries %>%
   mutate(
     temp_f = as_fahrenheit(temp_c),
     clim_f = as_fahrenheit(clim_c),
-    anom_f = as_fahrenheit(anom_c, data_type = "anomalies")) %>% 
+    anom_f = temp_f - clim_f) %>% 
+    #anom_f = as_fahrenheit(anom_c, data_type = "anomalies")) %>% 
+  # Fiddling with digits
   mutate(
     across(
-      .cols = all_of(c("temp_c", "clim_c", "anom_c","temp_f", "clim_f", "anom_f")), 
-      .fns = \(x) sprintf(signif(x, 3), fmt = '%#.2f')))
+      .cols = c(temp_c, anom_c, temp_f, anom_f, clim_c, clim_f),
+      .fns = \(x) formatC(x, digits = 3, format = "f")))
+    # across(
+    #   .cols = all_of(c("temp_c", "clim_c", "anom_c","temp_f", "clim_f", "anom_f")),
+    #   .fns = \(x) sprintf(signif(x, 3), fmt = '%#.2f')))
 
 
 # in-text values
@@ -582,9 +587,16 @@ week_summ_table <- week_summaries %>%
     subtitle = month_range) %>%
     tab_stubhead(label = md("One-Week Period")) %>% 
   fmt_markdown(
-  columns = everything(),
-  rows = everything(),
-  md_engine = c("markdown", "commonmark")) %>% 
+    columns = everything(),
+    rows = everything(),
+    md_engine = c("markdown", "commonmark")) %>%
+  # # Can't use this with the columns in temp and celsius
+  # fmt_number(
+  #   columns = c(temp, clim, anom),
+  #   rows = everything(),
+  #   decimals = 2,
+  #   n_sigfig = 2,
+  #   drop_trailing_zeros = FALSE) %>% 
   # Change the column names to the units
     cols_label(
       temp = md("Observed Temperature"),
@@ -651,7 +663,9 @@ monthly_avgs <- monthly_avgs %>% left_join(
 #| tbl-cap: "Average monthly sea surface temperatures in the Gulf of Maine"
 
 # Create the Monthly Summary Table
-month_names <- data.frame("month" = month.abb, "month_full" = month.name)
+month_names <- data.frame(
+  "month" = month.abb, 
+  "month_full" = month.name)
 month_summ_table <- monthly_avgs %>% 
   left_join(month_names) %>% 
   mutate(across(c(temp_c:anom_f),\(x) sprintf(signif(x, 3), fmt = '%#.2f'))) %>% 
@@ -833,11 +847,14 @@ global_rate_plot <- ggplot(glob_plot_dat) +
 #| label: season-mhw-data
 
 # Pull this full year's data, up until end of the season
+year_plot_start <- if_else(
+  params$season == "Winter",
+  as.Date(str_c(params$year-1, "-01-01")) + season_start-1,
+  as.Date(str_c(params$year, "-01-01")))
+
+# Filter starting at that date
 year_hw_dat <- region_hw %>% 
-  filter(
-    if(params$season == "Winter") {
-      time >= as.Date(str_c(params$year-1, "-01-01")) + season_start-1}
-    else {time >= as.Date(str_c(params$year, "-01-01"))})
+  filter(time >= year_plot_start)
 
 # Get number of heatwave events and total heatwave days for this year
 num_hw_days <- sum(year_hw_dat$mhw_event, na.rm = T)
@@ -900,10 +917,6 @@ Using this broadly accepted definition, **the Gulf of Maine has experienced MHW 
 # Grab the data we're using
 temp_units <- "F"
 
-# Augment Data with cold spell limit and labels
-year_hw_dat <- mutate(
-  year_hw_dat)
-
   
 # Handling Temperature Units:
 temp_ops <- switch (
@@ -939,18 +952,6 @@ color_vals <- c(
   "SST" = "#0571B0", 
   "Marine Heatwave" = "darkred",
   "Marine Coldspell" = "#92C5DE")
-  
-
-  
-  
-# # Make new breaks so expanded area text doesn't ruin everything...
-# Set limits that work for winter
-if(params$season == "Winter"){
-  hw_plot_lims <- as.Date(
-    c(str_c(params$year-1, "-12-01"), 
-      str_c(params$year, "-04-30")))} else {
-  hw_plot_lims <- as.Date(str_c(params$year, c("-01-01", "-12-31")))
-}
 
 
 
@@ -966,15 +967,12 @@ clim_labels <- year_hw_dat %>%
   mutate(labs = case_when(
     str_detect(clim_thresh, "mhw") ~ "- 90th Percentile",
     str_detect(clim_thresh, "cs") ~ "- 10th Percentile",
-    str_detect(clim_thresh, "seas") ~ "- Climatological Average"
-  ))
-
-
+    str_detect(clim_thresh, "seas") ~ "- Climatological Average"))
 
 
 
 # Build the Base Plot
-hw_temp_p <- ggplot(year_hw_dat) +
+hw_temp_p <- ggplot(region_hw) +
     geom_path(
       aes(x = time, y = {{temp_col}}, 
           color = "SST", group = 1), 
@@ -996,9 +994,12 @@ hw_temp_p <- ggplot(year_hw_dat) +
     scale_y_continuous(
       labels =  number_format(suffix = temp_ops$temp_suff),
       expand = expansion(mult = c(0.05, .2))) +
-    theme(legend.position = "bottom") +
+    guides(color = guide_legend(nrow = 1)) +
+    theme(
+      legend.title.position = "top", legend.title = element_text(hjust = 0.5),
+      legend.position = "bottom") +
     labs(
-      title = str_c("Gulf of Maine SST and MHW Events"),
+      title = str_c("Gulf of Maine Marine Heatwave & Marine Coldspell Events"),
       x = NULL, 
       color = "Sea Surface Temperature & Heatwave Status:",
       fill = "Difference from Average SST",
@@ -1008,38 +1009,50 @@ hw_temp_p <- ggplot(year_hw_dat) +
 
 
 
-
 # Add the climatological reference lines
 hw_temp_p <- hw_temp_p +
-    geom_line(aes(x = time, y = {{hw_thresh_col}}), color = "gray40", lty = 1) + 
-    geom_line(aes(x = time, y = {{clim_col}}), color = "gray10", lty = 1) +
-    geom_line(aes(x = time, y = {{cs_thresh_col}}), color = "gray40", lty = 1) +
+    geom_line(
+      aes(x = time, y = {{hw_thresh_col}}), 
+      color = "gray40", lty = 1) + 
+    geom_line(
+      aes(x = time, y = {{clim_col}}), 
+      color = "gray10", lty = 1) +
+    geom_line(
+      aes(x = time, y = {{cs_thresh_col}}), 
+      color = "gray40", lty = 1) +
     geom_text(
       data = clim_labels, 
-      aes(time, temp_vals, label = labs), family = "Avenir", hjust = 0,
-      size = 3) +
+      aes(time, temp_vals, label = labs), 
+      family = "Avenir", hjust = 0, size = 3) +
     scale_color_manual(values = color_vals) +
+    # Zoom without dropping data
+    coord_cartesian(xlim = c(year_plot_start, max(year_hw_dat$time))) +
     scale_x_date(
       date_labels = "%b",
       date_breaks = "1 month",
-      # expand = expansion(add = c(0,110)))
-      expand = expansion(add = c(0,90)))
+      expand = expansion(add = c(0,110)))
 
 
 
+# Add brackets highlighting extreme events
 # This only works if there are heatwaves
 if(nrow(hw_events) > 0){
   hw_temp_p <- hw_temp_p +
     geom_bracket(
       data = hw_events,
-      aes(xmin = llim, xmax = rlim, y.position = ymax + 2, label = str_c(len, " Days")),
+      aes(
+        xmin = llim, xmax = rlim, 
+        y.position = ymax + 2, label = str_c(len, " Days")),
       family = "Avenir", label.size = 3)
 }
+
 if(nrow(cs_events) > 0){
   hw_temp_p <- hw_temp_p +
     geom_bracket(
       data = cs_events, 
-      aes(xmin = llim, xmax = rlim, y.position = ymax + 2, label = str_c(len, " Days")),
+      aes(
+        xmin = llim, xmax = rlim, 
+        y.position = ymax + 2, label = str_c(len, " Days")),
       family = "Avenir", label.size = 3)
 }
 
