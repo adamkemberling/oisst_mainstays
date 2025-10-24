@@ -72,15 +72,15 @@ greenland   <- ne_states(country = "greenland", returnclass = "sf")
 
 
 # File paths for various extents based on "apershing_gulf_of_maine"
-region_paths <- get_timeseries_paths(
+gom_paths <- get_timeseries_paths(
   region_group = "gmri_sst_focal_areas", 
   box_location = "cloudstorage")
 
 # Polygon Path
-poly_path <- region_paths[["apershing_gulf_of_maine"]][["shape_path"]]
+poly_path <- gom_paths[["apershing_gulf_of_maine"]][["shape_path"]]
 
 # Load the bounding box for Andy's GOM to show the area we're reporting on
-region_extent <- st_read(poly_path, quiet = TRUE)
+gom_extent <- st_read(poly_path, quiet = TRUE)
 
 # Load bathymetry for the bottom contours:
 # Bathymetric Contour Data
@@ -164,17 +164,17 @@ showtext::showtext_auto()
 #| label: regional-timeseries-prep
 
 
-# Get the timeseries path
-timeseries_path <- region_paths[["apershing_gulf_of_maine"]][["timeseries_path"]]
+# Get the timeseries path using gmRi inventory lookup
+timeseries_path <- gom_paths[["apershing_gulf_of_maine"]][["timeseries_path"]]
 
-# Load timeseries of SST for Region
-region_timeseries <- read_csv(
+# Load timeseries of SST for the Region
+gom_timeseries <- read_csv(
   timeseries_path, 
   col_types = cols(), 
   guess_max = 1e5) 
 
 # Format timeseries for seasonal group estimates
-region_timeseries <- region_timeseries %>% 
+gom_timeseries <- gom_timeseries %>% 
   mutate(
     time = as.Date(time),
     area_wtd_f = as_fahrenheit(area_wtd_sst),
@@ -184,12 +184,11 @@ region_timeseries <- region_timeseries %>%
   filter(year %in% c(1982:params$year))
 
 
-
 ####  Get heatwave statuses for each day:
 
 # Uses area weighted sst by default
-region_hw <- pull_heatwave_events(
-  temperature_timeseries = region_timeseries,
+gom_hw <- pull_heatwave_events(
+  temperature_timeseries = gom_timeseries,
   threshold = 90, 
   clim_ref_period = c("1991-01-01", "2020-12-31")) %>% 
   supplement_hw_data() %>% 
@@ -199,10 +198,9 @@ region_hw <- pull_heatwave_events(
   ) 
 
 
-# Heatmap prep
+# Heatmap plot preparation, day of year with the same year
 base_date <- as.Date("2000-01-01")
-grid_dat <- region_hw %>%
-# grid_dat <- sst_new %>%
+gom_hw <- gom_hw %>%
   mutate(
     year = year(time),
     yday = yday(time),
@@ -214,7 +212,7 @@ grid_dat <- region_hw %>%
 ####  Prepare Data for This Seasonal Summary
 
 # Subset data for the season were looking at
-this_season_data <- region_hw %>% 
+this_season_data <- gom_hw %>% 
   dplyr::filter(
     season_eng == params$season,
     # -1 Works for winter, otherwise works fine
@@ -241,14 +239,17 @@ this_season_data <-  this_season_data %>%
 # Export sst for Noa, Damian's intern
 
 # Just sending the sst for someone
-region_timeseries %>% #names()
+gom_simple <- gom_timeseries %>% #names()
   select(
     time, 
     sst_c = area_wtd_sst, 
     anom_c = area_wtd_anom,
     sst_f = area_wtd_f, 
-    anom_f = anom_f) %>%
-  # write_csv(here::here("local_data/random_requests/GMRI_OISSTv2_GulfOfMaineSST.csv"))
+    anom_f = anom_f) 
+
+# write_csv(gom_simple, here::here("local_data/random_requests/GMRI_OISSTv2_GulfOfMaineSST.csv"))
+# Check it out
+gom_simple %>%
   ggplot(aes(time, sst_f)) +
   #ggplot(aes(time, anom_f)) +
   geom_line()
@@ -264,7 +265,7 @@ region_timeseries %>% #names()
 ssn_year_start <- ifelse(params$season == "Winter", 1981, 1982)
 
 # Get the average temperature for all years as a baseline
-all_year_season_avg <- region_hw %>% 
+all_year_season_avg <- gom_hw %>% 
   filter(season_yr %in% c(ssn_year_start:params$year),
          season_eng == params$season) %>% 
   group_by(season_eng) %>% 
@@ -279,7 +280,7 @@ all_year_season_avg <- region_hw %>%
 
 
 # 2. Get Averages for each year individually, 
-seasonal_avgs <- region_hw %>% 
+seasonal_avgs <- gom_hw %>% 
   filter(
     season_eng == params$season, 
     season_yr %in% c(ssn_year_start:params$year)) %>% 
@@ -300,10 +301,10 @@ seasonal_avgs <- region_hw %>%
      season_center = as.Date(str_c(yr, season_cent)),
      season_llim   = as.Date(str_c(yr, season_left)),
      season_rlim   = as.Date(str_c(yr, season_right)),
-     temp_c_rnd    = sprintf(signif(mean_temp, 3), fmt = '%#.2f'),
-     temp_f_rnd    = sprintf(signif(temp_f, 3), fmt = '%#.2f'),
-     anom_c_rnd    = sprintf(signif(mean_anom, 3), fmt = '%#.2f'),
-     anom_f_rnd    = sprintf(signif(anom_f, 3), fmt = '%#.2f'),
+     temp_c_rnd    = sprintf(round(mean_temp, 2), fmt = '%#.2f'),
+     temp_f_rnd    = sprintf(round(temp_f, 2), fmt = '%#.2f'),
+     anom_c_rnd    = sprintf(round(mean_anom, 2), fmt = '%#.2f'),
+     anom_f_rnd    = sprintf(round(anom_f, 2), fmt = '%#.2f'),
      temp_label    = str_c(temp_f_rnd, " \u00b0F  |  ", temp_c_rnd, " \u00b0C"),
      anom_label    = str_c(anom_f_rnd, " \u00b0F  |  ", anom_c_rnd, " \u00b0C")
   )
@@ -439,9 +440,13 @@ glob_plot_dat <- bind_rows(
 #| label: season-highlights
 
 # Average Temp+Anom Stats for that season Used in Text
-season_avg_temp <- round(mean(this_season_data$sst_f, na.rm = T), 2)
-season_avg_anom <- round(mean(this_season_data$anom_f, na.rm = T), 2)
-season_avg_clim <- round(mean(this_season_data$seas_f, na.rm = T), 2)
+# round to 1 more decimals than display so the math looks right if combined
+season_avg_temp  <- round(mean(this_season_data$sst_f, na.rm = T), 3)
+season_avg_anom  <- round(mean(this_season_data$anom_f, na.rm = T), 3)
+season_avg_clim  <- round(mean(this_season_data$seas_f, na.rm = T), 3)
+season_avg_temp  <- sprintf(season_avg_temp, fmt = '%#.2f')
+season_avg_anom  <- sprintf(season_avg_anom, fmt = '%#.2f')
+season_avg_clim  <- sprintf(season_avg_clim, fmt = '%#.2f')
 
 
 # What rank are we this year?
@@ -477,7 +482,7 @@ cold_rank_label <- pretty_numbers[[cold_ranking]]
 max_anom_yr <- seasonal_avgs %>% 
   arrange(desc(mean_anom)) %>% 
   slice(1) %>% 
-  mutate(across(c(mean_temp:anom_f), \(x) sprintf(signif(x, 3), fmt = '%#.2f')))
+  mutate(across(c(mean_temp:anom_f), \(x) sprintf(round(x, 3), fmt = '%#.2f')))
 
 ```
 
@@ -551,7 +556,7 @@ week_summaries <- week_summaries %>%
   mutate(
     across(
       .cols = c(temp_c, anom_c, temp_f, anom_f, clim_c, clim_f),
-      .fns = \(x) formatC(x, digits = 3, format = "f")))
+      .fns = \(x) formatC(x, digits = 2, format = "f")))
     # across(
     #   .cols = all_of(c("temp_c", "clim_c", "anom_c","temp_f", "clim_f", "anom_f")),
     #   .fns = \(x) sprintf(signif(x, 3), fmt = '%#.2f')))
@@ -590,7 +595,7 @@ week_summ_table <- week_summaries %>%
     columns = everything(),
     rows = everything(),
     md_engine = c("markdown", "commonmark")) %>%
-  # # Can't use this with the columns in temp and celsius
+  # # Can't use this with the columns in temp and celsius b/c its a string
   # fmt_number(
   #   columns = c(temp, clim, anom),
   #   rows = everything(),
@@ -604,13 +609,13 @@ week_summ_table <- week_summaries %>%
       anom = md("Temperature Anomaly")) %>% 
     tab_source_note(md("*Data Source: NOAA OISSTv2 Daily Sea Surface Temperature Data.*") ) %>% 
     tab_source_note(md("*Climatological Reference Period: 1991-2020.*")) %>%    
-    opt_table_font(font = list(google_font(name = "Raleway")))
+    opt_table_font(font = list(google_font(name = "Raleway"))) # won't knit as Avenir
 
 # Show Table
 week_summ_table
   
 
-# How to spit out the raw html:
+# How to spit out the raw html, use with results: asis
 #week_summ_table %>% gt::as_raw_html()
 ```
 
@@ -631,10 +636,11 @@ monthly_avgs <- this_season_data %>%
     anom_f = as_fahrenheit(anom_c, data_type = "anomalies"),
     temp_list = list(sst_f), # list column for sparkline anomalies
     .groups = "drop") %>% 
-  mutate(across(c(temp_c:anom_f), \(x) signif(x, digits = 3))) 
+  mutate(
+    across(c(temp_c:anom_f), \(x) round(x, digits = 2))) 
 
 # Do some benchmarking, where do they all rank by anomalies
-month_rankings <- region_hw %>% 
+month_rankings <- gom_hw %>% 
   group_by(yr = year(time), month) %>% 
   summarise(mean_anom = mean(sst_anom), .groups = "drop") %>% 
   group_by(month) %>% 
@@ -668,7 +674,10 @@ month_names <- data.frame(
   "month_full" = month.name)
 month_summ_table <- monthly_avgs %>% 
   left_join(month_names) %>% 
-  mutate(across(c(temp_c:anom_f),\(x) sprintf(signif(x, 3), fmt = '%#.2f'))) %>% 
+  mutate(
+    across(
+      c(temp_c:anom_f),
+      \(x) sprintf(round(x, 2), fmt = '%#.2f'))) %>% 
   mutate(
     temp = md(str_c(temp_f, deg_f, " *(", temp_c, deg_c, ")*")),
     clim = str_c(clim_f, deg_f, " *(", clim_c, deg_c, ")*"),
@@ -709,15 +718,11 @@ month_summ_table
 #| fig.height: 6
 #| fig-cap: "A ranking of the 25 warmest seasons for the Gulf of Maine in the satellite record (1982-2025). "
 
-# usually this height
-# fig.height: 6
-
-# How far to filter:
+# How far to filter, multiples of 5:
 rank_filter_depth <- ifelse(
   hot_ranking <= 10,
   20,
-  DescTools::RoundTo(hot_ranking, multiple = 5, FUN = ceiling)
-)
+  DescTools::RoundTo(hot_ranking, multiple = 5, FUN = ceiling))
 
 # Do some data prep
 rank_plot_data <- ranked_hotcold %>% 
@@ -741,7 +746,7 @@ temp_rankings_p <- rank_plot_data %>%
   # Year labels - Out in whitespace
   geom_text(
     mapping = aes(
-      x = 4,
+      x = 4.1,
       y = rank,
       label = year_rank,
       color = I(flag_col)), 
@@ -752,7 +757,7 @@ temp_rankings_p <- rank_plot_data %>%
   # Temperature Labels - Outside Bars
   geom_text(
     mapping = aes(
-      x = 4.6, 
+      x = 4.7, 
       y = rank, 
       label = anom_label, 
       group = rank, 
@@ -853,7 +858,7 @@ year_plot_start <- if_else(
   as.Date(str_c(params$year, "-01-01")))
 
 # Filter starting at that date
-year_hw_dat <- region_hw %>% 
+year_hw_dat <- gom_hw %>% 
   filter(time >= year_plot_start)
 
 # Get number of heatwave events and total heatwave days for this year
@@ -972,7 +977,7 @@ clim_labels <- year_hw_dat %>%
 
 
 # Build the Base Plot
-hw_temp_p <- ggplot(region_hw) +
+hw_temp_p <- ggplot(gom_hw) +
     geom_path(
       aes(x = time, y = {{temp_col}}, 
           color = "SST", group = 1), 
@@ -1067,7 +1072,7 @@ hw_temp_p
 
 # # Checking how many mhw events have happened by this point in the year:
 # # 2025, 2019, 2017, 2014, 2011 are cold years
-# region_hw %>% filter(doy <= max(this_season_data$doy)) %>% 
+# gom_hw %>% filter(doy <= max(this_season_data$doy)) %>% 
 #   group_by(yr) %>% 
 #   summarise(n_hws = n_distinct(mhw_event_no, na.rm = T)) %>% 
 #   arrange(desc(yr))
@@ -1088,7 +1093,7 @@ There is a tradeoff in choosing between these two approaches (fixed baselines vs
 
 # De-trended heatwaves?
 heatwaves_detrended <- pull_heatwave_events(
-    temperature_timeseries = region_timeseries,
+    temperature_timeseries = gom_timeseries,
     threshold = 90, 
     clim_ref_period = c("1991-01-01", "2020-12-31"), detrend = T) %>% 
     supplement_hw_data() %>% 
@@ -1112,7 +1117,7 @@ heatwaves_detrended <- pull_heatwave_events(
 
 
 # Take annual average data, with baselines added
-static_annual <- region_hw %>% 
+static_annual <- gom_hw %>% 
   filter(between(yr, 1982,2024),
          doy != 366) %>% 
   group_by(yr) %>% 
@@ -1241,7 +1246,7 @@ If instead, we adopt an approach which removes the long-term warming trend we ge
 #| label: plot both heatmaps
 
 # Does it look different with the season highlighted
-hw_dat <- grid_dat %>%
+hw_dat <- gom_hw %>%
   mutate(
     season_alpha = if_else(
       between(flat_date, as.Date("2000-01-01"), as.Date("2000-02-28")) |
@@ -1447,8 +1452,8 @@ season_dates <- c(min(this_season_data$time), max(this_season_data$time))
 # Spatial Extent Info
 x_buffer <- c(-2.75, 3.5)
 y_buffer <- c(-2, 1)
-crop_x   <- st_bbox(region_extent)[c(1,3)] + x_buffer
-crop_y   <- st_bbox(region_extent)[c(2,4)] + y_buffer
+crop_x   <- st_bbox(gom_extent)[c(1,3)] + x_buffer
+crop_y   <- st_bbox(gom_extent)[c(2,4)] + y_buffer
 
 # Expanded area as bbox
 expanded_area <- structure(
@@ -1492,10 +1497,10 @@ max_daily  <- round(max(values(season_anoms_f), na.rm = T), 2)
 # Where was it seasonally the highest: Flag the exact location
 
 # If we wanted it to be in box we have to use this:
-season_mean_within <- crop(season_mean, region_extent)
+season_mean_within <- crop(season_mean, gom_extent)
 
 # Get the location
-idx <- which.max(crop(season_mean_within, region_extent))
+idx <- which.max(crop(season_mean_within, gom_extent))
 pos <- as.data.frame(xyFromCell(season_mean_within, idx))
 
 # Get the values
@@ -1557,7 +1562,7 @@ season_map <- ggplot() +
   geom_sf(data = new_england, fill = "gray90", linewidth = .25) +
   geom_sf(data = canada, fill = "gray90", linewidth = .25) +
   geom_sf(data = greenland, fill = "gray90", linewidth = .25) +
-  geom_sf(data = region_extent, 
+  geom_sf(data = gom_extent, 
           color = "black", 
           linetype = 2, 
           linewidth = 1,
@@ -1659,6 +1664,7 @@ month_plots <- imap(
       depth_contours = contours_make, 
       temp_lim = 6,
       convert_to_f = FALSE,
+      region_extent = gom_extent,
       elev_terra =  elev_terra)
   }
 ) 
@@ -1762,7 +1768,7 @@ For analyses like these, it is important to be clear about the spatial extent th
 
 # Map the Gulf of Maine with Bathymetry
 gom_extent_p <- map_study_area_color(
-  region_extent = region_extent,
+  region_extent = gom_extent,
   new_england_sf = new_england,
   canada_sf = canada,
   greenland_sf = greenland) +

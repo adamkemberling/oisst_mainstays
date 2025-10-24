@@ -1939,12 +1939,16 @@ anom_horizon_plot <- function(grid_data,
 #' @param temp_lim Value to use as maximum display limit for the color scale on SST
 #' @param depth_contours Values to display depth contours on map
 #' @param convert_to_f TRUE/FALSE whether to convert anomalies to Fahrenheit
+#' @param region_extent An sf object used to display regional extent with geom_sf()
+#' @param elev_terra Bathymetry spatraster data to use for contours with geom_spatraster_contour()
 #'
 #' @return
 #' @export
 #'
 #' @examples
-monthly_sst_map <- function(month_avg_layer, month_id, plot_yr, temp_lim = 8, depth_contours = 200, convert_to_f = TRUE, elev_terra){
+monthly_sst_map <- function(
+    month_avg_layer, month_id, plot_yr, temp_lim = 8, 
+    depth_contours = 200, convert_to_f = TRUE, region_extent = NULL, elev_terra){
   
   
   # Set up text label  
